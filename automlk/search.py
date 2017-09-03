@@ -10,11 +10,11 @@ from .graphs import graph_pred_histogram, graph_predict
 def worker_search(dataset_uid, search_mode='auto', max_iter=500):
     """
     launch the search of the best preprocessing + models
+
     :param dataset_uid: id of the dataset
     :param search_mode: options are : 'default' = default parameters, 'random' = random search, 'auto' = default, then random
     'ensemble' = ensemble models (requires a minimum of models to be searched in random/auto mode before)
     :param max_iter: maximum number of searches
-    :return: None
     """
     dataset = get_dataset(dataset_uid)
 
@@ -36,12 +36,13 @@ def worker_search(dataset_uid, search_mode='auto', max_iter=500):
                     max_iter=max_iter)
 
 
-def get_y_eval(uid):
-    # retrieves eval set
-    return pickle.load(open(get_dataset_folder(uid) + '/y_eval.pkl', 'rb'))
-
-
 def get_search_rounds(uid):
+    """
+    get all the results of the search with preprocessing and models
+
+    :param uid: id of the dataset
+    :return: results of the search as a dataframe
+    """
     # return search logs as a dataframe
     with open(get_dataset_folder(uid) + '/search.txt', 'r') as f:
         lines = f.readlines()
@@ -51,6 +52,17 @@ def get_search_rounds(uid):
         results.append(eval(line))
 
     return pd.DataFrame(results)
+
+
+def get_y_eval(uid):
+    """
+    retrieves the y value of the eval set
+
+    :param uid: id of the dataset
+    :return: y values
+    """
+    #
+    return pickle.load(open(get_dataset_folder(uid) + '/y_eval.pkl', 'rb'))
 
 
 def __create_train_test(dataset):

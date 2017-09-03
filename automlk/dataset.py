@@ -9,12 +9,33 @@ from .graphs import graph_correl_features, graph_histogram
 
 class DataSet(object):
     """
-    class to describe a dataset
+    a dataset is an object managing all the features and data of an experiment
     """
 
     def __init__(self, name, description, problem_type, y_col, is_uploaded, source, filename_train, metric,
                  other_metrics=[], val_col='index', cv_folds=5, val_col_shuffle=True,
                  holdout_ratio=0.2, filename_test='', filename_cols='', is_public=False, url=''):
+        """
+        creates a new dataset: it will be automatically stored
+
+        :param name: name of the dataset
+        :param description: description of the dataset
+        :param problem_type: 'regression' or 'classification'
+        :param y_col: name of the target column
+        :param is_uploaded: not used
+        :param source: source of the dataset
+        :param filename_train: file path of the training set
+        :param metric: metric to be used to select the best models ('mse', 'rmse', 'log_loss', ...)
+        :param other_metrics: list of secondary metrics
+        :param val_col: column name to perform the cross validation (default = 'index')
+        :param cv_folds: number of cross validation folds (default = 5)
+        :param val_col_shuffle: need to shuffle in cross validation (default = false)
+        :param holdout_ratio: holdout ration to split train / eval set
+        :param filename_test: name of the test set
+        :param filename_cols: (not implemented)
+        :param is_public: is the dataset in the public domain (true / false)
+        :param url: url of the dataset
+        """
 
         # TODO: add feature details from file or dataframe
 
@@ -98,6 +119,16 @@ class DataSet(object):
         if filename_test != '':
             self.__create_graphs(df_test, 'test')
 
+    def get_data(self, part='train'):
+        """
+        returns the imported data of the dataset as a dataframe (when the dataset is created)
+
+        :param part:part of the dataset (train / test)
+        :return: data as a dataframe
+        """
+        return pd.read_pickle(self.__folder() + '/data/%s.pkl' % part)
+
+
     def __folder(self):
         # storage folder of the dataset
         return get_dataset_folder(self.uid)
@@ -121,10 +152,6 @@ class DataSet(object):
         elif ext in ['xls', 'xlsx']:
             df = pd.read_excel(filename)
         return df
-
-    def get_data(self, part='train'):
-        # returns the imported data of the dataset as a dataframe (after __import_data)
-        return pd.read_pickle(self.__folder() + '/data/%s.pkl' % part)
 
     def __initialize_features(self, df):
         # creates the columns for a dataset from the data as a dataframe
@@ -259,6 +286,7 @@ class Feature(object):
 def get_dataset_list():
     """
     get the list of all datasets
+
     :return: list of datasets objects
     """
     # returns the list of datasets ids
@@ -272,6 +300,7 @@ def get_dataset_list():
 def get_dataset(dataset_uid):
     """
     get the descriptive data of a dataset
+
     :param dataset_uid: id of the dataset
     :return: dataset object
     """

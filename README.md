@@ -12,11 +12,14 @@ The framework is designed with similar principles than auto-sklearn, with the fo
 
 We have provided some public datasets to initialize the framework and compare results with best scores.
 
+Find the documentation [here](http://automlk.readthedocs.io/en/latest/)
+
 Usage:
 -----
 - create a dataset
 - launch the search in auto mode: this will search the best pre-processing steps, machine learning models and ensembles
 - view the results through with the web interface
+
 
 References:
 ----------
