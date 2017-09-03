@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<h3><a href="/">Home</a> > <a href="/dataset/{{dataset.uid}}#models">{{dataset.name}} - Best models</a> > {{ model }}</h3>
+
+<div class="table-responsive">
+<table class="table table-bordered">
+    <thead>
+    <th style="vertical-align:top; text-align:center">eval</th>
+    <th style="vertical-align:top; text-align:center">test</th>
+    <th style="vertical-align:top; text-align:center">cv</th>
+    <th style="vertical-align:top; text-align:center">duration</th>
+    {% for col in cols %}
+    <th style="vertical-align:top; text-align:center">{{ col }}</th>
+    {% endfor %}
+    </thead>
+    {% for r in best %}
+    <tr>
+        <td style="text-align:center"><a href="/round/{{dataset.uid}};{{r.uuid}}" style="color:inherit; text-decoration: none;">{{print_score(r.score_eval)}}</a>
+            <div class="progress" style="height:5px">
+                <div class="progress-bar progress-bar-success" role="progressbar" style="width:{{ r.rel_score }}%">
+                </div>
+            </div>
+        </td>
+        <td style="text-align:center">
+            <a href="/round/{{dataset.uid}};{{r.uuid}}" style="color:inherit; text-decoration: none;">{{print_score(r.score_test)}}</a>
+        </td>
+        <td style="text-align:center">
+            <a href="/round/{{dataset.uid}};{{r.uuid}}" style="color:inherit; text-decoration: none;">{{print_score(r.cv_mean)}} +/-{{print_score(r.cv_std)}}</a>
+        </td>
+        <td style="text-align:center">
+            <a href="/round/{{dataset.uid}};{{r.uuid}}" style="color:inherit; text-decoration: none;">{{print_duration(r.duration)}}</a>
+        </td>
+        {% for col in cols %}
+        <td style="text-align:center">
+            <a href="/round/{{dataset.uid}};{{r.uuid}}" style="color:inherit; text-decoration: none;">{{r[col]}}</a>
+        </td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
+</table>
+</div>
+{% endblock %}
+

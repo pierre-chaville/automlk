@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block content %}
+<h3><a href="/">Home</a> > <a href="/dataset/{{dataset.uid}}#models">{{dataset.name}}</a> > <a
+        href="/details/{{dataset.uid}};{{round.model}}">{{ round.model }}</a> > <span
+        style="font-size:20px">{{ round.uuid }}</span></h3>
+<h5>{{ round.uiid }}</h5>
+
+<ul class="nav nav-tabs">
+    <li class="active"><a data-toggle="tab" href="#data">Parameters</a></li>
+    <li><a data-toggle="tab" href="#process">Pre-processing</a></li>
+    <li><a data-toggle="tab" href="#features">Features</a></li>
+    <li><a data-toggle="tab" href="#pred_graph">Prediction Graph</a></li>
+    <li><a data-toggle="tab" href="#hist_graph">Histogram</a></li>
+</ul>
+
+<div class="tab-content">
+    <div id="data" class="tab-pane active">
+        <table class="table table-bordered">
+            <th>round data</th>
+            <th>parameters</th>
+            <tr>
+                <td width="50%">
+                    <table class="table table-bordered table-striped table-hover">
+                        <tr>
+                            <td>score eval</td>
+                            <td>{{ round.score_eval }}</td>
+                        </tr>
+                        <tr>
+                            <td>score test</td>
+                            <td>{{ round.score_test }}</td>
+                        </tr>
+                        <tr>
+                            <td>cv</td>
+                            <td>{{ round.cv_mean }} +/- {{ round.cv_std }}</td>
+                        </tr>
+                        <tr>
+                            <td>model</td>
+                            <td>{{ round.model }}</td>
+                        </tr>
+                        <tr>
+                            <td>time</td>
+                            <td>{{ round.time }}</td>
+                        </tr>
+                        <tr>
+                            <td>pre-processing duration</td>
+                            <td>{{ print_duration(round.duration_process ) }}</td>
+                        </tr>
+                        <tr>
+                            <td>modeling duration</td>
+                            <td>{{ print_duration(round.duration) }}</td>
+                        </tr>
+                        <tr>
+                            <td>rounds</td>
+                            <td>{{ round.rounds }}</td>
+                        </tr>
+                        <tr>
+                            <td>host</td>
+                            <td>{{ round.host }}</td>
+                        </tr>
+                        <tr>
+                            <td>uuid</td>
+                            <td>{{ round.uuid }}</td>
+                        </tr>
+                        <tr>
+                            <td>model level</td>
+                            <td>{{ round.model_level }}</td>
+                        </tr>
+                        <tr>
+                            <td>pre-processing</td>
+                            <td>{{ round.process }}</td>
+                        </tr>
+                        <tr>
+                            <td>params</td>
+                            <td>{{ round.params }}</td>
+                        </tr>
+                    </table>
+                </td>
+                <td width="50%">
+                    <table class="table table-bordered table-striped table-hover">
+                        {% for col in cols %}
+                        <tr>
+                            <td>{{ col }}</td>
+                            <td>{{params[col]}}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <!-- process steps !-->
+    <div id="process" class="tab-pane">
+        {% for step in steps %}
+        <h4><i class="fa fa-th" aria-hidden="true"></i> {{ step[0] }}</h4>
+        <table class="table table-bordered">
+            {% for p in step[1] %}
+            <tr>
+                <td width="30%">{{ p[0] }}</td>
+                <td>{{ p[1] }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endfor %}
+    </div>
+    <!-- feature importance with progress bars !-->
+    <div id="features" class="tab-pane">
+        <table class="table table-bordered">
+            <thead>
+            <th>feature</th>
+            <th>importance</th>
+            <th></th>
+            </thead>
+            {% for f in features %}
+            <tr>
+                <td width="20%">{{ f["feature"] }}</td>
+                <td width="20%">{{ f["pct_importance"] }}</td>
+                <td width="60%" style="vertical-align:bottom">
+                    <div class="progress" style="height:10px">
+                        <div class="progress-bar progress-bar-success" role="progressbar"
+                             style="width:{{ f.rel_importance }}%">
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    <!-- prediction graph !-->
+    <div id="pred_graph" class="tab-pane">
+        <img src="/get_img_round/{{dataset.uid}};{{round.uuid}};predict_eval?{{refresher}}"></img>
+        <img src="/get_img_round/{{dataset.uid}};{{round.uuid}};predict_test?{{refresher}}"></img>
+    </div>
+    <!-- prediction graphs !-->
+    <div id="hist_graph" class="tab-pane">
+        <br>
+        <table>
+            <tr>
+                <td>
+                    <img src="/get_img_round/{{dataset.uid}};{{round.uuid}};hist_eval?{{refresher}}"></img>
+                </td>
+                <td>
+                    <img src="/get_img_round/{{dataset.uid}};{{round.uuid}};hist_test?{{refresher}}"></img>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

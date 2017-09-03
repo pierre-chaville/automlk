@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block content %}
+<h3><a href="/">Home</a> > {{dataset.name}}</h3>
+
+<ul class="nav nav-tabs">
+    {% if n_searches0 > 0 %}
+    <li class="active"><a data-toggle="tab" href="#models">Models</a></li>
+    {% if best1|count > 0 %}
+    <li><a data-toggle="tab" href="#ensembles">Ensembles</a></li>
+    {% endif %}
+    <li><a data-toggle="tab" href="#graph0">Search</a></li>
+    <li><a data-toggle="tab" href="#dataset">Dataset</a></li>
+    <li><a data-toggle="tab" href="#stats">Stats</a></li>
+    <li><a data-toggle="tab" href="#features">Features</a></li>
+    <li><a data-toggle="tab" href="#data">Data</a></li>
+    <li><a data-toggle="tab" href="#correl">Correlations</a></li>
+    {% else %}
+    <li class="active"><a data-toggle="tab" href="#dataset">Dataset</a></li>
+    <li><a data-toggle="tab" href="#stats">Stats</a></li>
+    <li><a data-toggle="tab" href="#features">Features</a></li>
+    <li><a data-toggle="tab" href="#data">Data</a></li>
+    <li><a data-toggle="tab" href="#correl">Correlations</a></li>
+    {% endif %}
+</ul>
+
+<div class="tab-content">
+    {% if n_searches0 > 0 %}
+    <div id="models" class="tab-pane active">
+        {% set best = best0 %}
+        {% set n_searches = n_searches0 %}
+        {% include 'models.html' %}
+    </div>
+    <div id="graph0" class="tab-pane">
+        <table>
+            <tr>
+                <td>
+                    <img src="/get_img_dataset/{{dataset.uid}};history_0?{{refresher}}"></img>
+                </td>
+                <td>
+                    <img src="/get_img_dataset/{{dataset.uid}};models_0?{{refresher}}"></img>
+                </td>
+            </tr>
+    {% if best1|count > 0 %}
+            <tr>
+                <td>
+                    <img src="/get_img_dataset/{{dataset.uid}};history_1?{{refresher}}"></img>
+                </td>
+                <td>
+                    <img src="/get_img_dataset/{{dataset.uid}};models_1?{{refresher}}"></img>
+                </td>
+            </tr>
+    {% endif %}
+        </table>
+    </div>
+    {% if best1|count > 0 %}
+    <div id="ensembles" class="tab-pane">
+        {% set best = best1 %}
+        {% set n_searches = n_searches1 %}
+        {% include 'models.html' %}
+    </div>
+    {% endif %}
+    {% endif %}
+    <div id="dataset" class="tab-pane {% if n_searches0 == 0 %}active{% endif %}">
+        <table class="table">
+            <tr>
+                <td width="50%">
+                    <table class="table">
+                        <tr>
+                            <td>Name</td>
+                            <td>{{dataset.name}}</td>
+                        </tr>
+                        <tr>
+                            <td>Id</td>
+                            <td>{{dataset.uid}}</td>
+                        </tr>
+                        <tr>
+                            <td>Description</td>
+                            <td width="80%">{{dataset.description}}</td>
+                        </tr>
+                        <tr>
+                            <td>Public</td>
+                            <td>{{dataset.is_public}}</td>
+                        </tr>
+                        <tr>
+                            <td>With test Set</td>
+                            <td>{{dataset.is_test_set}}</td>
+                        </tr>
+                        <tr>
+                            <td>Url</td>
+                            <td><a target="_blank" href="{{dataset.url}}">{{dataset.url}}</a></td>
+                        </tr>
+                        <tr>
+                            <td>Train set</td>
+                            <td>{{dataset.filename_train}}</td>
+                        </tr>
+                        {% if dataset.filename_test != '' %}
+                        <tr>
+                            <td>Test set</td>
+                            <td>{{dataset.filename_test}}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </td>
+                <td width="50%">
+                    <table class="table">
+                        <tr>
+                            <td>Problem</td>
+                            <td>{{dataset.problem_type}}</td>
+                        </tr>
+                        <tr>
+                            <td>Target column</td>
+                            <td>{{dataset.y_col}}</td>
+                        </tr>
+                        {% if dataset.problem_type == 'classification' %}
+                        <tr>
+                            <td>Number classes</td>
+                            <td>{{dataset.y_n_classes}}</td>
+                        </tr>
+                        <tr>
+                            <td>Classes</td>
+                            <td>{{ print_list(dataset.y_class_names[:10]) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Is categorical</td>
+                            <td>{{dataset.is_y_categorical}}</td>
+                        </tr>
+                        {% endif %}
+
+                        <tr>
+                            <td>Validation column</td>
+                            <td>{{dataset.val_col}}</td>
+                        </tr>
+                        <tr>
+                            <td>Shuffle val col</td>
+                            <td>{{dataset.val_col_shuffle}}</td>
+                        </tr>
+                        <tr>
+                            <td>Metric</td>
+                            <td>{{dataset.metric}}</td>
+                        </tr>
+                        {% if dataset.other_metrics|count > 0 %}
+                        <tr>
+                            <td>other metrics</td>
+                            <td>{{ print_list(dataset.other_metrics) }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <td>Number of CV folds</td>
+                            <td>{{dataset.cv_folds}}</td>
+                        </tr>
+                        <tr>
+                            <td>Holdout ratio</td>
+                            <td>
+                                {% if dataset.with_test_set %}
+                                Use test set
+                                {% else %}
+                                {{dataset.holdout_ratio * 100}} %
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>X columns</td>
+                            <td width="70%">{{ print_list(dataset.x_cols) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Categorical columns</td>
+                            <td width="70%">{{ print_list(dataset.cat_cols) }}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div id="stats" class="tab-pane">
+        <table class="table">
+            <tr>
+                <td width="50%">
+                    <table class="table">
+                        <tr>
+                            <td>Size</td>
+                            <td>{{dataset.size}} MB</td>
+                        </tr>
+                        <tr>
+                            <td>Number of records</td>
+                            <td>{{dataset.n_rows}} K</td>
+                        </tr>
+                        <tr>
+                            <td>Number of features</td>
+                            <td>{{dataset.n_cols}}</td>
+                        </tr>
+                        <tr>
+                            <td>Number of categorical features</td>
+                            <td>{{dataset.n_cat_cols}}</td>
+                        </tr>
+                        <tr>
+                            <td>Number of features with missing values</td>
+                            <td>{{dataset.n_missing}}</td>
+                        </tr>
+                    </table>
+                </td>
+                <td width="50%">
+                    <table class="table">
+                        <tr>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div id="features" class="tab-pane">
+        <table class="table table-bordered table-hover">
+            <thead>
+            <th>name</th>
+            <th>description</th>
+            <th>keep</th>
+            <th>raw_type</th>
+            <th>type</th>
+            <th>missing</th>
+            <th>unique</th>
+            <th>values</th>
+            </thead>
+            {% for col in dataset.features %}
+            <tr>
+                <td>{{col.name}}</td>
+                <td>{{col.description}}</td>
+                <td>{{col.to_keep}}</td>
+                <td>{{col.raw_type}}</td>
+                <td>{{col.col_type}}</td>
+                <td>{{col.n_missing}}</td>
+                <td>{{col.n_unique_values}}</td>
+                <td>{{col.print_values}}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    <div id="data" class="tab-pane">
+        <img src="/get_img_dataset/{{dataset.uid}};hist_train_{{dataset.y_col}}?{{refresher}}"></img>
+    </div>
+    <div id="correl" class="tab-pane">
+        <img src="/get_img_dataset/{{dataset.uid}};correl?{{refresher}}"></img>
+    </div>
+</div>
+
+{% if n_searches0 >= 0 %}
+<script>
+    setInterval(function() {
+      window.location.reload();
+    }, 300000);
+
+</script>
+{% endif %}
+
+{% endblock %}
+
