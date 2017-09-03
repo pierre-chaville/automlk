@@ -139,3 +139,24 @@ Where we can view the performance and the predictions:
    :alt: histogram of the predictions
 
    and the histogram of the predictions
+
+
+Ensembles
+---------
+
+After launching the search in 'ensemble' mode, another tab 'Ensembles' is available at dataset level.
+We can view the performance of the various ensemble models, and the models used as a 1st level:
+
+.. figure:: img/ensembles.png
+   :scale: 70 %
+   :alt: ensembles models
+
+   performance of the ensemble models
+
+
+.. figure:: img/ensemble_importance.png
+   :scale: 70 %
+   :alt: feature importance for an ensemble model
+
+   feature importance for an ensemble model
+
