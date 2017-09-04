@@ -7,6 +7,7 @@ from .context import HyperContext
 from .dataset import get_dataset
 from .graphs import graph_pred_histogram, graph_predict
 
+
 def worker_search(dataset_uid, search_mode='auto', max_iter=500):
     """
     launch the search of the best preprocessing + models
@@ -141,9 +142,6 @@ def __launch_search(dataset, X_train_ini, y_train_ini, X_test_ini, y_test_ini, y
                 else:
                     y_pred_eval_list, y_pred_test_list = model.cv(X_train, y_train, X_test, y_test, cv_folds)
 
-                # print('eval list:', np.shape(y_pred_eval_list))
-                # print('test list', np.shape(y_pred_test_list))
-
                 # y_pred_eval as concat of folds
                 y_pred_eval = np.concatenate(y_pred_eval_list)
 
@@ -153,11 +151,6 @@ def __launch_search(dataset, X_train_ini, y_train_ini, X_test_ini, y_test_ini, y
                 # mean of y_pred_test on multiple folds
                 y_pred_test = np.mean(y_pred_test_list, axis=0)
 
-                """
-                print('y eval:', np.shape(y_eval), y_eval[:10])
-                print('y pred eval:', np.shape(y_pred_eval), np.shape(y_pred_eval), y_pred_eval[:10])
-                print('y pred test', np.shape(y_pred_test), y_pred_test[:10])
-                """
                 # save model importance, prediction and model
                 model.save_importance()
                 model.save_predict(y_pred_eval, y_pred_test)
@@ -181,7 +174,7 @@ def __launch_search(dataset, X_train_ini, y_train_ini, X_test_ini, y_test_ini, y
             __store_search_error(dataset, t, e, model)
         except Exception as e:
             error = True
-            __store_search_error(dataset, t, e, model)
+            print(e)
 
         if not error:
             # score on full eval set, test set and cv
@@ -207,8 +200,6 @@ def __launch_search(dataset, X_train_ini, y_train_ini, X_test_ini, y_test_ini, y
                 '%s duration:%ds, eval:%.5f, test:%.5f, cv:%.5f +/- %.5f, other metrics: eval=%s test=%s, rounds: %d, id: %s \n' % (
                     t, duration, score_eval, score_test, cv_mean, cv_std, eval_other_metrics,
                     test_other_metrics, model.num_rounds, model.uuid))
-
-            # input('type enter to continue')
 
             del model
             gc.collect()
@@ -274,7 +265,8 @@ def __get_model_class_list(dataset):
                HyperModelKnn]
 
     if dataset.problem_type == 'regression':
-        return choices + [HyperModelLinearRegressor, HyperModelLinearSVR]
+        return choices + [HyperModelLinearRegressor, HyperModelLinearSVR, HyperModelLassoRegressor,
+                          HyperModelRidgeRegressor, HyperModelHuberRegressor]
     else:  # classification
         return choices + [HyperModelLogisticRegression]
 

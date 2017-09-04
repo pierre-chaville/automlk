@@ -195,6 +195,57 @@ class HyperModelLinearRegressor(HyperModel):
         self.model = linear.LinearRegression(**self.params)
 
 
+class HyperModelLassoRegressor(HyperModel):
+    # class for model Lasso Linear regression
+
+    def __init__(self, dataset, context):
+        super().__init__(dataset, context)
+        self.model_name = 'Lasso Regression'
+
+    def set_default_params(self):
+        self.params = default_lasso_regression
+
+    def set_random_params(self):
+        self.params = get_random_params(space_lasso_regression)
+
+    def set_model(self):
+        self.model = linear.Lasso(**self.params)
+
+
+class HyperModelRidgeRegressor(HyperModel):
+    # class for model Ridge Linear regression
+
+    def __init__(self, dataset, context):
+        super().__init__(dataset, context)
+        self.model_name = 'Ridge Regression'
+
+    def set_default_params(self):
+        self.params = default_ridge_regression
+
+    def set_random_params(self):
+        self.params = get_random_params(space_ridge_regression)
+
+    def set_model(self):
+        self.model = linear.Ridge(**self.params)
+
+
+class HyperModelHuberRegressor(HyperModel):
+    # class for model Huber Linear regression
+
+    def __init__(self, dataset, context):
+        super().__init__(dataset, context)
+        self.model_name = 'Huber Regression'
+
+    def set_default_params(self):
+        self.params = default_huber_regression
+
+    def set_random_params(self):
+        self.params = get_random_params(space_huber_regression)
+
+    def set_model(self):
+        self.model = linear.HuberRegressor(**self.params)
+
+
 class HyperModelLinearSVC(HyperModel):
     # class for model SVM classification
 

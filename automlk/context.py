@@ -1,3 +1,5 @@
+#coding: utf-8
+
 import os, platform
 from pathlib import Path
 
@@ -20,24 +22,29 @@ def get_data_folder():
     # detect OS
     home = str(Path.home())
     if platform.system() == 'Linux':
-        data_dir = home + '/.automlk'
+        setup_dir = home + '/.automlk'
     else:
-        data_dir = home + '/automlk'
+        setup_dir = home.replace('\\', '/') + '/automlk'
 
-    if not os.path.exists(data_dir + '/automlk.json'):
-        print('creating root folder and configuration file')
+    if not os.path.exists(setup_dir + '/automlk.json'):
+        print('creating setup folder and configuration file')
 
-        # create default folder
-        os.makedirs(data_dir)
+        # create setup folder
+        os.makedirs(setup_dir)
 
         # create default configuration file
-        with open(data_dir + '/automlk.json', 'w') as f:
+        with open(setup_dir + '/automlk.json', 'w') as f:
             f.write('{"data": "%s", "theme": "darkly"}\n' % data_dir)
-        return data_dir
+        return setup_dir
     else:
-        with open(data_dir + '/automlk.json', 'r') as f:
+        # read the data folder in the setup file
+        # can be modified by user in order to manage distributed workers on different machines in parallel
+        with open(setup_dir + '/automlk.json', 'r') as f:
             config = eval("".join(f.readlines()))
-            return config['data']
+            if platform.system() == 'Linux':
+                return config['data']
+            else:
+                return os.path.abspath(config['data']).replace('\\', '/') + '/automlk'
 
 
 class HyperContext():

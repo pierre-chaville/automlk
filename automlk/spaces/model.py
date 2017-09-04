@@ -92,7 +92,7 @@ default_logistic_regression = {'n_jobs': -1}
 
 space_logistic_regression = {'penalty': HyperWeights({'l1': 1, 'l2': 1}),
                              'dual': HyperWeights({False: 1, True: 1}),
-                             'tol': HyperWeights({1e-4: 1, HyperRangeFloat(0.001, 0.9): 1}),
+                             'tol': HyperWeights({1e-4: 2, HyperRangeFloat(0.0001, 0.01): 1}),
                              'C': HyperWeights({1.: 1, HyperRangeFloat(0.001, 0.9): 1}),
                              'fit_intercept': HyperWeights({True: 1, False: 1}),
                              'intercept_scaling': HyperWeights({1: 1, HyperRangeFloat(0.001, 0.9): 1}),
@@ -107,8 +107,38 @@ space_logistic_regression = {'penalty': HyperWeights({'l1': 1, 'l2': 1}),
 default_linear_regression = {'n_jobs': -1}
 
 space_linear_regression = {'fit_intercept': HyperWeights({True: 1, False: 1}),
-                           'normalize': HyperWeights({False: 1, True: 1}), 'copy_X': True, 'n_jobs': -1
+                           'normalize': HyperWeights({False: 1, True: 1}), 'copy_X': False, 'n_jobs': -1
                            }
+
+default_ridge_regression = {}
+
+space_ridge_regression = {'alpha': HyperRangeFloat(0.001, 100.),
+                          'fit_intercept': HyperWeights({True: 2, False: 1}),
+                          'normalize': HyperWeights({False: 1, True: 2}),
+                          'copy_X': False,
+                          'tol': HyperWeights({1e-4: 2, HyperRangeFloat(0.0001, 0.01): 1}),
+                          'solver': HyperWeights({'auto': 1, 'svd': 1, 'cholesky': 1, 'sparse_cg': 1, 'sag': 1, 'saga': 1}),
+                          }
+
+default_lasso_regression = {}
+
+space_lasso_regression = {'alpha': HyperRangeFloat(0.001, 100.),
+                          'fit_intercept': HyperWeights({True: 2, False: 1}),
+                          'normalize': HyperWeights({False: 1, True: 2}),
+                          'precompute': HyperWeights({False: 2, True: 1}),
+                          'copy_X': False,
+                          'tol': HyperWeights({1e-4: 2, HyperRangeFloat(0.0001, 0.01): 1}),
+                          'positive': HyperWeights({False: 2, True: 1}),
+                          'selection': HyperWeights({'cyclic': 2, 'random': 1}),
+                          }
+
+default_huber_regression = {}
+
+space_huber_regression = {'epsilon': HyperRangeFloat(1.1, 10.),
+                          'alpha': HyperRangeFloat(0.001, 100.),
+                          'fit_intercept': HyperWeights({True: 2, False: 1}),
+                          'tol': HyperWeights({1e-4: 2, HyperRangeFloat(0.0001, 0.01): 1}),
+                          }
 
 # parameters for Support Vector Machines (SVM)
 
@@ -288,6 +318,7 @@ space_xgboost_regressor = {**space_xgboost,
 # TODO: extend parameters
 space_catboost = {'learning_rate': HyperWeights({0.3: 1, HyperRangeFloat(0.001, 0.5): 1}),
                   'depth': HyperWeights({4: 1, HyperRangeInt(1, 10): 1}),
+                  'verbose': False
                   }
 
 default_catboost_classifier = {'metric': 'Logloss'}
