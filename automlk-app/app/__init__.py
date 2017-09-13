@@ -13,16 +13,37 @@ def print_list(l):
 def print_score(x):
     # display score with 5 digits max
     try:
-        dim = int(math.log(abs(x), 10))
+        dim = max(0, int(math.log(abs(x), 10)))
         if dim > 5:
             return '%.1E' % abs(x)
         else:
             digits = 5-dim
-            format = '%6.' + str(digits) + 'f'
-            return (format % x).rstrip('0').rstrip('.')
+            fmt = '%6.' + str(digits) + 'f'
+            return (fmt % abs(x)).rstrip('0').rstrip('.')
     except:
         return 'N/A'
 
+
+def print_score_std(x):
+    # display std score with 4 digits max
+    try:
+        dim = max(0, int(math.log(abs(x), 10)))
+        if dim > 4:
+            return '%.1E' % abs(x)
+        else:
+            digits = 4-dim
+            fmt = '%5.' + str(digits) + 'f'
+            return (fmt % abs(x)).rstrip('0').rstrip('.')
+    except:
+        return 'N/A'
+
+
+def print_other_metrics(x):
+    # display other metrics
+    try:
+        return ", ".join([y+':'+print_score(x[y]) for y in x.keys()])
+    except:
+        return 'N/A'
 
 def print_value(x):
     # easy print function for dictionary value
@@ -51,8 +72,10 @@ SESSION_TYPE = 'redis'
 app.config.from_object('config')
 app.jinja_env.globals.update(print_list=print_list)
 app.jinja_env.globals.update(print_score=print_score)
+app.jinja_env.globals.update(print_score_std=print_score_std)
 app.jinja_env.globals.update(print_value=print_value)
 app.jinja_env.globals.update(print_duration=print_duration)
 app.jinja_env.globals.update(print_params=print_params)
+app.jinja_env.globals.update(print_other_metrics=print_other_metrics)
 
 from app import views

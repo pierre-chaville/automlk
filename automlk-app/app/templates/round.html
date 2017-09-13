@@ -34,6 +34,14 @@
                             <td>{{ round.cv_mean }} +/- {{ round.cv_std }}</td>
                         </tr>
                         <tr>
+                            <td>eval metrics</td>
+                            <td>{{ print_other_metrics(round.eval_other_metrics) }}</td>
+                        </tr>
+                        <tr>
+                            <td>test metrics</td>
+                            <td>{{ print_other_metrics(round.test_other_metrics) }}</td>
+                        </tr>
+                        <tr>
                             <td>model</td>
                             <td>{{ round.model }}</td>
                         </tr>

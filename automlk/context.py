@@ -34,7 +34,7 @@ def get_data_folder():
 
         # create default configuration file
         with open(setup_dir + '/automlk.json', 'w') as f:
-            f.write('{"data": "%s", "theme": "darkly"}\n' % data_dir)
+            f.write('{"data": "%s", "theme": "darkly"}\n' % setup_dir)
         return setup_dir
     else:
         # read the data folder in the setup file

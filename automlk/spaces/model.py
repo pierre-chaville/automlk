@@ -321,17 +321,14 @@ space_catboost = {'learning_rate': HyperWeights({0.3: 1, HyperRangeFloat(0.001, 
                   'verbose': False
                   }
 
-default_catboost_classifier = {'metric': 'Logloss'}
+default_catboost_classifier = {}
 
-space_catboost_classifier = {**space_catboost,
-                             **{'metric': 'Logloss',
-                                }}
+space_catboost_classifier = space_catboost
 
-default_catboost_regressor = {'metric': 'RMSE'}
+default_catboost_regressor = {}
 
-space_catboost_regressor = {**space_catboost,
-                            **{'metric': 'RMSE',
-                               }}
+space_catboost_regressor = space_catboost
+
 
 # parameters for keras model (Neural networks)
 

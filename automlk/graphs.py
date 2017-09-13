@@ -83,7 +83,7 @@ def graph_history_search(dataset, df_search, best_models, level):
     #
     if len(df_search) < 1:
         return
-    scores = df_search.score_eval.values
+    scores = df_search[df_search.model_level == level].score_eval.values
 
     if dataset.best_is_min:
         # positive scores (e.g loss or error: min is best)
@@ -111,7 +111,7 @@ def graph_history_search(dataset, df_search, best_models, level):
     plt.style.use('dark_background')
 
     plt.plot(list(range(len(mins))), mins)
-    plt.title('best score over time')
+    plt.title('best score over time (level=%d)' % level)
     plt.xlabel('total searches')
     plt.ylabel('score')
     plt.ylim(y_lim1, y_lim2)
@@ -124,7 +124,7 @@ def graph_history_search(dataset, df_search, best_models, level):
         scores = np.sort(np.abs(df_search[df_search.model == model].score_eval.values))[::-1]
         plt.plot(list(range(len(scores))), scores, label=model)
 
-    plt.title('best score for 5 best models')
+    plt.title('best score for 5 best models (level=%d)' % level)
     plt.xlabel('searches')
     plt.ylabel('score')
     plt.ylim(y_lim1, y_lim2)

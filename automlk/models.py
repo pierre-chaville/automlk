@@ -1,5 +1,7 @@
 from abc import ABCMeta, abstractmethod
-import pickle, uuid
+import pickle
+import uuid
+import time
 import sklearn.ensemble as ske
 import sklearn.linear_model as linear
 import sklearn.svm as svm
@@ -92,23 +94,44 @@ class HyperModel(object):
         pass
 
     @abstractmethod
-    def cv(self, X, y, X_test, y_test, cv_folds):
+    def cv(self, X, y, X_test, y_test, cv_folds, threshold):
         # performs a cross validation on cv_folds, and predict also on X_test
         y_pred_eval, y_pred_test = [], []
         for i, (train_index, eval_index) in enumerate(cv_folds):
-            print('fold %d' % i)
             if i == 0 and self.early_stopping:
+                print('early stopping round')
                 # with early stopping, we perform an initial round to get number of rounds
                 self.fit_early_stopping(X[train_index], y[train_index], X[eval_index], y[eval_index])
 
+                if threshold != 0:
+                    # test outlier (i.e. exceeds threshold)
+                    y_pred = self.predict(X[eval_index])
+                    score = self.dataset.evaluate_metric(y[eval_index], y_pred)
+                    print('early stopping score: %.5f' % score)
+                    if score > threshold:
+                        print('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
+                        time.sleep(10)
+                        return True, y_pred_eval, y_pred_test
+
             # then train on train set and predict on eval set
             self.fit(X[train_index], y[train_index])
-            y_pred_eval.append(self.predict(X[eval_index]))
+            y_pred = self.predict(X[eval_index])
+
+            if threshold != 0:
+                # test outlier:
+                score = self.dataset.evaluate_metric(y[eval_index], y_pred)
+                print('fold %d score: %.5f' % (i, score))
+                if score > threshold:
+                    print('%dth round found outlier: %.5f with threshold %.5f' % (i, score, threshold))
+                    time.sleep(10)
+                    return True, y_pred_eval, y_pred_test
+
+            y_pred_eval.append(y_pred)
 
             # we also predict on test set (to be averaged later)
             y_pred_test.append(self.predict(X_test))
 
-        return y_pred_eval, y_pred_test
+        return False, y_pred_eval, y_pred_test
 
     @abstractmethod
     def fit(self, X_train, y_train):
@@ -578,6 +601,7 @@ class HyperModelCatboost(HyperModel):
             self.params = default_catboost_regressor
         else:
             self.params = default_catboost_classifier
+            self.__set_loss()
 
     def set_random_params(self):
         # generate params
@@ -585,6 +609,14 @@ class HyperModelCatboost(HyperModel):
             self.params = get_random_params(space_catboost_regressor)
         else:
             self.params = get_random_params(space_catboost_classifier)
+            self.__set_loss()
+
+    def __set_loss(self):
+        # set loss function depending of binary / multi class problem
+        if self.dataset.y_n_classes == 2:
+            self.params['loss_function'] = 'Logloss'
+        else:
+            self.params['loss_function'] = 'MultiClass'
 
     def set_model(self):
         if self.dataset.problem_type == 'regression':
@@ -594,15 +626,15 @@ class HyperModelCatboost(HyperModel):
 
     def fit(self, X_train, y_train):
         # train with num_rounds
-        train_pool = Pool(X_train, label=y_train)
+        train_pool = Pool(X_train, label=y_train.astype(float))
         self.set_model()
         self.model.fit(train_pool, use_best_model=False)
         self.feature_importance = self.model.get_feature_importance(train_pool)
 
     def fit_early_stopping(self, X_train, y_train, X_eval, y_eval):
         # specific early stopping for Catboost
-        train_pool = Pool(X_train, label=y_train)
-        eval_pool = Pool(X_eval, label=y_eval)
+        train_pool = Pool(X_train, label=y_train.astype(float))
+        eval_pool = Pool(X_eval, label=y_eval.astype(float))
         # set specific parameters for early stopping (overfitting detector with iter)
         self.params['iterations'] = MAX_ROUNDS
         self.params['od_type'] = 'iter'
@@ -620,8 +652,6 @@ class HyperModelCatboost(HyperModel):
         # prediction with specific case of binary
         if self.dataset.problem_type == 'regression':
             return self.model.predict(X)
-        elif self.dataset.y_n_classes == 2:
-            return binary_proba(self.model.predict(X))
         else:
             return self.model.predict_proba(X)
 
@@ -724,16 +754,17 @@ class HyperModelEnsembleSelection(HyperModel):
     def set_random_params(self):
         self.params = get_random_params(space_ensemble_selection)
 
-    def cv_pool(self, pool, y, y_test, cv_folds):
+    def cv_pool(self, pool, y, y_test, cv_folds, threshold, depth):
         y_pred_eval_list = []
         y_pred_test_list = []
+        self.params = {**{'depth': depth}, **self.params}
         for i, (train_index, eval_index) in enumerate(cv_folds):
             print('fold %d' % i)
             # we will select a list of models in order to get the best score
             selection_uuids, selection_names, pred_select_eval, pred_select_test = [], [], [], []
             best_score = METRIC_NULL
             for i in range(self.params['rounds']):
-                print('round %d' % i)
+                # print('round %d' % i)
                 # find the best model to be added in the selection
                 best_score_round = METRIC_NULL
                 l_selection = len(selection_uuids)
@@ -754,13 +785,13 @@ class HyperModelEnsembleSelection(HyperModel):
                     except:
                         score = METRIC_NULL
                     if score < best_score_round:
-                        print('best score round', m, score)
+                        # print('best score round', m, score)
                         best_score_round = score
                         m_round, u_round = m, u
                         pred_round_eval, pred_round_test = y_pred_eval, y_pred_test
                 # at the end of the search for the round, check if the overall score is better
                 if best_score_round < best_score:
-                    print('best score:', best_score_round)
+                    # print('best score:', best_score_round)
                     best_score = best_score_round
                     pred_select_eval, pred_select_test = pred_round_eval, pred_round_test
                     selection_names += [m_round]
@@ -769,6 +800,8 @@ class HyperModelEnsembleSelection(HyperModel):
                     # didn't improve = early stopping
                     break
 
+            print(np.shape(pred_select_eval))
+            print(np.shape(eval_index))
             y_pred_eval_list.append(pred_select_eval[eval_index])
             y_pred_test_list.append(pred_select_test)
 
@@ -781,7 +814,7 @@ class HyperModelEnsembleSelection(HyperModel):
         self.importance = self.selection[['name', 'weight']]
         self.importance.columns = ['feature', 'importance']
 
-        return y_pred_eval_list, y_pred_test_list
+        return True, y_pred_eval_list, y_pred_test_list
 
     def save_importance(self):
         # saves feature importance (as a dataframe)
@@ -810,12 +843,21 @@ class HyperModelStacking(HyperModel):
         self.params = self.model.params
 
     @abstractmethod
-    def cv_pool(self, pool, y, y_test, cv_folds):
+    def cv_pool(self, pool, y, y_test, cv_folds, threshold, depth):
         # TODO: select a subset of the pool (best models)
-        self.feature_names = [name + '_' + uuid[:8] for uuid, name in zip(pool.pool_model_uuids, pool.pool_model_names)]
-        self.model.feature_names = self.feature_names
         y_pred_eval = []
         y_pred_test = []
+        self.params = {**{'depth': depth}, **self.params}
+        # set feature names
+        if self.dataset.problem_type == 'regression':
+            self.feature_names = [name+'_'+uuid[:8] for uuid, name in zip(pool.pool_model_uuids, pool.pool_model_names)]
+        else:
+            self.feature_names = []
+            for uuid, name in zip(pool.pool_model_uuids, pool.pool_model_names):
+                for k in range(self.dataset.y_n_classes):
+                    self.feature_names.append(name+'_'+str(k)+'_'+uuid[:8])
+        self.model.feature_names = self.feature_names
+
         for i, (train_index, eval_index) in enumerate(cv_folds):
             print('fold %d' % i)
             # create X by stacking predictions
@@ -841,25 +883,34 @@ class HyperModelStacking(HyperModel):
                 # with early stopping, we perform an initial round to get number of rounds
                 print('fit early stopping')
                 self.model.fit_early_stopping(X_train, y[train_index], X_eval, y[eval_index])
+                y_pred = self.model.predict(X_eval)
+                score = self.dataset.evaluate_metric(y[eval_index], y_pred)
+                print('early stopping score: %.5f' % score)
+                if score > threshold:
+                    print('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
+                    time.sleep(10)
+                    return True, y_pred_eval, y_pred_test
 
             # train on X_train
-            print(np.shape(X_train), np.shape(y[train_index]))
             self.model.fit(X_train, y[train_index])
-            y_pred_eval.append(self.model.predict(X_eval))
+            y_pred = self.model.predict(X_eval)
+            y_pred_eval.append(y_pred)
             y_pred_test.append(self.model.predict(X_test))
+            score = self.dataset.evaluate_metric(y[eval_index], y_pred)
+            if score > threshold:
+                print('found outlier: %.5f with threshold %.5f' % (score, threshold))
+                time.sleep(10)
+                return True, y_pred_eval, y_pred_test
 
-        # set importance from model & features
-        self.importance = self.model.importance
-
-        return y_pred_eval, y_pred_test
+        return False, y_pred_eval, y_pred_test
 
     # TODO: implement predict
     # TODO: implement load/save
 
     def save_importance(self):
         self.model.save_importance()
-        df = get_importance(self.dataset.uid, self.model.uuid)
-        if isinstance(df, pd.DataFrame):
+        if isinstance(self.model.importance, pd.DataFrame):
+            self.importance = self.model.importance
             pickle.dump(self.importance, open(self.feature_filename(), 'wb'))
 
 

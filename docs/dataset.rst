@@ -19,6 +19,8 @@ You may use the same format to create your own datasets.
 .. autoclass:: automlk.dataset.DataSet
     :members:
 
+.. autofunction:: automlk.dataset.get_dataset_ids
+
 .. autofunction:: automlk.dataset.get_dataset_list
 
 .. autofunction:: automlk.dataset.get_dataset

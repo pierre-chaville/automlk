@@ -56,16 +56,16 @@ class DataSet(object):
 
         if metric not in metric_map.keys():
             raise ValueError('metric %s is not known' % metric)
-        if metric_map[metric][1] != self.problem_type:
+        if metric_map[metric].problem_type != self.problem_type:
             raise ValueError('metric %s is not compatible with %s' % (metric, problem_type))
         self.metric = metric
 
-        self.best_is_min = metric_map[metric][2]
+        self.best_is_min = metric_map[metric].best_is_min
 
         for m in other_metrics:
             if m not in metric_map.keys():
                 raise ValueError('other metric %s is not known' % m)
-            if metric_map[m][1] != self.problem_type:
+            if metric_map[m].problem_type != self.problem_type:
                 raise ValueError('metric %s is not compatible with %s' % (m, problem_type))
         self.other_metrics = other_metrics
 
@@ -116,6 +116,7 @@ class DataSet(object):
         self.creation_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.__save()
         self.__create_graphs(df_train, 'train')
+        # TODO: create train & test set, cv folds & eval set
         if filename_test != '':
             self.__create_graphs(df_test, 'test')
 
@@ -182,24 +183,32 @@ class DataSet(object):
 
         return features, is_y_categorical, y_n_classes, y_class_names
 
-    def evaluate_metric(self, y_act, y_pred, metric=None):
+    def evaluate_metric(self, y_act, y_pred, metric_name=None):
         # evaluate score with the metric of the dataset
-        if not metric:
-            metric = self.metric
+        if not metric_name:
+            metric_name = self.metric
         else:
-            if metric not in self.other_metrics:
+            if metric_name not in self.other_metrics:
                 raise ValueError('evaluation metric not listed in other metrics')
-        function = metric_map[metric][0]
-        best_is_min = metric_map[metric][2]
+        metric = metric_map[metric_name]
         try:
+            if metric.need_class:
+                # convert proba to classes
+                y_pred_metric = np.argmax(y_pred, axis=1)
+            else:
+                y_pred_metric = y_pred
+
             # use sign before metrics to always compare best is min in comparisons
             # but requires to display abs value for display
-            if best_is_min:
-                return function(y_act, y_pred)
+            if metric.best_is_min:
+                if metric.name == 'log_loss':
+                    return metric.function(y_act, y_pred_metric, labels=list(range(self.y_n_classes)))
+                else:
+                    return metric.function(y_act, y_pred_metric)
             else:
-                return -function(y_act, y_pred)
+                return -metric.function(y_act, y_pred_metric)
         except Exception as e:
-            print('error in evaluating metric %s: %s' % (metric, e))
+            print('error in evaluating metric %s: %s' % (metric_name, e))
             return METRIC_NULL
 
     def __save(self):
@@ -289,11 +298,23 @@ def get_dataset_list():
 
     :return: list of datasets objects
     """
-    # returns the list of datasets ids
     dl = []
     for file in glob.glob(get_data_folder() + '/*/'):
         uid = file.split('/')[-2]
         dl.append(get_dataset(uid))
+    return dl
+
+
+def get_dataset_ids():
+    """
+    get the list of ids all datasets
+
+    :return: list of ids
+    """
+    dl = []
+    for file in glob.glob(get_data_folder() + '/*/'):
+        uid = file.split('/')[-2]
+        dl.append(uid)
     return dl
 
 
@@ -305,5 +326,3 @@ def get_dataset(dataset_uid):
     :return: dataset object
     """
     return pickle.load(open(get_dataset_folder(dataset_uid) + '/dataset.pkl', 'rb'))
-
-

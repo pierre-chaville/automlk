@@ -41,3 +41,33 @@ space_scaling = {'scaler': HyperWeights({'standard': 1,
                                          'max_abs': 1,
                                          })
                  }
+
+# truncated SVD
+
+default_truncated_svd = {'reduction_ratio': 0.5}
+
+space_truncated_svd = {'reduction_ratio': HyperRangeFloat(0.2, 0.6),
+                       #'algorithm': HyperWeights({'randomized': 1, 'arpack': 1}),
+                       'algorithm': 'arpack',
+                       'n_iter': HyperRangeInt(3, 6),
+                       'tol': HyperWeights({0.001: 1, 0.0001: 1, 0.00001: 1})
+                       }
+
+# fast ICA
+
+default_fast_ica = {'reduction_ratio': 0.5}
+
+space_fast_ica = {'reduction_ratio': HyperRangeFloat(0.1, 0.9),
+                  'algorithm': HyperWeights({'parallel': 2, 'deflation': 1}),
+                  'max_iter': HyperRangeInt(50, 200),
+                  'tol': HyperWeights({0: 2, 0.001: 1, 0.0001: 1, 0.00001: 1})
+                  }
+
+# fast ICA
+
+default_polynomial = {'degree': 2}
+
+space_polynomial = {'degree': 2, #HyperRangeInt(1, 2),
+                    'interaction_only': True, #HyperWeights({False: 2, False: 1}),
+                    'include_bias': False #HyperWeights({True: 2, False: 1}),
+                    }

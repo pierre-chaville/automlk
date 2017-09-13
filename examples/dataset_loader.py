@@ -5,7 +5,7 @@ from automlk.dataset import DataSet
 loads a dataset from a csv file description
 """
 
-for line in pd.read_csv('../datasets/datasets.csv').fillna('').to_dict(orient='records'):
+for line in pd.read_csv('../datasets/datasets1.csv').fillna('').to_dict(orient='records'):
     print('creating dataset %s in %s' % (line['name'], line['problem_type']))
     dt = DataSet(name=line['name'],
                  description=line['description'],
