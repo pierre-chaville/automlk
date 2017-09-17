@@ -3,9 +3,7 @@ from .hyper import *
 this module defines the hyper-parameter spaces for the various models
 """
 # generic parameters for tree models
-
 default_sklearn_trees = {'n_estimators': 50, 'verbose': 0, 'random_state': 0}
-
 space_sklearn_trees = {'n_estimators': HyperWeights({HyperRangeInt(10, 100): 2,
                                                      HyperRangeInt(100, 500): 3,
                                                      HyperRangeInt(500, 1000): 1}),
@@ -28,7 +26,6 @@ space_sklearn_trees = {'n_estimators': HyperWeights({HyperRangeInt(10, 100): 2,
 
 # parameters for extra trees
 default_extra_trees = {**default_sklearn_trees, **{'n_jobs': -1}}
-
 space_extra_trees = {**space_sklearn_trees, **{'n_jobs': -1}}
 
 # TODO: add class weight for classifiers (extra trees, random forest)
@@ -39,11 +36,9 @@ space_extra_trees_classifier = {**space_extra_trees,
 space_extra_trees_regressor = {**space_sklearn_trees, **{'criterion': HyperWeights({'mse': 1, 'mae': 1})}}
 
 # parameters for random forest
-
 default_random_forest = {**default_sklearn_trees, **{'n_jobs': -1}}
 
 space_random_forest = {**space_sklearn_trees, **{'n_jobs': -1}}
-
 space_random_forest_classifier = {**space_random_forest,
                                   **{'criterion': HyperWeights({'gini': 1, 'entropy': 1}), 'class_weight': None, }
                                   }
@@ -54,9 +49,7 @@ space_random_forest_regressor = {**space_random_forest,
                                  }
 
 # parameters for adaboost
-
 default_adaboost = {}
-
 space_adaboost = {'n_estimators': HyperRangeInt(10, 100),
                   'learning_rate': HyperRangeFloat(0.001, 10.),
                   'random_state': 0,
@@ -73,9 +66,7 @@ space_adaboost_classifier = {**space_adaboost,
                              }
 
 # parameters for gradient boosting
-
 default_gradient_boosting = {}
-
 space_gradient_boosting_regressor = {**space_sklearn_trees,
                                      **{'learning_rate': HyperWeights({0.1: 2, HyperRangeFloat(0.001, 0.5): 1}),
                                         'loss': HyperWeights({'ls': 1, 'lad': 1, 'huber': 1, 'quantile': 1}),
@@ -87,9 +78,7 @@ space_gradient_boosting_classifier = {**space_sklearn_trees,
                                          'loss': HyperWeights({'deviance': 1, 'exponential': 1}),
                                          }}
 # parameters for Logistic regression
-
 default_logistic_regression = {'n_jobs': -1}
-
 space_logistic_regression = {'penalty': HyperWeights({'l1': 1, 'l2': 1}),
                              'dual': HyperWeights({False: 1, True: 1}),
                              'tol': HyperWeights({1e-4: 2, HyperRangeFloat(0.0001, 0.01): 1}),
@@ -103,15 +92,12 @@ space_logistic_regression = {'penalty': HyperWeights({'l1': 1, 'l2': 1}),
                              }
 
 # parameters for Linear regression
-
 default_linear_regression = {'n_jobs': -1}
-
 space_linear_regression = {'fit_intercept': HyperWeights({True: 1, False: 1}),
                            'normalize': HyperWeights({False: 1, True: 1}), 'copy_X': False, 'n_jobs': -1
                            }
 
 default_ridge_regression = {}
-
 space_ridge_regression = {'alpha': HyperRangeFloat(0.001, 100.),
                           'fit_intercept': HyperWeights({True: 2, False: 1}),
                           'normalize': HyperWeights({False: 1, True: 2}),
@@ -121,7 +107,6 @@ space_ridge_regression = {'alpha': HyperRangeFloat(0.001, 100.),
                           }
 
 default_lasso_regression = {}
-
 space_lasso_regression = {'alpha': HyperRangeFloat(0.001, 100.),
                           'fit_intercept': HyperWeights({True: 2, False: 1}),
                           'normalize': HyperWeights({False: 1, True: 2}),
@@ -133,7 +118,6 @@ space_lasso_regression = {'alpha': HyperRangeFloat(0.001, 100.),
                           }
 
 default_huber_regression = {}
-
 space_huber_regression = {'epsilon': HyperRangeFloat(1.1, 10.),
                           'alpha': HyperRangeFloat(0.001, 100.),
                           'fit_intercept': HyperWeights({True: 2, False: 1}),
@@ -141,9 +125,7 @@ space_huber_regression = {'epsilon': HyperRangeFloat(1.1, 10.),
                           }
 
 # parameters for Support Vector Machines (SVM)
-
 default_linear_svc = {}
-
 space_linear_svc = {'penalty': HyperWeights({'l1': 1, 'l2': 1}),
                     'loss': HyperWeights({'squared_hinge': 2, 'hinge': 1}),
                     'dual': HyperWeights({False: 1, True: 1}),
@@ -156,7 +138,6 @@ space_linear_svc = {'penalty': HyperWeights({'l1': 1, 'l2': 1}),
                     }
 
 default_linear_svr = {}
-
 space_linear_svr = {'C': HyperWeights({1.: 1, HyperRangeFloat(0.001, 0.9): 1}),
                     #'loss': HyperWeights({'epsilon_insensitive': 2, 'squared_epsilon_insensitive': 1}),
                     'epsilon': HyperWeights({0.1: 1, HyperRangeFloat(0.001, 0.9): 1}),
@@ -169,7 +150,6 @@ space_linear_svr = {'C': HyperWeights({1.: 1, HyperRangeFloat(0.001, 0.9): 1}),
                     }
 
 default_svc = {'probability': True}
-
 space_svc = {'C': HyperWeights({1.: 1, HyperRangeFloat(0.001, 0.9): 1}),
              'kernel': HyperWeights({'rbf': 2, 'linear': 1, 'poly': 1, 'sigmoid': 1}),
              'degree': HyperWeights({3: 1, HyperRangeInt(2, 10): 1}),
@@ -183,7 +163,6 @@ space_svc = {'C': HyperWeights({1.: 1, HyperRangeFloat(0.001, 0.9): 1}),
              }
 
 default_svr = {}
-
 space_svr = {'C': HyperWeights({1.: 1, HyperRangeFloat(0.001, 0.9): 1}),
              'epsilon': HyperWeights({0.1: 1, HyperRangeFloat(0.001, 0.9): 1}),
              'kernel': HyperWeights({'rbf': 2, 'linear': 1, 'poly': 1, 'sigmoid': 1}),
@@ -197,9 +176,7 @@ space_svr = {'C': HyperWeights({1.: 1, HyperRangeFloat(0.001, 0.9): 1}),
              }
 
 # parameters for KNN
-
 default_knn = {'n_jobs': -1}
-
 space_knn = {'n_neighbors': HyperWeights({5: 1, HyperRangeInt(2, 50): 1}),
              'weights': HyperWeights({'uniform': 2, 'distance': 1}),
              'algorithm': HyperWeights({'auto': 2, 'ball_tree': 1, 'kd_tree': 1, 'brute': 1}),
@@ -209,7 +186,6 @@ space_knn = {'n_neighbors': HyperWeights({5: 1, HyperRangeInt(2, 50): 1}),
              }
 
 # generic space for LightGBM
-
 space_lightgbm = {'task': 'train',
                   'boosting': HyperWeights({'gbdt': 1, 'dart': 1, 'goss': 1}),
                   'learning_rate': HyperWeights({0.1: 1, HyperRangeFloat(0.001, 0.5): 1}),
@@ -237,7 +213,6 @@ space_lightgbm = {'task': 'train',
 # space for regression with LightGBM
 
 default_lightgbm_regressor = {'objective': 'regression', 'metric': 'mse', 'verbose': 0}
-
 space_lightgbm_regressor = {**space_lightgbm,
                             **{'boosting': HyperWeights({'gbdt': 2, 'dart': 1}),
                                'objective': HyperWeights(
@@ -246,27 +221,15 @@ space_lightgbm_regressor = {**space_lightgbm,
                                }
                             }
 
-# space for binary classification with LightGBM
-default_lightgbm_binary = {'objective': 'binary', 'metric': 'binary_logloss', 'verbose': 0}
-
-space_lightgbm_binary = {**space_lightgbm,
-                         **{  # 'boosting': HyperWeights({'gbdt': 2, 'dart': 1}),
-                             'objective': 'binary',
-                             'metric': 'binary_logloss',
-                         }}
-
 # space for multi-classification with LightGBM
-
-default_lightgbm_classifier = {'objective': 'multiclass', 'metric': 'multi_logloss', 'verbose': 0}
-
+default_lightgbm_classifier = {'objective': 'binary', 'metric': 'binary_logloss', 'verbose': 0}
 space_lightgbm_classifier = {**space_lightgbm,
                              **{'boosting': HyperWeights({'gbdt': 2, 'dart': 1}),
-                                'objective': 'multiclass',
-                                'metric': 'multi_logloss',
+                                'objective': 'binary',
+                                'metric': 'binary_logloss',
                                 }}
 
 # parameters for Xgboost
-
 space_xgboost = {'booster': HyperWeights({'gbtree': 2, 'gblinear': 1, 'dart': 100}),
                  'eval_metric': 'rmse',
                  'eta': HyperWeights({0.3: 1, HyperRangeFloat(0.001, 0.5): 1}),
@@ -285,21 +248,9 @@ space_xgboost = {'booster': HyperWeights({'gbtree': 2, 'gblinear': 1, 'dart': 10
                  'silent': 1
                  }
 
-# space for multi-classification with Xgboost
-
-default_xgboost_classifier = {'objective': 'multi:softprob', 'eval_metric': 'mlogloss', 'silent': 1}
-
+# space for classification with Xgboost
+default_xgboost_classifier = {'objective': 'binary:logistic', 'eval_metric': 'logloss', 'silent': 1}
 space_xgboost_classifier = {**space_xgboost,
-                            **{  # 'booster': HyperWeights({'gbtree': 2}),
-                                'objective': 'multi:softprob',
-                                'eval_metric': 'mlogloss',
-                            }}
-
-# space for binary classification with Xgboost
-
-default_xgboost_binary = {'objective': 'binary:logistic', 'eval_metric': 'logloss', 'silent': 1}
-
-space_xgboost_binary = {**space_xgboost,
                         **{  # 'booster': HyperWeights({'gbtree': 2}),
                             'objective': 'binary:logistic',
                             'eval_metric': 'logloss',
@@ -307,7 +258,6 @@ space_xgboost_binary = {**space_xgboost,
 
 # space for regression with Xgboost
 default_xgboost_regressor = {'objective': 'reg:linear', 'eval_metric': 'rmse', 'silent': 1}
-
 space_xgboost_regressor = {**space_xgboost,
                            **{  # 'booster': HyperWeights({'gbtree': 2}),
                                'objective': 'reg:linear',
@@ -322,11 +272,8 @@ space_catboost = {'learning_rate': HyperWeights({0.3: 1, HyperRangeFloat(0.001, 
                   }
 
 default_catboost_classifier = {}
-
 space_catboost_classifier = space_catboost
-
 default_catboost_regressor = {}
-
 space_catboost_regressor = space_catboost
 
 
@@ -347,5 +294,5 @@ space_keras = {'units': HyperWeights({16: 1, 32: 1, 64: 1, 128: 2, 256: 5, 512: 
                }
 
 # parameters for ensemble selection
-default_ensemble_selection = {'rounds': 20}
-space_ensemble_selection = {'rounds': HyperRangeInt(5, 200)}
+default_ensemble = {'rounds': 20}
+space_ensemble = {'rounds': HyperRangeInt(5, 200)}

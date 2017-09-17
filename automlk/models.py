@@ -1,6 +1,5 @@
 from abc import ABCMeta, abstractmethod
 import pickle
-import uuid
 import time
 import sklearn.ensemble as ske
 import sklearn.linear_model as linear
@@ -45,17 +44,17 @@ MAX_ROUNDS = 5000
 PATIENCE = 50
 
 
-def get_importance(uid, uuid):
+def get_importance(uid, round_id):
     # return stored features importance
     try:
-        return pickle.load(open(get_dataset_folder(uid) + '/features/%s.pkl' % uuid, 'rb'))
+        return pickle.load(open(get_dataset_folder(uid) + '/features/%s.pkl' % round_id, 'rb'))
     except:
         return None
 
 
-def get_pred_eval_test(uid, uuid):
+def get_pred_eval_test(uid, round_id):
     # return stored prediction on eval set & test set
-    return pickle.load(open(get_dataset_folder(uid) + '/predict/%s.pkl' % uuid, 'rb'))
+    return pickle.load(open(get_dataset_folder(uid) + '/predict/%s.pkl' % round_id, 'rb'))
 
 
 class HyperModel(object):
@@ -64,34 +63,17 @@ class HyperModel(object):
     # abstract class for model hyper optimization
 
     @abstractmethod
-    def __init__(self, dataset, context):
+    def __init__(self, dataset, context, params, round_id):
         self.dataset = dataset
         self.context = context
+        self.round_id = round_id
+        self.params = params
         self.feature_names = context.feature_names
-        self.params = {}
-        self.uuid = str(uuid.uuid4())
         self.model = None
         self.num_rounds = 0
-        self.model_loaded = True
         self.y_pred_eval = None
-        self.model_level = 0
         self.early_stopping = False
         self.importance = None
-
-    @abstractmethod
-    def set_default_params(self):
-        # generate default parameters of the model
-        pass
-
-    @abstractmethod
-    def set_random_params(self):
-        # generate random parameters of the model on a specific subspace
-        pass
-
-    @abstractmethod
-    def set_model(self):
-        # pre-generates the model
-        pass
 
     @abstractmethod
     def cv(self, X, y, X_test, y_test, cv_folds, threshold):
@@ -154,7 +136,7 @@ class HyperModel(object):
     @abstractmethod
     def save_model(self):
         # saves parameters of the model
-        pickle.dump([self.model], open(get_dataset_folder(self.dataset.uid) + '/models/%s.pkl' % self.uuid, 'wb'))
+        pickle.dump([self.model], open(get_dataset_folder(self.dataset.dataset_id) + '/models/%s.pkl' % self.round_id, 'wb'))
 
     @abstractmethod
     def save_importance(self):
@@ -168,13 +150,13 @@ class HyperModel(object):
     @abstractmethod
     def feature_filename(self):
         # filename for feature importance
-        return get_dataset_folder(self.dataset.uid) + '/features/%s.pkl' % self.uuid
+        return get_dataset_folder(self.dataset.dataset_id) + '/features/%s.pkl' % self.round_id
 
     @abstractmethod
     def save_predict(self, y_pred_eval, y_pred_test):
         # save predictions (eval and test set)
         pickle.dump([y_pred_eval, y_pred_test],
-                    open(get_dataset_folder(self.dataset.uid) + '/predict/%s.pkl' % self.uuid, 'wb'))
+                    open(get_dataset_folder(self.dataset.dataset_id) + '/predict/%s.pkl' % self.round_id, 'wb'))
 
 
 def binary_proba(y):
@@ -185,144 +167,66 @@ def binary_proba(y):
 class HyperModelLogisticRegression(HyperModel):
     # class for model Logistic regression
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Logistic Regression'
-
-    def set_default_params(self):
-        self.params = default_logistic_regression
-
-    def set_random_params(self):
-        self.params = get_random_params(space_logistic_regression)
-        if self.params['dual']:
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
+        if 'dual' in self.params and self.params['dual']:
             self.params['penalty'] = 'l2'
-
-    def set_model(self):
         self.model = linear.LogisticRegression(**self.params)
 
 
 class HyperModelLinearRegressor(HyperModel):
     # class for model Linear regression
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Linear Regression'
-
-    def set_default_params(self):
-        self.params = default_linear_regression
-
-    def set_random_params(self):
-        self.params = get_random_params(space_linear_regression)
-
-    def set_model(self):
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         self.model = linear.LinearRegression(**self.params)
 
 
 class HyperModelLassoRegressor(HyperModel):
     # class for model Lasso Linear regression
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Lasso Regression'
-
-    def set_default_params(self):
-        self.params = default_lasso_regression
-
-    def set_random_params(self):
-        self.params = get_random_params(space_lasso_regression)
-
-    def set_model(self):
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         self.model = linear.Lasso(**self.params)
 
 
 class HyperModelRidgeRegressor(HyperModel):
     # class for model Ridge Linear regression
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Ridge Regression'
-
-    def set_default_params(self):
-        self.params = default_ridge_regression
-
-    def set_random_params(self):
-        self.params = get_random_params(space_ridge_regression)
-
-    def set_model(self):
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         self.model = linear.Ridge(**self.params)
 
 
 class HyperModelHuberRegressor(HyperModel):
     # class for model Huber Linear regression
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Huber Regression'
-
-    def set_default_params(self):
-        self.params = default_huber_regression
-
-    def set_random_params(self):
-        self.params = get_random_params(space_huber_regression)
-
-    def set_model(self):
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         self.model = linear.HuberRegressor(**self.params)
 
 
 class HyperModelLinearSVC(HyperModel):
     # class for model SVM classification
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'SVM Linear'
-
-    def set_default_params(self):
-        self.params = default_linear_svc
-
-    def set_random_params(self):
-        self.params = get_random_params(space_linear_svc)
-
-    def set_model(self):
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         self.model = svm.LinearSVC(**self.params)
 
 
 class HyperModelLinearSVR(HyperModel):
     # class for model SVM regression
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'SVM Linear'
-
-    def set_default_params(self):
-        self.params = default_linear_svc
-
-    def set_random_params(self):
-        self.params = get_random_params(space_linear_svr)
-
-    def set_model(self):
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         self.model = svm.LinearSVR(**self.params)
 
 
 class HyperModelSVM(HyperModel):
     # class for model SVM kernel
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'SVM kernel'
-
-    def set_default_params(self):
-        if self.dataset.problem_type == 'regression':
-            self.params = default_svr
-        else:
-            self.params = default_svc
-
-    def set_random_params(self):
-        if self.dataset.problem_type == 'regression':
-            self.params = get_random_params(space_svr)
-        else:
-            self.params = get_random_params(space_svc)
-
-    def set_model(self):
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         if self.dataset.problem_type == 'regression':
             self.model = svm.SVR(**self.params)
         else:
@@ -332,17 +236,8 @@ class HyperModelSVM(HyperModel):
 class HyperModelKnn(HyperModel):
     # class for model KNN
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'KNN'
-
-    def set_default_params(self):
-        self.params = default_knn
-
-    def set_random_params(self):
-        self.params = get_random_params(space_knn)
-
-    def set_model(self):
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         if self.dataset.problem_type == 'regression':
             self.model = knn.KNeighborsRegressor(**self.params)
         else:
@@ -352,20 +247,8 @@ class HyperModelKnn(HyperModel):
 class HyperModelAdaBoost(HyperModel):
     # class for model AdaBoost
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'AdaBoost'
-
-    def set_default_params(self):
-        self.params = default_adaboost
-
-    def set_random_params(self):
-        if self.dataset.problem_type == 'regression':
-            self.params = get_random_params(space_adaboost_regressor)
-        else:
-            self.params = get_random_params(space_adaboost_classifier)
-
-    def set_model(self):
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         if self.dataset.problem_type == 'regression':
             self.model = ske.AdaBoostRegressor(**self.params)
         else:
@@ -375,20 +258,8 @@ class HyperModelAdaBoost(HyperModel):
 class HyperModelGradientBoosting(HyperModel):
     # class for model AdaBoost
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Gradient Boosting'
-
-    def set_default_params(self):
-        self.params = default_gradient_boosting
-
-    def set_random_params(self):
-        if self.dataset.problem_type == 'regression':
-            self.params = get_random_params(space_gradient_boosting_regressor)
-        else:
-            self.params = get_random_params(space_gradient_boosting_classifier)
-
-    def set_model(self):
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         if self.dataset.problem_type == 'regression':
             self.model = ske.GradientBoostingRegressor(**self.params)
         else:
@@ -398,20 +269,8 @@ class HyperModelGradientBoosting(HyperModel):
 class HyperModelExtraTrees(HyperModel):
     # class for model Extra trees
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Extra Trees'
-
-    def set_default_params(self):
-        self.params = default_extra_trees
-
-    def set_random_params(self):
-        if self.dataset.problem_type == 'regression':
-            self.params = get_random_params(space_extra_trees_regressor)
-        else:
-            self.params = get_random_params(space_extra_trees_classifier)
-
-    def set_model(self):
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         if self.dataset.problem_type == 'regression':
             self.model = ske.ExtraTreesRegressor(**self.params)
         else:
@@ -421,20 +280,8 @@ class HyperModelExtraTrees(HyperModel):
 class HyperModelRandomForest(HyperModel):
     # class for model Random Forest
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Random Forest'
-
-    def set_default_params(self):
-        self.params = default_random_forest
-
-    def set_random_params(self):
-        if self.dataset.problem_type == 'regression':
-            self.params = get_random_params(space_random_forest_regressor)
-        else:
-            self.params = get_random_params(space_random_forest_classifier)
-
-    def set_model(self):
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         if self.dataset.problem_type == 'regression':
             self.model = ske.RandomForestRegressor(**self.params)
         else:
@@ -444,36 +291,19 @@ class HyperModelRandomForest(HyperModel):
 class HyperModelLightGBM(HyperModel):
     # class for model LightGBM
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Light GBM'
-        self.model_loaded = import_lgbm
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         self.early_stopping = True
 
-    def set_default_params(self):
-        if self.dataset.problem_type == 'regression':
-            self.params = default_lightgbm_regressor
-        elif self.dataset.y_n_classes == 2:
-            self.params = default_lightgbm_binary
-        else:
-            self.params = default_lightgbm_classifier
+        if self.dataset.problem_type == 'classification' and self.dataset.y_n_classes > 2:
+            self.params['objective'] = 'multiclass'
+            self.params['metric'] = 'multi_logloss'
             self.params['num_class'] = self.dataset.y_n_classes
 
-    def set_random_params(self):
-        if self.dataset.problem_type == 'regression':
-            self.params = get_random_params(space_lightgbm_regressor)
-        elif self.dataset.y_n_classes == 2:
-            self.params = get_random_params(space_lightgbm_binary)
-        else:
-            self.params = get_random_params(space_lightgbm_classifier)
-            self.params['num_class'] = self.dataset.y_n_classes
-        self.valid_params()
-
-    def valid_params(self):
         # updates params according to Light GBM rules
-        if self.params['bagging_freq'] == 0:
+        if 'bagging_freq' in self.params and self.params['bagging_freq'] == 0:
             self.params.pop('bagging_freq', None)
-        if self.params['boosting'] == 'goss':
+        if 'boosting' in self.params and self.params['boosting'] == 'goss':
             self.params.pop('bagging_freq', None)
             self.params.pop('bagging_fraction', None)
 
@@ -520,29 +350,13 @@ class HyperModelLightGBM(HyperModel):
 class HyperModelXgBoost(HyperModel):
     # class for model XGBOOST
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Xgboost'
-        self.model_loaded = import_xgb
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         self.early_stopping = True
 
-    def set_default_params(self):
-        if self.dataset.problem_type == 'regression':
-            self.params = default_xgboost_regressor
-        elif self.dataset.y_n_classes == 2:
-            self.params = default_xgboost_binary
-        else:
-            self.params = default_xgboost_classifier
-            self.params['num_class'] = self.dataset.y_n_classes
-
-    def set_random_params(self):
-        # generate params
-        if self.dataset.problem_type == 'regression':
-            self.params = get_random_params(space_xgboost_regressor)
-        elif self.dataset.y_n_classes == 2:
-            self.params = get_random_params(space_xgboost_binary)
-        else:
-            self.params = get_random_params(space_xgboost_classifier)
+        if self.dataset.problem_type == 'classification' and self.dataset.y_n_classes > 2:
+            self.params['objective'] = 'multi:softprob'
+            self.params['metric'] = 'mlogloss'
             self.params['num_class'] = self.dataset.y_n_classes
 
     def fit(self, X_train, y_train):
@@ -551,7 +365,6 @@ class HyperModelXgBoost(HyperModel):
         self.model = xgb.train(self.params,
                                xgb_train,
                                num_boost_round=self.num_rounds)
-
 
     def fit_early_stopping(self, X_train, y_train, X_eval, y_eval):
         # specific early stopping for XxBoost
@@ -567,7 +380,6 @@ class HyperModelXgBoost(HyperModel):
             self.num_rounds = self.model.best_iteration
         else:
             self.num_rounds = PATIENCE
-
 
     def predict(self, X):
         # prediction with specific case of binary
@@ -589,39 +401,21 @@ class HyperModelXgBoost(HyperModel):
 class HyperModelCatboost(HyperModel):
     # class for model Catboost
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Catboost'
-        self.model_loaded = import_catboost
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         self.early_stopping = True
         self.feature_importance = []
-
-    def set_default_params(self):
-        if self.dataset.problem_type == 'regression':
-            self.params = default_catboost_regressor
-        else:
-            self.params = default_catboost_classifier
-            self.__set_loss()
-
-    def set_random_params(self):
-        # generate params
-        if self.dataset.problem_type == 'regression':
-            self.params = get_random_params(space_catboost_regressor)
-        else:
-            self.params = get_random_params(space_catboost_classifier)
-            self.__set_loss()
-
-    def __set_loss(self):
-        # set loss function depending of binary / multi class problem
-        if self.dataset.y_n_classes == 2:
-            self.params['loss_function'] = 'Logloss'
-        else:
-            self.params['loss_function'] = 'MultiClass'
+        self.set_model()
 
     def set_model(self):
+        # set loss function depending of binary / multi class problem
         if self.dataset.problem_type == 'regression':
             self.model = CatBoostRegressor(**self.params)
         else:
+            if self.dataset.y_n_classes == 2:
+                self.params['loss_function'] = 'Logloss'
+            else:
+                self.params['loss_function'] = 'MultiClass'
             self.model = CatBoostClassifier(**self.params)
 
     def fit(self, X_train, y_train):
@@ -666,20 +460,11 @@ class HyperModelCatboost(HyperModel):
 class HyperModelNN(HyperModel):
     # class for model Neural Networks
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Neural Networks'
-        self.model_loaded = import_keras
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         self.early_stopping = True
         self.model_created = False
 
-    def set_default_params(self):
-        self.params = default_keras
-
-    def set_random_params(self):
-        self.params = get_random_params(space_keras)
-
-    def set_model(self):
         # create the modem
         self.params['input_dim'] = len(self.feature_names)
         if self.dataset.problem_type == 'regression':
@@ -703,7 +488,6 @@ class HyperModelNN(HyperModel):
             self.model.fit(X_train, y_train, epochs=1, batch_size=self.params['batch_size'],
                            validation_split=0.,
                            verbose=0)
-
             y_pred = self.model.predict(X_eval)
             score = self.dataset.evaluate_metric(y_eval, y_pred)
             if score < best_score:
@@ -726,13 +510,12 @@ class HyperModelNN(HyperModel):
     def save_model(self):
         # TODO: implement save weights
         pass
-        # pickle.dump([self.model], open(dataset_root_folder(self.dataset.uid) + '/models/model_%s.pkl' % self.uuid, 'wb'))
 
 
 class EnsemblePool(object):
     # class to manage data required for ensembling
-    def __init__(self, pool_model_uuids, pool_model_names, pool_eval_preds, pool_test_preds):
-        self.pool_model_uuids = pool_model_uuids
+    def __init__(self, pool_model_round_ids, pool_model_names, pool_eval_preds, pool_test_preds):
+        self.pool_model_round_ids = pool_model_round_ids
         self.pool_model_names = pool_model_names
         self.pool_eval_preds = pool_eval_preds
         self.pool_test_preds = pool_test_preds
@@ -741,18 +524,9 @@ class EnsemblePool(object):
 class HyperModelEnsembleSelection(HyperModel):
     # class for model with ensemble selection
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Ensemble Selection'
-        self.model_level = 1
-        self.params = {}
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
         self.selection = None
-
-    def set_default_params(self):
-        self.params = default_ensemble_selection
-
-    def set_random_params(self):
-        self.params = get_random_params(space_ensemble_selection)
 
     def cv_pool(self, pool, y, y_test, cv_folds, threshold, depth):
         y_pred_eval_list = []
@@ -761,14 +535,14 @@ class HyperModelEnsembleSelection(HyperModel):
         for i, (train_index, eval_index) in enumerate(cv_folds):
             print('fold %d' % i)
             # we will select a list of models in order to get the best score
-            selection_uuids, selection_names, pred_select_eval, pred_select_test = [], [], [], []
+            selection_round_ids, selection_names, pred_select_eval, pred_select_test = [], [], [], []
             best_score = METRIC_NULL
             for i in range(self.params['rounds']):
                 # print('round %d' % i)
                 # find the best model to be added in the selection
                 best_score_round = METRIC_NULL
-                l_selection = len(selection_uuids)
-                for u, m, p_eval, p_test in zip(pool.pool_model_uuids, pool.pool_model_names, pool.pool_eval_preds,
+                l_selection = len(selection_round_ids)
+                for u, m, p_eval, p_test in zip(pool.pool_model_round_ids, pool.pool_model_names, pool.pool_eval_preds,
                                                 pool.pool_test_preds):
                     # prediction = weighted average of predictions
                     try:
@@ -795,7 +569,7 @@ class HyperModelEnsembleSelection(HyperModel):
                     best_score = best_score_round
                     pred_select_eval, pred_select_test = pred_round_eval, pred_round_test
                     selection_names += [m_round]
-                    selection_uuids += [u_round]
+                    selection_round_ids += [u_round]
                 else:
                     # didn't improve = early stopping
                     break
@@ -806,9 +580,9 @@ class HyperModelEnsembleSelection(HyperModel):
             y_pred_test_list.append(pred_select_test)
 
         # calculate weights for the models
-        df = pd.DataFrame([(uuid, name, 1) for uuid, name in zip(selection_uuids, selection_names)])
-        df.columns = ['uuid', 'name', 'weight']
-        self.selection = df.groupby(['uuid', 'name'], as_index=False).sum()
+        df = pd.DataFrame([(round_id, name, 1) for round_id, name in zip(selection_round_ids, selection_names)])
+        df.columns = ['round_id', 'name', 'weight']
+        self.selection = df.groupby(['round_id', 'name'], as_index=False).sum()
 
         # then create feature importance with the names of the models
         self.importance = self.selection[['name', 'weight']]
@@ -827,20 +601,8 @@ class HyperModelStacking(HyperModel):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_level = 1
-
-    def set_default_params(self):
-        self.model.set_default_params()
-
-    def set_random_params(self):
-        self.model.set_random_params()
-        self.params = self.model.params
-
-    def set_model(self):
-        self.model.set_model()
-        self.params = self.model.params
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
 
     @abstractmethod
     def cv_pool(self, pool, y, y_test, cv_folds, threshold, depth):
@@ -850,19 +612,19 @@ class HyperModelStacking(HyperModel):
         self.params = {**{'depth': depth}, **self.params}
         # set feature names
         if self.dataset.problem_type == 'regression':
-            self.feature_names = [name+'_'+uuid[:8] for uuid, name in zip(pool.pool_model_uuids, pool.pool_model_names)]
+            self.feature_names = [name+'_'+round_id[:8] for round_id, name in zip(pool.pool_model_round_ids, pool.pool_model_names)]
         else:
             self.feature_names = []
-            for uuid, name in zip(pool.pool_model_uuids, pool.pool_model_names):
+            for round_id, name in zip(pool.pool_model_round_ids, pool.pool_model_names):
                 for k in range(self.dataset.y_n_classes):
-                    self.feature_names.append(name+'_'+str(k)+'_'+uuid[:8])
+                    self.feature_names.append(name+'_'+str(k)+'_'+round_id[:8])
         self.model.feature_names = self.feature_names
 
         for i, (train_index, eval_index) in enumerate(cv_folds):
             print('fold %d' % i)
             # create X by stacking predictions
             for j, (u, m, p_eval, p_test) in enumerate(
-                    zip(pool.pool_model_uuids, pool.pool_model_names, pool.pool_eval_preds,
+                    zip(pool.pool_model_round_ids, pool.pool_model_names, pool.pool_eval_preds,
                         pool.pool_test_preds)):
                 # check if array has 2 dimensions
                 shape = len(np.shape(p_eval))
@@ -917,66 +679,62 @@ class HyperModelStacking(HyperModel):
 class HyperModelStackingExtraTrees(HyperModelStacking):
     # class for stacking with model Extra trees
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Stacking Extra Trees'
-        self.model = HyperModelExtraTrees(dataset, context)
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
+        self.model = HyperModelExtraTrees(dataset, context, params)
 
 
 class HyperModelStackingRandomForest(HyperModelStacking):
     # class for stacking with model Extra trees
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Stacking Random Forest'
-        self.model = HyperModelRandomForest(dataset, context)
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
+        self.model = HyperModelRandomForest(dataset, context, params)
 
 
 class HyperModelStackingGradientBoosting(HyperModelStacking):
     # class for stacking with model Extra trees
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Stacking Gradient Boosting'
-        self.model = HyperModelGradientBoosting(dataset, context)
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
+        self.model = HyperModelGradientBoosting(dataset, context, params)
 
 
 class HyperModelStackingLinear(HyperModelStacking):
     # class for stacking with model Extra trees
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Stacking Linear'
-        self.model = HyperModelLinearRegressor(dataset, context)
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
+        self.model = HyperModelLinearRegressor(dataset, context, params)
+
 
 class HyperModelStackingLogistic(HyperModelStacking):
     # class for stacking with model Logistic regression
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Stacking Logistic'
-        self.model = HyperModelLogisticRegression(dataset, context)
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
+        self.model = HyperModelLogisticRegression(dataset, context, params)
+
 
 class HyperModelStackingXgBoost(HyperModelStacking):
     # class for stacking with model XgBoost
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Stacking XgBoost'
-        self.model = HyperModelXgBoost(dataset, context)
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
+        self.model = HyperModelXgBoost(dataset, context, params)
+
 
 class HyperModelStackingLightGBM(HyperModelStacking):
     # class for stacking with model LightGBM
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Stacking LightGBM'
-        self.model = HyperModelLightGBM(dataset, context)
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
+        self.model = HyperModelLightGBM(dataset, context, params)
+
 
 class HyperModelStackingNN(HyperModelStacking):
     # class for stacking with model NN
 
-    def __init__(self, dataset, context):
-        super().__init__(dataset, context)
-        self.model_name = 'Stacking NN'
-        self.model = HyperModelNN(dataset, context)
+    def __init__(self, dataset, context, params, round_id):
+        super().__init__(dataset, context, params, round_id)
+        self.model = HyperModelNN(dataset, context, params)

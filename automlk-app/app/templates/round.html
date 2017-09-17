@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
-<h3><a href="/">Home</a> > <a href="/dataset/{{dataset.uid}}#models">{{dataset.name}}</a> > <a
-        href="/details/{{dataset.uid}};{{round.model}}">{{ round.model }}</a> > <span
-        style="font-size:20px">{{ round.uuid }}</span></h3>
+<h3><a href="/">Home</a> > <a href="/dataset/{{dataset.dataset_id}}#models">{{dataset.name}}</a> > <a
+        href="/details/{{dataset.dataset_id}};{{round.model_name}}">{{ round.model_name }}</a> > <span
+        style="font-size:20px">{{ round.round_id }}</span></h3>
 <h5>{{ round.uiid }}</h5>
 
 <ul class="nav nav-tabs">
@@ -23,15 +23,15 @@
                     <table class="table table-bordered table-striped table-hover">
                         <tr>
                             <td>score eval</td>
-                            <td>{{ round.score_eval }}</td>
+                            <td>{{ print_score(round.score_eval) }}</td>
                         </tr>
                         <tr>
                             <td>score test</td>
-                            <td>{{ round.score_test }}</td>
+                            <td>{{ print_score(round.score_test) }}</td>
                         </tr>
                         <tr>
                             <td>cv</td>
-                            <td>{{ round.cv_mean }} +/- {{ round.cv_std }}</td>
+                            <td>{{ print_score(round.cv_mean) }} +/- {{ print_score(round.cv_std) }}</td>
                         </tr>
                         <tr>
                             <td>eval metrics</td>
@@ -43,11 +43,11 @@
                         </tr>
                         <tr>
                             <td>model</td>
-                            <td>{{ round.model }}</td>
+                            <td>{{ round.solution_name }}</td>
                         </tr>
                         <tr>
                             <td>time</td>
-                            <td>{{ round.time }}</td>
+                            <td>{{ round.start_time }}</td>
                         </tr>
                         <tr>
                             <td>pre-processing duration</td>
@@ -55,31 +55,31 @@
                         </tr>
                         <tr>
                             <td>modeling duration</td>
-                            <td>{{ print_duration(round.duration) }}</td>
+                            <td>{{ print_duration(round.duration_model) }}</td>
                         </tr>
                         <tr>
                             <td>rounds</td>
-                            <td>{{ round.rounds }}</td>
+                            <td>{{ round.num_rounds }}</td>
                         </tr>
                         <tr>
                             <td>host</td>
-                            <td>{{ round.host }}</td>
+                            <td>{{ round.host_name }}</td>
                         </tr>
                         <tr>
-                            <td>uuid</td>
-                            <td>{{ round.uuid }}</td>
+                            <td>round_id</td>
+                            <td>{{ round.round_id }}</td>
                         </tr>
                         <tr>
                             <td>model level</td>
-                            <td>{{ round.model_level }}</td>
+                            <td>{{ round.level }}</td>
                         </tr>
                         <tr>
                             <td>pre-processing</td>
-                            <td>{{ round.process }}</td>
+                            <td>{{ round.process_steps }}</td>
                         </tr>
                         <tr>
                             <td>params</td>
-                            <td>{{ round.params }}</td>
+                            <td>{{ round.model_params }}</td>
                         </tr>
                     </table>
                 </td>
@@ -135,8 +135,8 @@
     </div>
     <!-- prediction graph !-->
     <div id="pred_graph" class="tab-pane">
-        <img src="/get_img_round/{{dataset.uid}};{{round.uuid}};predict_eval?{{refresher}}"></img>
-        <img src="/get_img_round/{{dataset.uid}};{{round.uuid}};predict_test?{{refresher}}"></img>
+        <img src="/get_img_round/{{dataset.dataset_id}};{{round.round_id}};predict_eval?{{refresher}}"></img>
+        <img src="/get_img_round/{{dataset.dataset_id}};{{round.round_id}};predict_test?{{refresher}}"></img>
     </div>
     <!-- prediction graphs !-->
     <div id="hist_graph" class="tab-pane">
@@ -144,10 +144,10 @@
         <table>
             <tr>
                 <td>
-                    <img src="/get_img_round/{{dataset.uid}};{{round.uuid}};hist_eval?{{refresher}}"></img>
+                    <img src="/get_img_round/{{dataset.dataset_id}};{{round.round_id}};hist_eval?{{refresher}}"></img>
                 </td>
                 <td>
-                    <img src="/get_img_round/{{dataset.uid}};{{round.uuid}};hist_test?{{refresher}}"></img>
+                    <img src="/get_img_round/{{dataset.dataset_id}};{{round.round_id}};hist_test?{{refresher}}"></img>
                 </td>
             </tr>
         </table>

@@ -13,6 +13,23 @@ def get_dataset_folder(dataset_uid):
     """
     return get_data_folder() + '/%s' % dataset_uid
 
+def get_config():
+    """
+
+    retrieves configuration parameters
+    :return: config dict
+    """
+    # detect OS
+    home = str(Path.home())
+    if platform.system() == 'Linux':
+        setup_dir = home + '/.automlk'
+    else:
+        setup_dir = home.replace('\\', '/') + '/automlk'
+
+    if os.path.exists(setup_dir + '/automlk.json'):
+        with open(setup_dir + '/automlk.json', 'r') as f:
+            return eval("".join(f.readlines()))
+    raise EnvironmentError('configuration file %s not found' % setup_dir + '/automlk.json')
 
 def get_data_folder():
     """
@@ -29,12 +46,13 @@ def get_data_folder():
     if not os.path.exists(setup_dir + '/automlk.json'):
         print('creating setup folder and configuration file')
 
-        # create setup folder
+        # create setup and store folders
         os.makedirs(setup_dir)
+        os.makedirs(setup_dir + '/store')
 
         # create default configuration file
         with open(setup_dir + '/automlk.json', 'w') as f:
-            f.write('{"data": "%s", "theme": "darkly"}\n' % setup_dir)
+            f.write('{"data": "%s", "theme": "darkly", "store": "localhost"}\n' % setup_dir)
         return setup_dir
     else:
         # read the data folder in the setup file

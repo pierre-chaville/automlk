@@ -8,10 +8,10 @@ from sklearn.metrics import confusion_matrix
 from .context import METRIC_NULL, get_dataset_folder
 
 
-def graph_histogram(dataset_uid, col, is_categorical, values, part='train'):
+def graph_histogram(dataset_id, col, is_categorical, values, part='train'):
     """
     generate the histogram of column col of the dataset
-    :param dataset_uid: dataset id
+    :param dataset_id: dataset id
     :param col: column name
     :param is_categorical: is the column categorical
     :param values: values of the column
@@ -33,7 +33,7 @@ def graph_histogram(dataset_uid, col, is_categorical, values, part='train'):
     plt.title('histogram of %s (%s set)' % (col, part))
     plt.xlabel('values')
     plt.ylabel('frequencies')
-    plt.savefig(get_dataset_folder(dataset_uid) + '/graphs/_hist_%s_%s.png' % (part, col), transparent=True)
+    plt.savefig(get_dataset_folder(dataset_id) + '/graphs/_hist_%s_%s.png' % (part, col), transparent=True)
 
 
 def graph_correl_features(dataset, df):
@@ -68,7 +68,7 @@ def graph_correl_features(dataset, df):
     plt.title('correlation map of the features')
     plt.xticks(rotation=90)
     plt.yticks(rotation=0)
-    plt.savefig(get_dataset_folder(dataset.uid) + '/graphs/_correl.png', transparent=True)
+    plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/_correl.png', transparent=True)
 
 
 def graph_history_search(dataset, df_search, best_models, level):
@@ -83,7 +83,7 @@ def graph_history_search(dataset, df_search, best_models, level):
     #
     if len(df_search) < 1:
         return
-    scores = df_search[df_search.model_level == level].score_eval.values
+    scores = df_search[df_search.level == level].sort_index().score_eval.values
 
     if dataset.best_is_min:
         # positive scores (e.g loss or error: min is best)
@@ -115,28 +115,28 @@ def graph_history_search(dataset, df_search, best_models, level):
     plt.xlabel('total searches')
     plt.ylabel('score')
     plt.ylim(y_lim1, y_lim2)
-    plt.savefig(get_dataset_folder(dataset.uid) + '/graphs/_history_%d.png' % level, transparent=True)
+    plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/_history_%d.png' % level, transparent=True)
 
     # we will generate a list of the max values values per model
 
     plt.figure(figsize=(6, 6))
-    for model in best_models.model.unique()[:5][::-1]:
-        scores = np.sort(np.abs(df_search[df_search.model == model].score_eval.values))[::-1]
-        plt.plot(list(range(len(scores))), scores, label=model)
+    for model_name in best_models.model_name.unique()[:5][::-1]:
+        scores = np.sort(np.abs(df_search[df_search.model_name == model_name].score_eval.values))[::-1]
+        plt.plot(list(range(len(scores))), scores, label=model_name)
 
     plt.title('best score for 5 best models (level=%d)' % level)
     plt.xlabel('searches')
     plt.ylabel('score')
     plt.ylim(y_lim1, y_lim2)
     plt.legend(loc=1)
-    plt.savefig(get_dataset_folder(dataset.uid) + '/graphs/_models_%d.png' % level, transparent=True)
+    plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/_models_%d.png' % level, transparent=True)
 
 
-def graph_predict(dataset, uuid, y, y_pred, part='eval'):
+def graph_predict(dataset, round_id, y, y_pred, part='eval'):
     """
     generate a graph prediction versus actuals (regression) or a confusion matrix (classification)
     :param dataset: dataset object
-    :param uuid: id of the round
+    :param round_id: id of the round
     :param y: actual values
     :param y_pred: predicted values
     :param part: part of the dataset
@@ -187,14 +187,14 @@ def graph_predict(dataset, uuid, y, y_pred, part='eval'):
         plt.xlabel('Predicted label')
         plt.title('confusion matrix (%s set)' % part)
 
-    plt.savefig(get_dataset_folder(dataset.uid) + '/graphs/predict_%s_%s.png' % (part, uuid), transparent=True)
+    plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/predict_%s_%s.png' % (part, round_id), transparent=True)
 
 
-def graph_pred_histogram(dataset_uid, uuid, y, part='eval'):
+def graph_pred_histogram(dataset_id, round_id, y, part='eval'):
     """
     generate the histograph of predictions
-    :param dataset_uid: id of the dataset
-    :param uuid: id of the round (model)
+    :param dataset_id: id of the dataset
+    :param round_id: id of the round (model)
     :param y: prediction values
     :param part: set (eval / train set)
     :return: None
@@ -205,4 +205,4 @@ def graph_pred_histogram(dataset_uid, uuid, y, part='eval'):
     plt.title('histogram of predictions (%s set)' % part)
     plt.xlabel('values')
     plt.ylabel('frequencies')
-    plt.savefig(get_dataset_folder(dataset_uid) + '/graphs/hist_%s_%s.png' % (part, uuid), transparent=True)
+    plt.savefig(get_dataset_folder(dataset_id) + '/graphs/hist_%s_%s.png' % (part, round_id), transparent=True)

@@ -3,12 +3,12 @@
 <h3><a href="/">Home</a> > {{dataset.name}}</h3>
 
 <ul class="nav nav-tabs">
-    {% if n_searches0 > 0 %}
+    {% if n_searches1 > 0 %}
     <li class="active"><a data-toggle="tab" href="#models">Models</a></li>
-    {% if best1|count > 0 %}
+    {% if best2|count > 0 %}
     <li><a data-toggle="tab" href="#ensembles">Ensembles</a></li>
     {% endif %}
-    <li><a data-toggle="tab" href="#graph0">Search</a></li>
+    <li><a data-toggle="tab" href="#graph">Search</a></li>
     <li><a data-toggle="tab" href="#dataset">Dataset</a></li>
     <li><a data-toggle="tab" href="#stats">Stats</a></li>
     <li><a data-toggle="tab" href="#features">Features</a></li>
@@ -24,43 +24,43 @@
 </ul>
 
 <div class="tab-content">
-    {% if n_searches0 > 0 %}
+    {% if n_searches1 > 0 %}
     <div id="models" class="tab-pane active">
-        {% set best = best0 %}
-        {% set n_searches = n_searches0 %}
+        {% set best = best1 %}
+        {% set n_searches = n_searches1 %}
         {% include 'models.html' %}
     </div>
-    <div id="graph0" class="tab-pane">
+    <div id="graph" class="tab-pane">
         <table>
             <tr>
                 <td>
-                    <img src="/get_img_dataset/{{dataset.uid}};history_0?{{refresher}}"></img>
+                    <img src="/get_img_dataset/{{dataset.dataset_id}};history_1?{{refresher}}"></img>
                 </td>
                 <td>
-                    <img src="/get_img_dataset/{{dataset.uid}};models_0?{{refresher}}"></img>
+                    <img src="/get_img_dataset/{{dataset.dataset_id}};models_1?{{refresher}}"></img>
                 </td>
             </tr>
-    {% if best1|count > 0 %}
+    {% if best2|count > 0 %}
             <tr>
                 <td>
-                    <img src="/get_img_dataset/{{dataset.uid}};history_1?{{refresher}}"></img>
+                    <img src="/get_img_dataset/{{dataset.dataset_id}};history_2?{{refresher}}"></img>
                 </td>
                 <td>
-                    <img src="/get_img_dataset/{{dataset.uid}};models_1?{{refresher}}"></img>
+                    <img src="/get_img_dataset/{{dataset.dataset_id}};models_2?{{refresher}}"></img>
                 </td>
             </tr>
     {% endif %}
         </table>
     </div>
-    {% if best1|count > 0 %}
+    {% if best2|count > 0 %}
     <div id="ensembles" class="tab-pane">
-        {% set best = best1 %}
-        {% set n_searches = n_searches1 %}
+        {% set best = best2 %}
+        {% set n_searches = n_searches2 %}
         {% include 'models.html' %}
     </div>
     {% endif %}
     {% endif %}
-    <div id="dataset" class="tab-pane {% if n_searches0 == 0 %}active{% endif %}">
+    <div id="dataset" class="tab-pane {% if n_searches1 == 0 %}active{% endif %}">
         <table class="table">
             <tr>
                 <td width="50%">
@@ -71,7 +71,7 @@
                         </tr>
                         <tr>
                             <td>Id</td>
-                            <td>{{dataset.uid}}</td>
+                            <td>{{dataset.dataset_id}}</td>
                         </tr>
                         <tr>
                             <td>Description</td>
@@ -230,20 +230,20 @@
                 <td>{{col.col_type}}</td>
                 <td>{{col.n_missing}}</td>
                 <td>{{col.n_unique_values}}</td>
-                <td>{{col.print_values}}</td>
+                <td>{{col.first_unique_values}}</td>
             </tr>
             {% endfor %}
         </table>
     </div>
     <div id="data" class="tab-pane">
-        <img src="/get_img_dataset/{{dataset.uid}};hist_train_{{dataset.y_col}}?{{refresher}}"></img>
+        <img src="/get_img_dataset/{{dataset.dataset_id}};hist_train_{{dataset.y_col}}?{{refresher}}"></img>
     </div>
     <div id="correl" class="tab-pane">
-        <img src="/get_img_dataset/{{dataset.uid}};correl?{{refresher}}"></img>
+        <img src="/get_img_dataset/{{dataset.dataset_id}};correl?{{refresher}}"></img>
     </div>
 </div>
 
-{% if n_searches0 >= 0 %}
+{% if n_searches1 >= 0 %}
 <script>
     setInterval(function() {
       window.location.reload();

@@ -13,22 +13,22 @@
     {% for dataset in datasets %}
     <tr>
         <td width="20%">
-            <a href="/dataset/{{dataset.uid}}" style="color:inherit; text-decoration: none;">{{ dataset.name}}</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{ dataset.name}}</a>
         </td>
         <td>
-            <a href="/dataset/{{dataset.uid}}" style="color:inherit; text-decoration: none;">{{ dataset.description[:300]}}...</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{ dataset.description[:300]}}...</a>
         </td>
         <td wdth="10%">
-            <a href="/dataset/{{dataset.uid}}" style="color:inherit; text-decoration: none;">{{ dataset.source}}</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{ dataset.source}}</a>
         </td>
         <td wdth="10%">
-            <a href="/dataset/{{dataset.uid}}" style="color:inherit; text-decoration: none;">{{ dataset.problem_type}}</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{ dataset.problem_type}}</a>
         </td>
         <td wdth="10%">
-            <a href="/dataset/{{dataset.uid}}" style="color:inherit; text-decoration: none;">{{ dataset.n_rows}}K</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{ dataset.n_rows}}K</a>
         </td>
         <td wdth="10%">
-            <a href="/dataset/{{dataset.uid}}" style="color:inherit; text-decoration: none;">{{ dataset.n_cols}}</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{ dataset.n_cols}}</a>
         </td>
     </tr>
     {% endfor %}
