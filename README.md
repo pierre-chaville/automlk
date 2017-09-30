@@ -38,8 +38,6 @@ Installation:
 ------------
 download and then install:
 
-.. code-block:: python
-
     python setup.py install
 
 References:
