@@ -29,7 +29,7 @@ def get_key_store(key):
 def set_key_store(key, value):
     # sets value to key in store
     if use_redis:
-        return rds.set(str(key), json.dumps(value))
+        rds.set(str(key), json.dumps(value))
     else:
         with open(store_folder + '/' + str(key) + '.json', 'w') as f:
             json.dump(value, f)
@@ -56,15 +56,68 @@ def incr_key_store(key, amount=1):
             set_key_store(key, amount)
 
 
-def rpush_key_store(key, value):
-    # add value to the list of key in store
+def get_counter_store(key, amount=1):
+    # returns raw value of key in store with amount
     if use_redis:
-        return rds.rpush(str(key), json.dumps(value))
+        if rds.exists(str(key)):
+            return int(rds.get(str(key)))
+        else:
+            return 0
+    else:
+        if exists_key_store(key):
+            return get_key_store(key)
+        else:
+            return None
+
+
+def rpush_key_store(key, value):
+    # add value to the end of a list of key in store
+    if use_redis:
+        rds.rpush(str(key), json.dumps(value))
     else:
         if exists_key_store(key):
             l = get_key_store(key)
             set_key_store(key, l.append(value))
-            return l
+        else:
+            set_key_store(key, [value])
+
+
+def rpop_key_store(key):
+    # returns and pop the 1st element of a list of key in store
+    if use_redis:
+        return json.loads(rds.rpop(str(key)))
+    else:
+        if exists_key_store(key):
+            l = get_key_store(key)
+            e = l[0]
+            set_key_store(key, l[1:])
+            return e
+        else:
+            return None
+
+
+def brpop_key_store(key):
+    # returns and pop the 1st element of a list of key in store with blocking
+    if use_redis:
+        return json.loads(rds.brpop(str(key))[1])
+    else:
+        if exists_key_store(key):
+            l = get_key_store(key)
+            e = l[0]
+            set_key_store(key, l[1:])
+            return e
+        else:
+            return None
+
+
+def lpush_key_store(key, value):
+    # add value to the beginning of a list of key in store
+    if use_redis:
+        rds.lpush(str(key), json.dumps(value))
+    else:
+        if exists_key_store(key):
+            l = get_key_store(key)
+            set_key_store(key, [value] + l)
         else:
             set_key_store(key, [value])
 
@@ -76,3 +129,13 @@ def list_key_store(key):
     else:
         return get_key_store(key)
 
+
+def llen_key_store(key):
+    # returns the length of a list of key in store
+    if use_redis:
+        return rds.llen(str(key))
+    else:
+        if exists_key_store(key):
+            return len(get_key_store(key))
+        else:
+            return None

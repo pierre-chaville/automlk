@@ -4,7 +4,8 @@ from .models import *
 class ModelSolution(object):
     # to define a model and the parameters / conditions of usage
 
-    def __init__(self, ref, name, model, default_params, space_params, problem_type, level=1, selectable=True, limit_size=1e32):
+    def __init__(self, ref, name, model, default_params, space_params, problem_type, level=1, selectable=True,
+                 limit_size=1e32):
         self.ref = ref
         self.name = name
         self.model = model
@@ -25,8 +26,6 @@ model_solutions = [
                   space_xgboost_classifier, 'classification', selectable=import_xgb),
     ModelSolution('CAT-C', 'CatBoost', HyperModelCatboost, default_catboost_classifier,
                   space_catboost_classifier, 'classification', selectable=import_catboost),
-    ModelSolution('NN-C', 'Neural Networks', HyperModelNN, default_keras,
-                  space_keras, 'classification', selectable=import_keras),
     ModelSolution('XTRA-C', 'Extra Trees', HyperModelExtraTrees, default_extra_trees,
                   space_extra_trees_classifier, 'classification'),
     ModelSolution('RF-C', 'Random Forest', HyperModelRandomForest, default_random_forest,
@@ -41,6 +40,8 @@ model_solutions = [
                   space_svc, 'classification'),
     ModelSolution('LOGIT', 'Logistic Regression', HyperModelLogisticRegression, default_logistic_regression,
                   space_logistic_regression, 'classification', limit_size=2000),
+    ModelSolution('NN-C', 'Neural Networks', HyperModelNN, default_keras,
+                  space_keras, 'classification', selectable=import_keras),
 
     # regressors
     ModelSolution('LGBM-R', 'LightGBM', HyperModelLightGBM, default_lightgbm_regressor,
@@ -49,8 +50,6 @@ model_solutions = [
                   space_xgboost_regressor, 'regression', selectable=import_xgb),
     ModelSolution('CAT-R', 'CatBoost', HyperModelCatboost, default_catboost_regressor,
                   space_catboost_regressor, 'regression', selectable=import_catboost),
-    ModelSolution('NN-R', 'Neural Networks', HyperModelNN, default_keras,
-                  space_keras, 'classification', selectable=import_keras),
     ModelSolution('XTRA-R', 'Extra Trees', HyperModelExtraTrees, default_extra_trees,
                   space_extra_trees_regressor, 'regression'),
     ModelSolution('RF-R', 'Random Forest', HyperModelRandomForest, default_random_forest,
@@ -73,6 +72,8 @@ model_solutions = [
                   space_lasso_regression, 'regression'),
     ModelSolution('HUBER', 'Huber Regression', HyperModelHuberRegressor, default_huber_regression,
                   space_huber_regression, 'regression'),
+    ModelSolution('NN-R', 'Neural Networks', HyperModelNN, default_keras,
+                 space_keras, 'regression', selectable=import_keras),
 
     # ensembles
     ModelSolution('ENS', 'Ensemble Selection', HyperModelEnsembleSelection, default_ensemble,
@@ -105,7 +106,6 @@ model_solutions = [
                   default_gradient_boosting, space_gradient_boosting_regressor, 'regression', level=2),
     ModelSolution('STK-LR', 'Stacking Linear Regression', HyperModelStackingLinear,
                   default_linear_regression, space_linear_regression, 'regression', level=2),
-
 ]
 
 # mapping table

@@ -4,6 +4,10 @@ import os, platform
 from pathlib import Path
 
 METRIC_NULL = 1e7
+SEARCH_QUEUE = 'controller:search_queue'
+RESULTS_QUEUE = 'controller:results_queue'
+CONTROLLER_ID = 'controller:dataset_id'
+
 
 def get_dataset_folder(dataset_uid):
     """
@@ -13,11 +17,13 @@ def get_dataset_folder(dataset_uid):
     """
     return get_data_folder() + '/%s' % dataset_uid
 
+
 def get_config():
     """
 
     retrieves configuration parameters
     :return: config dict
+    """
     """
     # detect OS
     home = str(Path.home())
@@ -30,11 +36,19 @@ def get_config():
         with open(setup_dir + '/automlk.json', 'r') as f:
             return eval("".join(f.readlines()))
     raise EnvironmentError('configuration file %s not found' % setup_dir + '/automlk.json')
+    """
+    if os.path.exists('config.json'):
+        with open('config.json', 'r') as f:
+            return eval("".join(f.readlines()))
+    raise EnvironmentError('configuration file %s not found' % 'config.json')
+
 
 def get_data_folder():
     """
     retrieves root folder from 'automlk.json' configuration file
     :return: storage folder of the data
+    """
+
     """
     # detect OS
     home = str(Path.home())
@@ -63,7 +77,8 @@ def get_data_folder():
                 return config['data']
             else:
                 return os.path.abspath(config['data']).replace('\\', '/') + '/automlk'
-
+    """
+    return get_config()['data']
 
 class HyperContext():
 

@@ -4,6 +4,9 @@
 <table class="table table-bordered table-striped table-hover">
     <thead>
     <th>name</th>
+    <th>status</th>
+    <th><i class="fa fa-play" aria-hidden="true"></i></th>
+    <th>#</th>
     <th>description</th>
     <th>source</th>
     <th>problem</th>
@@ -13,24 +16,64 @@
     {% for dataset in datasets %}
     <tr>
         <td width="20%">
-            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{ dataset.name}}</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{
+                dataset.name}}</a>
         </td>
         <td>
-            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{ dataset.description[:300]}}...</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">
+                {% if dataset.status == 'created' %}
+                <span class="label label-default">created</span>
+                {% elif dataset.status == 'searching' %}
+                <span class="label label-warning">searching</span>
+                <div class="progress-bar progress-bar-success" role="progressbar"
+                     style="width:{{ dataset.round_counter/200 }}%">
+                </div>
+                {% elif dataset.status == 'pause' %}
+                <span class="label label-info">pause</span>
+                {% else %}
+                <span class="label label-warning">completed</span>
+                {% endif %}
+            </a>
+        </td>
+        <td>
+            {% if dataset.status in ['created', 'pause', 'completed'] %}
+            <a href="/start/{{dataset.dataset_id}}"><i class="fa fa-play" aria-hidden="true"></i></a>
+            {% elif dataset.status == 'searching' %}
+            <a href="/pause/{{dataset.dataset_id}}"><i class="fa fa-pause" aria-hidden="true"></i></a>
+            {% endif %}
+        </td>
+        <td>
+            {{ dataset.round_counter }}
+        </td>
+        <td>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{
+                dataset.description[:100]}}...</a>
         </td>
         <td wdth="10%">
-            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{ dataset.source}}</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{
+                dataset.source}}</a>
         </td>
         <td wdth="10%">
-            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{ dataset.problem_type}}</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{
+                dataset.problem_type}}</a>
         </td>
         <td wdth="10%">
-            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{ dataset.n_rows}}K</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{
+                dataset.n_rows}}K</a>
         </td>
         <td wdth="10%">
-            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{ dataset.n_cols}}</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{
+                dataset.n_cols}}</a>
         </td>
     </tr>
     {% endfor %}
 </table>
+
+<script>
+    setInterval(function() {
+      window.location.reload();
+    }, 300000);
+
+</script>
+
 {% endblock %}

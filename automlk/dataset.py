@@ -12,14 +12,16 @@ from .store import *
 
 def create_dataset(name, description, problem_type, y_col, is_uploaded, source, filename_train, metric,
                    other_metrics=[], val_col='index', cv_folds=5, val_col_shuffle=True,
-                   holdout_ratio=0.2, filename_test='', filename_cols='', is_public=False, url=''):
+                   holdout_ratio=0.2, filename_test='', filename_cols='', filename_submit='', is_public=False, url='',
+                   col_submit=''):
+
     # create object and control data
     creation_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     dt = DataSet(0, name, description, problem_type, y_col, is_uploaded, source, filename_train, metric,
                  other_metrics=other_metrics, val_col=val_col, cv_folds=cv_folds, val_col_shuffle=val_col_shuffle,
-                 holdout_ratio=holdout_ratio, filename_test=filename_test, filename_cols=filename_cols,
-                 is_public=is_public, url=url, creation_date=creation_date)
+                 holdout_ratio=holdout_ratio, filename_test=filename_test, filename_cols=filename_cols, filename_submit=filename_submit,
+                 is_public=is_public, col_submit=col_submit, url=url, creation_date=creation_date)
 
     # control data
     df_train, df_test = dt.initialize_data()
@@ -29,6 +31,8 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
 
     # save and create objects and graphs related to the dataset
     dataset_id = str(incr_key_store('dataset:counter'))
+    set_key_store('dataset:%s:status' % dataset_id, 'created')
+    set_key_store('dataset:%s:counter' % dataset_id, 0)
     rpush_key_store('dataset:list', dataset_id)
 
     dt.save(dataset_id)
@@ -52,6 +56,7 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
 
     return dt
 
+# TODO: add competition mode (submission test set)
 
 class DataSet(object):
     """
@@ -60,7 +65,7 @@ class DataSet(object):
 
     def __init__(self, dataset_id, name, description, problem_type, y_col, is_uploaded, source, filename_train, metric,
                  other_metrics, val_col, cv_folds, val_col_shuffle,
-                 holdout_ratio, filename_test, filename_cols, is_public, url, creation_date):
+                 holdout_ratio, filename_test, filename_cols, filename_submit, is_public, url, col_submit, creation_date):
         """
         creates a new dataset: it will be automatically stored
 
@@ -104,6 +109,8 @@ class DataSet(object):
         self.filename_train = filename_train
         self.filename_test = filename_test
         self.filename_cols = filename_cols
+        self.filename_submit = filename_submit
+        self.col_submit = col_submit
         self.creation_date = creation_date
 
         if metric not in metric_map.keys():
@@ -447,13 +454,18 @@ def get_y_eval(dataset_id):
     return pickle.load(open(get_dataset_folder(dataset_id) + '/y_eval.pkl', 'rb'))
 
 
-def get_dataset_list():
+def get_dataset_list(include_status=False):
     """
     get the list of all datasets
 
     :return: list of datasets objects
     """
-    return [get_dataset(dataset_id) for dataset_id in get_dataset_ids()]
+    dl = [get_dataset(dataset_id) for dataset_id in get_dataset_ids()]
+    if include_status:
+        for d in dl:
+            d.status = get_key_store('dataset:%s:status' % d.dataset_id)
+            d.round_counter = get_counter_store('dataset:' + d.dataset_id + ':round_counter')
+    return dl
 
 
 def get_dataset_ids():

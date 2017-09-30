@@ -6,14 +6,26 @@ from automlk.context import get_dataset_folder
 from automlk.dataset import get_dataset_list, get_dataset
 from automlk.search import get_search_rounds
 from automlk.graphs import graph_history_search
-
+from automlk.store import set_key_store
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/index', methods=['GET', 'POST'])
 def index():
     # home page: list of models
-    datasets = get_dataset_list()[::-1]
+    datasets = get_dataset_list(include_status=True)[::-1]
     return render_template('index.html', datasets=datasets, refresher=int(time.time()))
+
+
+@app.route('/start/<string:dataset_id>', methods=['GET'])
+def start(dataset_id):
+    set_key_store('dataset:%s:status' % dataset_id, 'searching')
+    return redirect('/index')
+
+
+@app.route('/pause/<string:dataset_id>', methods=['GET'])
+def pause(dataset_id):
+    set_key_store('dataset:%s:status' % dataset_id, 'pause')
+    return redirect('/index')
 
 
 @app.route('/dataset/<string:dataset_id>', methods=['GET', 'POST'])
@@ -57,7 +69,7 @@ def round(prm):
     dataset_id, round_id = prm.split(';')
     dataset = get_dataset(dataset_id)
     search = get_search_rounds(dataset.dataset_id)
-    round = search[search.round_id == round_id].to_dict(orient='records')[0]
+    round = search[search.round_id == int(round_id)].to_dict(orient='records')[0]
     steps = get_process_steps(round['process_steps'])
     params = get_round_params(search, round_id)
     features = get_feature_importance(dataset.dataset_id, round_id)

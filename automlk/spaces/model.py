@@ -78,7 +78,7 @@ space_gradient_boosting_classifier = {**space_sklearn_trees,
                                          'loss': HyperWeights({'deviance': 1, 'exponential': 1}),
                                          }}
 # parameters for Logistic regression
-default_logistic_regression = {'n_jobs': -1}
+default_logistic_regression = {'penalty': 'l2', 'dual': False, 'solver': 'liblinear', 'n_jobs': -1}
 space_logistic_regression = {'penalty': HyperWeights({'l1': 1, 'l2': 1}),
                              'dual': HyperWeights({False: 1, True: 1}),
                              'tol': HyperWeights({1e-4: 2, HyperRangeFloat(0.0001, 0.01): 1}),

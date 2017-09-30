@@ -19,21 +19,21 @@ def get_best_models(df):
     if len(df) < 1:
         return pd.DataFrame()
 
-    best = df.sort_values(by=['model_name', 'score_eval']).groupby('model_name', as_index=False).first().sort_values(
-        by='score_eval').fillna('')
+    best = df.sort_values(by=['model_name', 'cv_max']).groupby('model_name', as_index=False).first().sort_values(
+        by='cv_max').fillna('')
 
     counts = df[['model_name', 'round_id']].groupby('model_name', as_index=False).count()
     counts.columns = ['model_name', 'searches']
 
     # relative performance
-    best['rel_score'] = abs(100 * (best.score_eval - best.score_eval.max()) / (best.score_eval.max() - best.score_eval.min()))
+    best['rel_score'] = abs(100 * (best.cv_max - best.cv_max.max()) / (best.cv_max.max() - best.cv_max.min()))
 
     return pd.merge(best, counts, on='model_name')
 
 
 def get_best_details(df, model_name):
     # get the best results for a model
-    best = df[df.model_name == model_name].sort_values(by='score_eval')
+    best = df[df.model_name == model_name].sort_values(by='cv_max')
 
     # create params detailed dataframe
     params = []
@@ -69,7 +69,7 @@ def get_best_details(df, model_name):
     best = pd.merge(best, params, on='round_id')
 
     # relative performance
-    best['rel_score'] = abs(100 * (best['score_eval'] - best['score_eval'].max()) / (best['score_eval'].max() - best['score_eval'].min()))
+    best['rel_score'] = abs(100 * (best['cv_max'] - best['cv_max'].max()) / (best['cv_max'].max() - best['cv_max'].min()))
     return [col for col in params.columns if col != 'round_id'], best
 
 
@@ -84,7 +84,7 @@ def get_process_steps(process):
 
 def get_round_params(df, round_id):
     # details for a round
-    round = df[df.round_id == round_id]
+    round = df[df.round_id == int(round_id)]
     params = round.model_params.values[0].copy()
     for key in params.keys():
         params[key] = print_value(params[key])

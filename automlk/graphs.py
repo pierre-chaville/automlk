@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pylab as plt
 import seaborn.apionly as sns
 import itertools
@@ -71,6 +73,20 @@ def graph_correl_features(dataset, df):
     plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/_correl.png', transparent=True)
 
 
+def __get_best_scores(scores):
+    # returns the list of best scores over time
+    # we will generate a list of the best values values over time
+    best_scores = []
+    best = METRIC_NULL
+    for x in scores:
+        if x < best:
+            best = x
+            best_scores.append(x)
+        else:
+            best_scores.append(best)
+    return np.abs(best_scores)
+
+
 def graph_history_search(dataset, df_search, best_models, level):
     """
     creates a graph of the best scores along searches
@@ -83,34 +99,24 @@ def graph_history_search(dataset, df_search, best_models, level):
     #
     if len(df_search) < 1:
         return
-    scores = df_search[df_search.level == level].sort_index().score_eval.values
+    scores = df_search[df_search.level == level].sort_index().cv_max.values
 
     if dataset.best_is_min:
         # positive scores (e.g loss or error: min is best)
-        y_lim1 = best_models.score_eval.abs().min()
-        y_lim2 = best_models.score_eval.abs().quantile(0.5)
+        y_lim1 = best_models.cv_max.abs().min()
+        y_lim2 = best_models.cv_max.abs().quantile(0.5)
         y_lim1 -= (y_lim2 - y_lim1) * 0.02
     else:
         # negative scores (e.g. auc: max is best)
-        y_lim1 = best_models.score_eval.abs().quantile(0.5)
-        y_lim2 = best_models.score_eval.abs().max()
+        y_lim1 = best_models.cv_max.abs().quantile(0.5)
+        y_lim2 = best_models.cv_max.abs().max()
         y_lim2 += (y_lim2 - y_lim1) * 0.02
 
-    # we will generate a list of the best values values over time
-    mins = []
-    best = METRIC_NULL
-    for x in scores:
-        if x < best:
-            best = x
-            mins.append(x)
-        else:
-            mins.append(best)
-    mins = np.abs(mins)
-
+    best_scores = __get_best_scores(scores)
     plt.figure(figsize=(6, 6))
     plt.style.use('dark_background')
 
-    plt.plot(list(range(len(mins))), mins)
+    plt.plot(list(range(len(best_scores))), best_scores)
     plt.title('best score over time (level=%d)' % level)
     plt.xlabel('total searches')
     plt.ylabel('score')
@@ -121,8 +127,9 @@ def graph_history_search(dataset, df_search, best_models, level):
 
     plt.figure(figsize=(6, 6))
     for model_name in best_models.model_name.unique()[:5][::-1]:
-        scores = np.sort(np.abs(df_search[df_search.model_name == model_name].score_eval.values))[::-1]
-        plt.plot(list(range(len(scores))), scores, label=model_name)
+        #scores = np.sort(np.abs(df_search[df_search.model_name == model_name].cv_max.values))[::-1]
+        best_scores = __get_best_scores(df_search[df_search.model_name == model_name].cv_max.values)
+        plt.plot(list(range(len(best_scores))), best_scores, label=model_name)
 
     plt.title('best score for 5 best models (level=%d)' % level)
     plt.xlabel('searches')

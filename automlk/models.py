@@ -11,7 +11,7 @@ import pandas as pd
 from .spaces.model import *
 from .spaces.hyper import get_random_params
 from .dataset import METRIC_NULL, get_dataset_folder
-from .utils.keras_wrapper import keras_create_model, keras_compile_model, import_keras
+from .utils.keras_wrapper import keras_create_model, keras_compile_model, import_keras, to_categorical
 
 # TODO: add naives bayes and decision trees
 
@@ -169,8 +169,10 @@ class HyperModelLogisticRegression(HyperModel):
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        if 'dual' in self.params and self.params['dual']:
+        if self.params['solver'] in ['newton-cg', 'sag', 'lbfgs']:
             self.params['penalty'] = 'l2'
+        if not (self.params['solver'] == 'liblinear' and self.params['penalty'] == 'l2'):
+            self.params['dual'] = False
         self.model = linear.LogisticRegression(**self.params)
 
 
@@ -476,16 +478,17 @@ class HyperModelNN(HyperModel):
     def fit(self, X_train, y_train):
         # train with num_rounds
         keras_compile_model(self.model, self.params, self.dataset.problem_type)
-        self.model.fit(X_train, y_train, epochs=self.num_rounds, batch_size=self.params['batch_size'],
+        self.model.fit(X_train, self.prepare_y(y_train), epochs=self.num_rounds, batch_size=self.params['batch_size'],
                        validation_split=0.,
                        verbose=0)
 
     def fit_early_stopping(self, X_train, y_train, X_eval, y_eval):
         # find best round
+        keras_compile_model(self.model, self.params, self.dataset.problem_type)
         best_score = METRIC_NULL
         i_best_score = 0
         for i in range(MAX_ROUNDS):
-            self.model.fit(X_train, y_train, epochs=1, batch_size=self.params['batch_size'],
+            self.model.fit(X_train, self.prepare_y(y_train), epochs=1, batch_size=self.params['batch_size'],
                            validation_split=0.,
                            verbose=0)
             y_pred = self.model.predict(X_eval)
@@ -506,6 +509,13 @@ class HyperModelNN(HyperModel):
             return binary_proba(self.model.predict(X))
         else:
             return self.model.predict_proba(X)
+
+    def prepare_y(self, y):
+        # generate y in one hot encoding if classification
+        if self.dataset.problem_type == 'classification':
+            return to_categorical(y, self.dataset.y_n_classes)
+        else:
+            return y
 
     def save_model(self):
         # TODO: implement save weights
@@ -612,12 +622,12 @@ class HyperModelStacking(HyperModel):
         self.params = {**{'depth': depth}, **self.params}
         # set feature names
         if self.dataset.problem_type == 'regression':
-            self.feature_names = [name+'_'+round_id[:8] for round_id, name in zip(pool.pool_model_round_ids, pool.pool_model_names)]
+            self.feature_names = [name+'_'+str(round_id) for round_id, name in zip(pool.pool_model_round_ids, pool.pool_model_names)]
         else:
             self.feature_names = []
             for round_id, name in zip(pool.pool_model_round_ids, pool.pool_model_names):
                 for k in range(self.dataset.y_n_classes):
-                    self.feature_names.append(name+'_'+str(k)+'_'+round_id[:8])
+                    self.feature_names.append(name+'_'+str(k)+'_'+str(round_id))
         self.model.feature_names = self.feature_names
 
         for i, (train_index, eval_index) in enumerate(cv_folds):
@@ -681,7 +691,7 @@ class HyperModelStackingExtraTrees(HyperModelStacking):
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelExtraTrees(dataset, context, params)
+        self.model = HyperModelExtraTrees(dataset, context, params, round_id)
 
 
 class HyperModelStackingRandomForest(HyperModelStacking):
@@ -689,7 +699,7 @@ class HyperModelStackingRandomForest(HyperModelStacking):
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelRandomForest(dataset, context, params)
+        self.model = HyperModelRandomForest(dataset, context, params, round_id)
 
 
 class HyperModelStackingGradientBoosting(HyperModelStacking):
@@ -697,7 +707,7 @@ class HyperModelStackingGradientBoosting(HyperModelStacking):
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelGradientBoosting(dataset, context, params)
+        self.model = HyperModelGradientBoosting(dataset, context, params, round_id)
 
 
 class HyperModelStackingLinear(HyperModelStacking):
@@ -705,7 +715,7 @@ class HyperModelStackingLinear(HyperModelStacking):
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelLinearRegressor(dataset, context, params)
+        self.model = HyperModelLinearRegressor(dataset, context, params, round_id)
 
 
 class HyperModelStackingLogistic(HyperModelStacking):
@@ -713,7 +723,7 @@ class HyperModelStackingLogistic(HyperModelStacking):
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelLogisticRegression(dataset, context, params)
+        self.model = HyperModelLogisticRegression(dataset, context, params, round_id)
 
 
 class HyperModelStackingXgBoost(HyperModelStacking):
@@ -721,7 +731,7 @@ class HyperModelStackingXgBoost(HyperModelStacking):
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelXgBoost(dataset, context, params)
+        self.model = HyperModelXgBoost(dataset, context, params, round_id)
 
 
 class HyperModelStackingLightGBM(HyperModelStacking):
@@ -729,7 +739,7 @@ class HyperModelStackingLightGBM(HyperModelStacking):
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelLightGBM(dataset, context, params)
+        self.model = HyperModelLightGBM(dataset, context, params, round_id)
 
 
 class HyperModelStackingNN(HyperModelStacking):
@@ -737,4 +747,4 @@ class HyperModelStackingNN(HyperModelStacking):
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelNN(dataset, context, params)
+        self.model = HyperModelNN(dataset, context, params, round_id)

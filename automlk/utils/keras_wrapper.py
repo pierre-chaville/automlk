@@ -5,6 +5,7 @@ try:
     from keras.layers.advanced_activations import PReLU, LeakyReLU
     from keras.optimizers import Adagrad, Adadelta, RMSprop, Adam
     from keras.layers.core import Dense
+    from keras.utils import to_categorical
 
     import_keras = True
 except:

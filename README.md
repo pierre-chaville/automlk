@@ -22,6 +22,26 @@ Usage:
 - review the results through with the web interface
 
 
+Requirements:
+------------
+- category_encoders
+
+optional:
+- lightGBM
+- Xgboost
+- Catboost
+- Keras with Theano or Tensorflow
+
+- Redis (for in memory key/value storage and queues)
+
+Installation:
+------------
+download and then install:
+
+.. code-block:: python
+
+    python setup.py install
+
 References:
 ----------
 Feurer, Matthias, et al. "Efficient and robust automated machine learning." Advances in Neural Information Processing Systems. 2015.
