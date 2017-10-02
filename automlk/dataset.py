@@ -20,23 +20,25 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
 
     dt = DataSet(0, name, description, problem_type, y_col, is_uploaded, source, filename_train, metric,
                  other_metrics=other_metrics, val_col=val_col, cv_folds=cv_folds, val_col_shuffle=val_col_shuffle,
-                 holdout_ratio=holdout_ratio, filename_test=filename_test, filename_cols=filename_cols, filename_submit=filename_submit,
-                 is_public=is_public, col_submit=col_submit, url=url, creation_date=creation_date)
+                 holdout_ratio=holdout_ratio, filename_test=filename_test, filename_cols=filename_cols,
+                 filename_submit=filename_submit, is_public=is_public, col_submit=col_submit,
+                 url=url, creation_date=creation_date)
 
     # control data
-    df_train, df_test = dt.initialize_data()
+    df_cols, df_train, df_test, df_submit = dt.initialize_data()
 
     # update stats
-    dt.update_stats(df_train, df_test)
+    dt.update_stats(df_train, df_test, df_submit)
 
     # save and create objects and graphs related to the dataset
     dataset_id = str(incr_key_store('dataset:counter'))
     set_key_store('dataset:%s:status' % dataset_id, 'created')
-    set_key_store('dataset:%s:counter' % dataset_id, 0)
+    set_key_store('dataset:%s:results' % dataset_id, 0)
+    set_key_store('dataset:%s:level' % dataset_id, 1)
     rpush_key_store('dataset:list', dataset_id)
 
     dt.save(dataset_id)
-    dt.finalize_creation(df_train, df_test)
+    dt.finalize_creation(df_train, df_test, df_submit)
 
     # create train & test set
     X_train, X_test, y_train, y_test = __create_train_test(dt)
@@ -56,6 +58,7 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
 
     return dt
 
+
 # TODO: add competition mode (submission test set)
 
 class DataSet(object):
@@ -65,7 +68,8 @@ class DataSet(object):
 
     def __init__(self, dataset_id, name, description, problem_type, y_col, is_uploaded, source, filename_train, metric,
                  other_metrics, val_col, cv_folds, val_col_shuffle,
-                 holdout_ratio, filename_test, filename_cols, filename_submit, is_public, url, col_submit, creation_date):
+                 holdout_ratio, filename_test, filename_cols, filename_submit, is_public, url, col_submit,
+                 creation_date):
         """
         creates a new dataset: it will be automatically stored
 
@@ -139,6 +143,15 @@ class DataSet(object):
         self.holdout_ratio = holdout_ratio
 
     def initialize_data(self):
+        # initialize dataframes
+
+        # check column description data
+        if self.filename_cols != '':
+            self.__check_data(self.filename_cols)
+            df_cols = self.__read_data(self.filename_cols)
+        else:
+            df_cols = pd.DataFrame()
+
         # check train data
         self.__check_data(self.filename_train)
         df_train = self.__read_data(self.filename_train)
@@ -146,7 +159,7 @@ class DataSet(object):
             raise ValueError('y_col %s not in the columns of the dataset' % self.y_col)
 
         self.features, self.is_y_categorical, self.y_n_classes, self.y_class_names = self.__initialize_features(
-            df_train)
+            df_train, df_cols)
 
         # check test data
         if self.filename_test != '':
@@ -157,6 +170,12 @@ class DataSet(object):
         else:
             df_test = pd.DataFrame()
 
+        if self.filename_submit != '':
+            self.__check_data(self.filename_submit)
+            df_submit = self.__read_data(self.filename_submit)
+        else:
+            df_submit = pd.DataFrame()
+
         self.x_cols = [col.name for col in self.features if
                        col.to_keep and (col.name not in [self.y_col, self.val_col])]
 
@@ -165,15 +184,17 @@ class DataSet(object):
 
         self.missing_cols = [col.name for col in self.features if col.n_missing > 0]
 
-        return df_train, df_test
+        return df_cols, df_train, df_test, df_submit
 
-    def update_stats(self, df_train, df_test):
+    def update_stats(self, df_train, df_test, df_submit):
         # create stats on the dataset
         self.size = int(df_train.memory_usage().sum() / 1000000)
         self.n_rows = int(len(df_train) / 1000)
         self.n_cols = len(df_train.columns)
         self.n_cat_cols = len(self.cat_cols)
         self.n_missing = len(self.missing_cols)
+        self.test_size = int(df_test.memory_usage().sum() / 1000000)
+        self.submit_size = int(df_submit.memory_usage().sum() / 1000000)
 
     def save(self, dataset_id):
         # saves dataset data in a pickle store
@@ -189,6 +210,7 @@ class DataSet(object):
                                'val_col_shuffle': self.val_col_shuffle,
                                'holdout_ratio': self.holdout_ratio, 'filename_test': self.filename_test,
                                'filename_cols': self.filename_cols, 'is_public': self.is_public, 'url': self.url,
+                               'filename_submit': self.filename_cols, 'col_submit': self.col_submit,
                                'creation_date': self.creation_date},
                  'load_data': {'size': self.size, 'n_rows': self.n_rows, 'n_cols': self.n_cols,
                                'n_cat_cols': self.n_cat_cols, 'n_missing': self.n_missing,
@@ -197,7 +219,8 @@ class DataSet(object):
                                'self.best_is_min': self.best_is_min, 'is_y_categorical': self.is_y_categorical,
                                'y_n_classes': self.y_n_classes, 'y_class_names': self.y_class_names},
                  'features': [{'name': f.name, 'raw_type': str(f.raw_type), 'n_missing': int(f.n_missing),
-                               'n_unique_values': int(f.n_unique_values), 'first_unique_values': f.first_unique_values}
+                               'n_unique_values': int(f.n_unique_values), 'first_unique_values': f.first_unique_values,
+                               'description': f.description, 'to_keep': f.to_keep, 'col_type': f.col_type}
                               for f in self.features]
                  }
         set_key_store('dataset:%s' % self.dataset_id, store)
@@ -208,14 +231,12 @@ class DataSet(object):
             setattr(self, k, load_data[k])
         self.features = [Feature(**f) for f in features]
 
-    def finalize_creation(self, df_train, df_test):
+    def finalize_creation(self, df_train, df_test, df_submit):
         # generates objects related to the dataset
         self.__import_data(self.filename_train, 'train')
         if self.filename_test != '':
             self.__import_data(self.filename_test, 'test')
-
         self.__create_graphs(df_train, 'train')
-        # TODO: create train & test set, cv folds & eval set
         if self.filename_test != '':
             self.__create_graphs(df_test, 'test')
 
@@ -252,8 +273,10 @@ class DataSet(object):
             df = pd.read_excel(filename)
         return df
 
-    def __initialize_features(self, df):
+    def __initialize_features(self, df, df_cols):
         # creates the columns for a dataset from the data as a dataframe
+
+        cols = {x['name']: x for x in df_cols.fillna('').to_dict(orient='records')}
 
         # reset columns
         features = []
@@ -268,7 +291,18 @@ class DataSet(object):
             n_unique = len(uniques)
             raw_type = str(df[col].dtype)
             first_unique_values = ', '.join([str(x) for x in uniques[:5]])
-            feature = Feature(col, raw_type, n_missing, n_unique, first_unique_values)
+            to_keep = True
+            description = ''
+            col_type = ''
+            if col in cols:
+                k = cols[col]
+                description = k['description']
+                if k['to_keep'] != '':
+                    to_keep = k['to_keep']
+                if k['col_type'] != '':
+                    col_type = k['col_type']
+
+            feature = Feature(col, raw_type, n_missing, n_unique, first_unique_values, description, to_keep, col_type)
             features.append(feature)
 
             # y_col : categorical if classification, numerical if regression
@@ -319,9 +353,6 @@ class DataSet(object):
         os.makedirs(root + '/features')
         os.makedirs(root + '/models')
         os.makedirs(root + '/graphs')
-        # initialize search file
-        with open(root + '/search.txt', 'w') as f:
-            f.write('')
 
     def __import_data(self, filename, part):
         # copy file in the dataset
@@ -339,25 +370,28 @@ class DataSet(object):
 
             # histograpm for each feature
 
-    # TODO: implement update dataset
-    # TODO: implement delete dataset
+            # TODO: implement update dataset
+            # TODO: implement delete dataset
 
 
 class Feature(object):
-    def __init__(self, name, raw_type, n_missing, n_unique_values, first_unique_values):
+    def __init__(self, name, raw_type, n_missing, n_unique_values, first_unique_values, description, to_keep, col_type):
         # descriptive data
         self.name = name
-        self.description = ''
-        self.to_keep = True
+        self.description = description
+        self.to_keep = to_keep
         self.raw_type = raw_type
 
         # initialize type
-        if raw_type.startswith('float'):
-            self.col_type = 'numerical'
-        elif raw_type.startswith('int'):
-            self.col_type = 'numerical'
-        elif raw_type in ['str', 'object']:
-            self.col_type = 'categorical'
+        if col_type != '':
+            self.col_type = col_type
+        else:
+            if raw_type.startswith('float'):
+                self.col_type = 'numerical'
+            elif raw_type.startswith('int'):
+                self.col_type = 'numerical'
+            elif raw_type in ['str', 'object']:
+                self.col_type = 'categorical'
         # TODO : manage dates and text
 
         self.n_missing = n_missing
@@ -464,7 +498,9 @@ def get_dataset_list(include_status=False):
     if include_status:
         for d in dl:
             d.status = get_key_store('dataset:%s:status' % d.dataset_id)
-            d.round_counter = get_counter_store('dataset:' + d.dataset_id + ':round_counter')
+            d.results = get_key_store('dataset:%s:results' % d.dataset_id)
+            d.level = get_key_store('dataset:%s:level' % d.dataset_id)
+            d.round_counter = get_counter_store('dataset:%s:round_counter' % d.dataset_id)
     return dl
 
 

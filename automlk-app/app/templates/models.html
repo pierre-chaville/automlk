@@ -2,6 +2,7 @@
 <table class="table table-bordered">
     <thead>
     <th>model</th>
+    <th style="vertical-align:top; text-align:center">cv max</th>
     <th style="vertical-align:top; text-align:center">eval</th>
     <th style="vertical-align:top; text-align:center">test</th>
     <th style="vertical-align:top; text-align:center">cv</th>
@@ -15,12 +16,16 @@
         <td><a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="text-decoration: none;">{{ r.model_name}}</a></td>
         <td style="text-align:center">
             <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="font-size:18px; color:inherit; text-decoration: none;">{{
-                print_score(r.score_eval) }}</a>
+                print_score(r.cv_max) }}</a>
             <div class="progress" style="height:10px">
                 <div class="progress-bar progress-bar-success" role="progressbar"
                      style="width:{{r.rel_score}}%">
                 </div>
             </div>
+        </td>
+        <td style="text-align:center">
+            <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">{{
+                print_score(r.score_eval) }}</a>
         </td>
         <td style="text-align:center">
             <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">{{
@@ -39,7 +44,7 @@
         </td>
         <td style="text-align:center">
             <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">{{
-                print_duration(r.duration_process+r.duration_model) }}</a>
+                print_duration(r.duration_model) }}</a>
         </td>
         <td>
             <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">{{

@@ -139,3 +139,24 @@ def llen_key_store(key):
             return len(get_key_store(key))
         else:
             return None
+
+
+def sadd_key_store(key, value):
+    # add value to set key
+    if use_redis:
+        return rds.sadd(str(key), json.dumps(value))
+    else:
+        if exists_key_store(key):
+            l = get_key_store(key)
+            if value not in l:
+                set_key_store(key, [value] + l)
+        else:
+            set_key_store(key, [value])
+
+
+def smembers_key_store(key):
+    # returns members of set key
+    if use_redis:
+        return [json.loads(m) for m in rds.smembers(str(key))]
+    else:
+        return get_key_store(key)

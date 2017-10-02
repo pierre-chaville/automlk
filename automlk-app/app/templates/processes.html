@@ -1,0 +1,17 @@
+<tr>
+    <td width="10%">{{ p.host_name }}</td>
+    <td width="10%"><span class="label label-default">{{ p.cpu_log_count }} / {{ p.cpu_count }}</span><br>
+        <div class="progress">
+            <div class="progress-bar progress-bar-success" role="progressbar" style="width:{{ p.cpu_pct }}%">
+            </div>
+        </div>
+    </td>
+    <td width="10%"><span class="label label-default">{{ p.memory|round }} GB</span><br>
+        <div class="progress">
+            <div class="progress-bar progress-bar-success" role="progressbar" style="width:{{ p.memory_pct}}%">
+            </div>
+        </div>
+    </td>
+    <td>{{ print_params(p.msg) }}</td>
+    <td>{{ p.time.hour }}:{{ p.time.minute }}</td>
+</tr>

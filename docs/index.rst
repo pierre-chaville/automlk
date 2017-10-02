@@ -5,7 +5,7 @@
 AutoMLk: automated machine learning toolkit
 ===========================================
 
-This toolkit is designed to be integrated within a python project, but also independenly through the interface of the app.
+This toolkit is designed to be integrated within a python project, but also independently through the interface of the app.
 
 The framework is designed with similar principles than auto-sklearn, with the following improvements:
 
@@ -22,6 +22,22 @@ The framework is designed with similar principles than auto-sklearn, with the fo
    Best models by eval score
 
 We have provided some public datasets to initialize the framework and compare results with best scores.
+
+Architecture
+------------
+
+The architecture is distributed and can be installed on multiple machines
+* the web app for user interaction and display results
+* the controller manages the search between models and parameters
+* the workers execute the pre-processing steps and cross validation (cpu intensive): the more workers are run in parallel, the quicker the results
+* the Redis store is an in-memory database and queue manager
+
+.. figure:: img/architecture.png
+   :scale: 50 %
+   :alt: architecture of automlk
+
+   independent components of the architecture
+
 
 Usage
 -----

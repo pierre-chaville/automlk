@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Import dataset list from file</h3>
+
+<form action="import" method="POST"
+      enctype="multipart/form-data">
+    <div class="form-group">
+        <input type="file" name="file"/>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+
+{% endblock %}

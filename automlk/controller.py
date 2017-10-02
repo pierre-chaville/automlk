@@ -3,6 +3,7 @@ from .context import *
 from .dataset import get_dataset_ids, get_dataset
 from .solutions import *
 from .search import get_search_rounds
+from .monitor import heart_beep
 
 PATIENCE_RANDOM = 100
 PATIENCE_ENSEMBLE = 100
@@ -20,6 +21,7 @@ def launch_controller():
         active = [id for id in get_dataset_ids() if get_key_store('dataset:%s:status' % id) == 'searching']
 
         if len(active) == 0:
+            heart_beep('controller', {})
             time.sleep(1)
             continue
 
@@ -37,8 +39,11 @@ def launch_controller():
             msg_search = __create_search_round(dataset_id)
 
             # send queue the next job to do
+            msg_search.pop('choices')
+            msg_search.pop('start')
             print('sending %s' % msg_search)
             lpush_key_store(SEARCH_QUEUE, msg_search)
+            heart_beep('controller', msg_search)
 
         # then read the results queue
         while llen_key_store(RESULTS_QUEUE) > 0:
@@ -56,7 +61,7 @@ def __create_search_round(dataset_id):
     search = __find_search_store(dataset)
 
     # generate round id
-    round_id = incr_key_store('dataset:' + dataset_id + ':round_counter') - 1
+    round_id = incr_key_store('dataset:%s:round_counter' % dataset_id) - 1
 
     # generate context
     # context = HyperContext(dataset.problem_type, dataset.x_cols, dataset.cat_cols, dataset.missing_cols)
@@ -76,7 +81,7 @@ def __create_search_round(dataset_id):
 
     # generate search message
     return {**search, **{'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': solution.ref,
-                         'model_name': solution.name, 'model_ref': solution.ref, 'model_params': params}}
+                         'model_name': solution.name, 'model_params': params}}
 
 
 def __find_search_store(dataset):
@@ -145,6 +150,8 @@ def __process_result(msg_result):
 
     # then update search
     set_key_store('dataset:%s:search' % dataset.dataset_id, search)
+    set_key_store('dataset:%s:results' % dataset_id, len(df))
+    set_key_store('dataset:%s:level' % dataset_id, search['level'])
 
 
 def __get_outlier_threshold(df):

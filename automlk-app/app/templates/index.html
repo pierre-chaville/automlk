@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 <h3>List of Datasets</h3>
-<table class="table table-bordered table-striped table-hover">
+<table class="table table-bordered table-hover">
     <thead>
     <th>name</th>
-    <th>status</th>
+    <th>status / level</th>
     <th><i class="fa fa-play" aria-hidden="true"></i></th>
     <th>#</th>
     <th>description</th>
@@ -33,6 +33,11 @@
                 {% else %}
                 <span class="label label-warning">completed</span>
                 {% endif %}
+                {% if dataset.status in ['searching', 'pause'] %}
+                <div>
+                    <span class="label label-primary">{{ dataset.level }}</span>
+                </div>
+                {% endif %}
             </a>
         </td>
         <td>
@@ -43,7 +48,7 @@
             {% endif %}
         </td>
         <td>
-            {{ dataset.round_counter }}
+            <span class="label label-info">{{ dataset.results }} / {{ dataset.round_counter }}</span>
         </td>
         <td>
             <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{
@@ -73,6 +78,7 @@
     setInterval(function() {
       window.location.reload();
     }, 300000);
+
 
 </script>
 

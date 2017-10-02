@@ -8,6 +8,7 @@ from .dataset import get_dataset
 from .graphs import graph_pred_histogram, graph_predict
 from .solutions import *
 from .store import *
+from .monitor import heart_beep
 
 
 def launch_worker():
@@ -15,6 +16,7 @@ def launch_worker():
     while True:
         # poll queue
         msg_search = brpop_key_store('controller:search_queue')
+        heart_beep('worker', msg_search)
         if msg_search != None:
             print('reveived %s' % msg_search)
             msg_search = {**msg_search, **{'start_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -44,6 +46,8 @@ def job_search(msg_search):
         msg_search['duration_process'] = int(t_end - t_start)
         print('preprocessing steps:', process_steps)
     else:
+        msg_search['duration_process'] = 0
+        msg_search['process_steps'] = []
         X_train, y_train, X_test, y_test = X_train_ini, y_train_ini, X_test_ini, y_test_ini
     
     solution = model_solutions_map[msg_search['solution']]

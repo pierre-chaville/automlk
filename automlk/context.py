@@ -37,10 +37,10 @@ def get_config():
             return eval("".join(f.readlines()))
     raise EnvironmentError('configuration file %s not found' % setup_dir + '/automlk.json')
     """
-    if os.path.exists('config.json'):
-        with open('config.json', 'r') as f:
+    if os.path.exists('../config.json'):
+        with open('../config.json', 'r') as f:
             return eval("".join(f.readlines()))
-    raise EnvironmentError('configuration file %s not found' % 'config.json')
+    raise EnvironmentError('configuration file %s not found' % '../config.json')
 
 
 def get_data_folder():

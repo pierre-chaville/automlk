@@ -225,10 +225,16 @@
             <tr>
                 <td>{{col.name}}</td>
                 <td>{{col.description}}</td>
-                <td>{{col.to_keep}}</td>
+                <td>
+                    {% if col.to_keep %}
+                    <i class="fa fa-check" style="color:green" aria-hidden="true"></i>
+                    {% else %}
+                    <i class="fa fa-times" style="color:red" aria-hidden="true"></i>
+                    {% endif %}
+                </td>
                 <td>{{col.raw_type}}</td>
                 <td>{{col.col_type}}</td>
-                <td>{{col.n_missing}}</td>
+                <td>{% if col.n_missing!= 0 %}{{col.n_missing}}{% endif %}</td>
                 <td>{{col.n_unique_values}}</td>
                 <td>{{col.first_unique_values}}</td>
             </tr>

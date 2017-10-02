@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3>Monitor activity</h3>
+<table class="table table-bordered table-hover">
+    <thead>
+    <th>server</th>
+    <th>cpu</th>
+    <th>memory</th>
+    <th>job</th>
+    <th>time</th>
+    </thead>
+<tr><td colspan="5"><h4>Controller</h4></td></tr>
+    {% for p in controller %}
+    {% include "processes.html" %}
+    {% endfor %}
+<tr><td colspan="5"><h4>Workers</h4></td></tr>
+    {% for p in workers %}
+    {% include "processes.html" %}
+    {% endfor %}
+
+</table>
+
+<script>
+    setInterval(function() {
+      window.location.reload();
+    }, 30000);
+
+</script>
+
+{% endblock %}

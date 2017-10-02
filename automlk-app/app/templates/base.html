@@ -25,11 +25,15 @@
                 <li class="dropdown">
                     <a href="/index">Home</a>
                 </li>
-                <!--
-                <li>
-                    <a href="/new">New dataset</a>
+                <li class="dropdown">
+                    <a href="/create">New dataset</a>
                 </li>
-                !-->
+                <li class="dropdown">
+                    <a href="/import">Import</a>
+                </li>
+                <li class="dropdown">
+                    <a href="/monitor">Monitor</a>
+                </li>
             </ul>
             <ul class="nav navbar-nav navbar-right">
                 <li><a><span style="font-size:24px">AutoML<i>k</i></span></a></li>
@@ -42,6 +46,7 @@
     <div class="page-header" id="banner">
         {% with messages = get_flashed_messages() %}
         {% if messages %}
+        <br>
         {% for message in messages %}
         <div role="alert" class="alert alert-warning">
             <button data-dismaiss="alert" class="close" type="button"><span aria-hidden="true"></span><span
