@@ -27,6 +27,7 @@ Architecture
 ------------
 
 The architecture is distributed and can be installed on multiple machines
+
 * the web app for user interaction and display results
 * the controller manages the search between models and parameters
 * the workers execute the pre-processing steps and cross validation (cpu intensive): the more workers are run in parallel, the quicker the results
@@ -48,9 +49,21 @@ install as:
 
     python setup.py install
 
-* create a dataset
-* launch the search in auto mode: this will search the best pre-processing steps, machine learning models and ensembles
-* view the results through with the web interface
+Then launch the web app in /automlk-app folder:
+
+.. code-block:: python
+
+    python run.py
+
+This will launch the web app, which can be accessed via a web browser, at address:
+.. code-block:: python
+
+    http://localhost:5001
+
+From the web app, you can now import the example of datasets (import in the menu, then select the dataset.csv in the /data folder)
+
+You can launch the search in a dataset simply by clicking on the |> button in the home screen, and view the results through with the web interface.
+The search will continue automatically until the search is completed.
 
 Content
 -------

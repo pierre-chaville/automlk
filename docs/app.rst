@@ -40,6 +40,22 @@ The home page shows the list of datasets:
 Dataset
 -------
 
+To import the list of datasets (or a new list):
+
+.. figure:: img/import_datasets.png
+   :scale: 70 %
+   :alt: import datasets
+
+   import a list of datasets
+
+You may create directly a dataset by using the 'New Dataset' option in the menu:
+
+.. figure:: img/create_dataset.png
+   :scale: 70 %
+   :alt: create dataset
+
+   create a new dataset
+
 We can access to a specific dataset in clicking on the row of the required dataset.
 When a dataset is created, there is only the features and analysis of the data available:
 
@@ -160,3 +176,14 @@ We can view the performance of the various ensemble models, and the models used 
 
    feature importance for an ensemble model
 
+
+Monitoring
+----------
+
+The monitoring screen displays the different status of the different components in the architecture: controller and workers
+
+.. figure:: img/monitor.png
+   :scale: 70 %
+   :alt: monitoring
+
+   monitoring panel
