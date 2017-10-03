@@ -73,13 +73,17 @@ def get_best_details(df, model_name):
     return [col for col in params.columns if col != 'round_id'], best
 
 
-def get_process_steps(process):
+def get_data_steps(process):
     # generate a list of process steps from the json description
     steps = []
     for step_name in process.keys():
         params = process[step_name]
         steps.append((step_name, [(key, params[key]) for key in params.keys()]))
     return steps
+
+def get_feature_steps(process_name, params):
+    # generate a list of process steps from the json description
+    return (process_name, [(key, params[key]) for key in params.keys()])
 
 
 def get_round_params(df, round_id):

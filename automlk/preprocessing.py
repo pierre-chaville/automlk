@@ -6,65 +6,16 @@ from sklearn.decomposition import TruncatedSVD, FastICA
 from .spaces.process import *
 
 
-def pre_processing(context, X_train, y_train, X_test, y_test):
-    # performs the different pre-processing steps
-
-    process_list = []
-
-    # X pre-processing: categorical
-    if len(context.cat_cols) > 0:
-        process_list.append(HyperProcessCategorical)
-
-    # missing values
-    if len(context.missing_cols) > 0:
-        process_list.append(HyperProcessMissing)
-
-    # scaling
-    process_list.append(HyperProcessScaling)
-
-    # choice between feature transformations
-    choices = [HyperProcessPassThrough, HyperProcessTruncatedSVD]
-    process_features = random.choices(choices, weights=[5, 1])[0]
-    process_list.append(process_features)
-
-    # then execute pipeline
-    context, X_train, y_train, X_test, y_test = execute_pipeline(context, process_list, X_train.copy(), y_train.copy(),
-                                                                 X_test.copy(), y_test.copy())
-
-
-    return context, X_train, y_train, X_test, y_test
-
-
-def execute_pipeline(context, process_list, X_train, y_train, X_test, y_test):
-    pipeline = []
-    for p_class in process_list:
-        process = p_class(context)
-        process.set_random_params()
-        print('executing process', process.process_name, process.params)
-        X_train = process.fit_transform(X_train, y_train)
-        X_test = process.transform(X_test)
-        context.pipeline.append(process)
-    return context, X_train, y_train, X_test, y_test
-
-
 class HyperProcess(object):
     __metaclass__ = ABCMeta
 
     # abstract class for model preprocessing in hyper optimisation
 
     @abstractmethod
-    def __init__(self, context):
+    def __init__(self, context, params):
         self.context = context
+        self.params = params
         self.transformer = None
-        self.params = {}
-
-    @abstractmethod
-    def set_default_params(self):
-        pass
-
-    @abstractmethod
-    def set_random_params(self):
-        pass
 
     @abstractmethod
     def fit(self, X, y):
@@ -86,15 +37,8 @@ class HyperProcess(object):
 class HyperProcessCategorical(HyperProcess):
     # class for process categorical encoding
 
-    def __init__(self, context):
-        super().__init__(context)
-        self.process_name = 'Categorical encoding'
-
-    def set_default_params(self):
-        self.params = default_categorical
-
-    def set_random_params(self):
-        self.params = get_random_params(space_categorical)
+    def __init__(self, context, params):
+        super().__init__(context, params)
 
     def fit(self, X, y):
         encoder = getattr(ce, self.params['encoder'])
@@ -111,15 +55,8 @@ class HyperProcessCategorical(HyperProcess):
 class HyperProcessMissing(HyperProcess):
     # class for transformation of missing values
 
-    def __init__(self, context):
-        super().__init__(context)
-        self.process_name = 'Missing values'
-
-    def set_default_params(self):
-        self.params = default_missing
-
-    def set_random_params(self):
-        self.params = get_random_params(space_missing)
+    def __init__(self, context, params):
+        super().__init__(context, params)
 
     def fit(self, X, y):
         if self.params['strategy'] in ['mean', 'median', 'most_frequent']:
@@ -138,15 +75,8 @@ class HyperProcessMissing(HyperProcess):
 class HyperProcessScaling(HyperProcess):
     # class for scaling transformation
 
-    def __init__(self, context):
-        super().__init__(context)
-        self.process_name = 'Feature Scaling'
-
-    def set_default_params(self):
-        self.params = default_scaling
-
-    def set_random_params(self):
-        self.params = get_random_params(space_scaling)
+    def __init__(self, context, params):
+        super().__init__(context, params)
 
     def fit(self, X, y):
         if self.params['scaler'] == 'standard':
@@ -165,17 +95,8 @@ class HyperProcessScaling(HyperProcess):
 class HyperProcessTruncatedSVD(HyperProcess):
     # class for Truncated SVD feature transformation
 
-    def __init__(self, context):
-        super().__init__(context)
-        self.process_name = 'Truncated SVD'
-
-    def set_default_params(self):
-        self.params = default_truncated_svd
-        self.__check_params()
-
-    def set_random_params(self):
-        self.params = get_random_params(space_truncated_svd)
-        self.__check_params()
+    def __init__(self, context, params):
+        super().__init__(context, params)
 
     def __check_params(self):
         self.params['n_components'] = int(self.params['reduction_ratio'] * len(self.context.feature_names))
@@ -191,17 +112,8 @@ class HyperProcessTruncatedSVD(HyperProcess):
 class HyperProcessFastICA(HyperProcess):
     # class for Fast ICA feature transformation
 
-    def __init__(self, context):
-        super().__init__(context)
-        self.process_name = 'Fast ICA'
-
-    def set_default_params(self):
-        self.params = default_fast_ica
-        self.__check_params()
-
-    def set_random_params(self):
-        self.params = get_random_params(space_fast_ica)
-        self.__check_params()
+    def __init__(self, context, params):
+        super().__init__(context, params)
 
     def __check_params(self):
         self.params['n_components'] = int(self.params['reduction_ratio'] * len(self.context.feature_names))
@@ -217,8 +129,8 @@ class HyperProcessFastICA(HyperProcess):
 class HyperProcessPolynomial(HyperProcess):
     # class for Polynomial feature transformation
 
-    def __init__(self, context):
-        super().__init__(context)
+    def __init__(self, context, params):
+        super().__init__(context, params)
         self.process_name = 'Polynomial'
 
     def set_default_params(self):
@@ -238,8 +150,8 @@ class HyperProcessPolynomial(HyperProcess):
 class HyperProcessPassThrough(HyperProcess):
     # class for No transformation
 
-    def __init__(self, context):
-        super().__init__(context)
+    def __init__(self, context, params):
+        super().__init__(context, params)
         self.process_name = 'PassThrough'
 
     def transform(self, X):

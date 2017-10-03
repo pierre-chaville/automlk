@@ -71,3 +71,7 @@ space_polynomial = {'degree': 2, #HyperRangeInt(1, 2),
                     'interaction_only': True, #HyperWeights({False: 2, False: 1}),
                     'include_bias': False #HyperWeights({True: 2, False: 1}),
                     }
+
+# Pass Through
+default_passthrough = {}
+space_passthrough = {}

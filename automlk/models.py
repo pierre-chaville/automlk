@@ -76,9 +76,9 @@ class HyperModel(object):
         self.importance = None
 
     @abstractmethod
-    def cv(self, X, y, X_test, y_test, cv_folds, threshold):
+    def cv(self, X, y, X_test, y_test, X_submit, cv_folds, threshold):
         # performs a cross validation on cv_folds, and predict also on X_test
-        y_pred_eval, y_pred_test = [], []
+        y_pred_eval, y_pred_test, y_pred_submit = [], [], []
         for i, (train_index, eval_index) in enumerate(cv_folds):
             if i == 0 and self.early_stopping:
                 print('early stopping round')
@@ -93,7 +93,7 @@ class HyperModel(object):
                     if score > threshold:
                         print('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
                         time.sleep(10)
-                        return True, y_pred_eval, y_pred_test
+                        return True, 0, 0, 0
 
             # then train on train set and predict on eval set
             self.fit(X[train_index], y[train_index])
@@ -106,14 +106,17 @@ class HyperModel(object):
                 if score > threshold:
                     print('%dth round found outlier: %.5f with threshold %.5f' % (i, score, threshold))
                     time.sleep(10)
-                    return True, y_pred_eval, y_pred_test
+                    return True, 0, 0, 0
 
             y_pred_eval.append(y_pred)
 
-            # we also predict on test set (to be averaged later)
+            # we also predict on test & submit set (to be averaged later)
             y_pred_test.append(self.predict(X_test))
 
-        return False, y_pred_eval, y_pred_test
+            if self.dataset.filename_submit != '':
+                y_pred_submit.append(self.predict(X_submit))
+
+        return False, y_pred_eval, y_pred_test, y_pred_submit
 
     @abstractmethod
     def fit(self, X_train, y_train):

@@ -41,7 +41,7 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
     dt.finalize_creation(df_train, df_test, df_submit)
 
     # create train & test set
-    X_train, X_test, y_train, y_test = __create_train_test(dt)
+    X_train, X_test, y_train, y_test, X_submit, id_submit = __create_train_test(dt)
 
     # prepare y values
     y_train, y_test = __prepare_y(dt, y_train, y_test)
@@ -53,7 +53,7 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
     y_eval_list, y_eval, idx_eval = __store_eval_set(dt, y_train, y_test, cv_folds)
 
     # then store all these results in a pickle store
-    pickle.dump([X_train, X_test, y_train, y_test, cv_folds, y_eval_list, y_eval, idx_eval],
+    pickle.dump([X_train, X_test, y_train, y_test, X_submit, id_submit, cv_folds, y_eval_list, y_eval, idx_eval],
                 open(get_dataset_folder(dt.dataset_id) + '/data/eval_set.pkl', 'wb'))
 
     return dt
@@ -237,8 +237,8 @@ class DataSet(object):
         if self.filename_test != '':
             self.__import_data(self.filename_test, 'test')
         self.__create_graphs(df_train, 'train')
-        if self.filename_test != '':
-            self.__create_graphs(df_test, 'test')
+        if self.filename_submit != '':
+            self.__import_data(self.filename_submit, 'submit')
 
     def get_data(self, part='train'):
         """
@@ -350,6 +350,7 @@ class DataSet(object):
         os.makedirs(root)
         os.makedirs(root + '/data')
         os.makedirs(root + '/predict')
+        os.makedirs(root + '/submit')
         os.makedirs(root + '/features')
         os.makedirs(root + '/models')
         os.makedirs(root + '/graphs')
@@ -428,7 +429,16 @@ def __create_train_test(dataset):
                                                                 shuffle=dataset.val_col_shuffle,
                                                                 stratify=y,
                                                                 random_state=0)
-    return X_train, X_test, y_train, y_test
+    # submit data
+    if dataset.filename_submit != '':
+        df = dataset.get_data('submit')
+        X_submit = df[dataset.x_cols]
+        id_submit = df[dataset.col_submit].values
+    else:
+        X_submit = []
+        id_submit = []
+
+    return X_train, X_test, y_train, y_test, X_submit, id_submit
 
 
 def __create_cv(dataset, X_train, y_train):

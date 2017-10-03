@@ -2,6 +2,7 @@ from .store import *
 from .context import *
 from .dataset import get_dataset_ids, get_dataset
 from .solutions import *
+from .solutions_pp import *
 from .search import get_search_rounds
 from .monitor import heart_beep
 
@@ -40,6 +41,7 @@ def launch_controller():
 
             # send queue the next job to do
             msg_search.pop('choices')
+            msg_search.pop('choices_feature')
             msg_search.pop('start')
             print('sending %s' % msg_search)
             lpush_key_store(SEARCH_QUEUE, msg_search)
@@ -66,6 +68,13 @@ def __create_search_round(dataset_id):
     # generate context
     # context = HyperContext(dataset.problem_type, dataset.x_cols, dataset.cat_cols, dataset.missing_cols)
 
+    # generate pre-processing pipeline and pre-processing params
+    i_pp = round_id % len(search['choices_feature'])
+    ref = search['choices_feature'][i_pp]
+    pp_list = __get_pp_data_list(dataset) + [ref]
+    pipeline = [(s, get_random_params(pp_solutions_map[s].space_params)) for s in pp_list]
+
+    # generate model and model params
     i_round = round_id % len(search['choices'])
     ref = search['choices'][i_round]
     solution = model_solutions_map[ref]
@@ -81,7 +90,7 @@ def __create_search_round(dataset_id):
 
     # generate search message
     return {**search, **{'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': solution.ref,
-                         'model_name': solution.name, 'model_params': params}}
+                         'model_name': solution.name, 'model_params': params, 'pipeline': pipeline}}
 
 
 def __find_search_store(dataset):
@@ -89,7 +98,33 @@ def __find_search_store(dataset):
     if exists_key_store('dataset:%s:search' % dataset.dataset_id):
         return get_key_store('dataset:%s:search' % dataset.dataset_id)
     else:
-        return {'start': 0, 'level': 1, 'threshold': 0, 'choices': __get_model_class_list(dataset, 1)}
+        return {'start': 0, 'level': 1, 'threshold': 0,
+                'choices': __get_model_class_list(dataset, 1),
+                'choices_feature': __get_pp_feature_list(dataset),
+                }
+
+
+def __get_pp_data_list(dataset):
+    # generates the list of potential data pre-processing depending on the problem type
+    choices = []
+    # X pre-processing: categorical
+    if len(dataset.cat_cols) > 0:
+        choices.append('CE')
+    # missing values
+    if len(dataset.missing_cols) > 0:
+        choices.append('MISS')
+    # scaling
+    choices.append('SCALE')
+    return choices
+
+
+def __get_pp_feature_list(dataset):
+    # generates the list of potential feature pre-processing depending on the problem type
+    choices = []
+    for s in pp_solutions:
+        if s.pp_type == 'feature' and dataset.n_rows < s.limit_size:
+            choices.append(s.ref)
+    return choices
 
 
 def __get_model_class_list(dataset, level):

@@ -11,6 +11,9 @@
     <li><a data-toggle="tab" href="#features">Features</a></li>
     <li><a data-toggle="tab" href="#pred_graph">Prediction Graph</a></li>
     <li><a data-toggle="tab" href="#hist_graph">Histogram</a></li>
+    {% if dataset.filename_submit != '' %}
+    <li><a data-toggle="tab" href="#submit">Submit</a></li>
+    {% endif %}
 </ul>
 
 <div class="tab-content">
@@ -100,9 +103,11 @@
             </tr>
         </table>
     </div>
+
     <!-- process steps !-->
     <div id="process" class="tab-pane">
-        {% for step in steps %}
+        <h3>Data Pre-processing</h3>
+        {% for step in pp_data %}
         <h4><i class="fa fa-th" aria-hidden="true"></i> {{ step[0] }}</h4>
         <table class="table table-bordered">
             {% for p in step[1] %}
@@ -113,7 +118,19 @@
             {% endfor %}
         </table>
         {% endfor %}
+
+        <h3>Feature Pre-processing</h3>
+        <h4><i class="fa fa-th" aria-hidden="true"></i> {{ pp_feature[0] }}</h4>
+        <table class="table table-bordered">
+            {% for p in pp_feature[1] %}
+            <tr>
+                <td width="30%">{{ p[0] }}</td>
+                <td>{{ p[1] }}</td>
+            </tr>
+            {% endfor %}
+        </table>
     </div>
+
     <!-- feature importance with progress bars !-->
     <div id="features" class="tab-pane">
         <table class="table table-bordered">
@@ -137,6 +154,7 @@
             {% endfor %}
         </table>
     </div>
+
     <!-- prediction graph !-->
     <div id="pred_graph" class="tab-pane">
         <img src="/get_img_round/{{dataset.dataset_id}};{{round.round_id}};predict_eval?{{refresher}}"></img>
@@ -155,6 +173,12 @@
                 </td>
             </tr>
         </table>
+    </div>
+    <!-- prediction graphs !-->
+    <div id="submit" class="tab-pane">
+        <h3>Submit file</h3>
+        <br>
+        <a href="/get_submit/{{dataset.dataset_id}};{{round.round_id}}">Download submit file</a>
     </div>
 </div>
 {% endblock %}

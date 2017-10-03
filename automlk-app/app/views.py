@@ -76,11 +76,12 @@ def round(prm):
     dataset = get_dataset(dataset_id)
     search = get_search_rounds(dataset.dataset_id)
     round = search[search.round_id == int(round_id)].to_dict(orient='records')[0]
-    steps = get_process_steps(round['process_steps'])
+    pp_data = get_data_steps(round['pp_data'])
+    pp_feature = get_feature_steps(round['pp_feature'][0], round['pp_feature'][1])
     params = get_round_params(search, round_id)
     features = get_feature_importance(dataset.dataset_id, round_id)
-    return render_template('round.html', dataset=dataset, round=round, steps=steps, features=features, params=params,
-                           cols=params.keys(), refresher=int(time.time()))
+    return render_template('round.html', dataset=dataset, round=round, pp_data=pp_data, pp_feature=pp_feature,
+                           features=features, params=params, cols=params.keys(), refresher=int(time.time()))
 
 
 @app.route('/get_img_dataset/<string:prm>', methods=['GET'])
@@ -96,6 +97,13 @@ def get_img_round(prm):
     dataset_id, round_id, graph_type = prm.split(';')
     return send_file(get_dataset_folder(dataset_id) + '/graphs/%s_%s.png' % (graph_type, round_id),
                      mimetype='image/png')
+
+@app.route('/get_submit/<string:prm>', methods=['GET'])
+def get_submit(prm):
+    # download the submit file
+    dataset_id, round_id = prm.split(';')
+    return send_file(get_dataset_folder(dataset_id) + '/submit/submit_%s.csv' % round_id,
+                     as_attachment=True, attachment_filename='submit_%s_%s.csv' % (dataset_id, round_id))
 
 
 @app.route('/create', methods=['GET', 'POST'])
