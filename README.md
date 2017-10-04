@@ -15,14 +15,30 @@ We have provided some public datasets to initialize the framework and compare re
 
 Find the documentation [here](http://automlk.readthedocs.io/en/latest/)
 
-Usage:
+Installation
+------------
+download and then install:
+
+    python setup.py install
+
+Usage
 -----
-- create a dataset
-- launch the search in auto mode: this will search the best pre-processing steps, machine learning models and ensembles
-- review the results through with the web interface
+
+Launch the web app in /automlk-app folder:
+
+    python run.py
+
+This will launch the web app, which can be accessed via a web browser, at address:
+
+    http://localhost:5001
+
+From the web app, you can now import the example of datasets (import in the menu, then select the dataset.csv in the /data folder)
+
+You can launch the search in a dataset simply by clicking on the |> button in the home screen, and view the results through with the web interface.
+The search will continue automatically until the search is completed.
 
 
-Requirements:
+Requirements
 ------------
 - category_encoders
 
@@ -43,12 +59,6 @@ The architecture is distributed and can be installed on multiple machines
 * the workers execute the pre-processing steps and cross validation (cpu intensive): the more workers are run in parallel, the quicker the results
 * the Redis store is an in-memory database and queue manager
 
-Installation:
-------------
-download and then install:
-
-    python setup.py install
-
-References:
+References
 ----------
 Feurer, Matthias, et al. "Efficient and robust automated machine learning." Advances in Neural Information Processing Systems. 2015.

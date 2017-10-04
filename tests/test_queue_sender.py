@@ -11,7 +11,7 @@ while True:
         lpush_key_store('test_queue', msg)
 
         # wait random delay
-        delay = random.randint(1,10)
-        time.sleep(random.randint(1,10))
+        delay = random.randint(1, 10)
+        time.sleep(random.randint(1, 10))
     else:
         time.sleep(1)

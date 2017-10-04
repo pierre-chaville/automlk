@@ -11,7 +11,6 @@ import pandas as pd
 from .spaces.model import *
 from .spaces.hyper import get_random_params
 from .dataset import METRIC_NULL, get_dataset_folder
-from .utils.keras_wrapper import keras_create_model, keras_compile_model, import_keras, to_categorical
 
 # TODO: add naives bayes and decision trees
 
@@ -39,6 +38,11 @@ except:
     import_catboost = False
     print('could not import Catboost. This model will not be used')
 
+
+try:
+    from .utils.keras_wrapper import keras_create_model, keras_compile_model, import_keras, to_categorical
+except:
+    print('could not import keras. Neural networks will not be used')
 
 MAX_ROUNDS = 5000
 PATIENCE = 50
@@ -527,14 +531,16 @@ class HyperModelNN(HyperModel):
 
 class EnsemblePool(object):
     # class to manage data required for ensembling
-    def __init__(self, pool_model_round_ids, pool_model_names, pool_eval_preds, pool_test_preds):
+    def __init__(self, pool_model_round_ids, pool_model_names, pool_eval_preds, pool_test_preds, pool_submit_preds):
         self.pool_model_round_ids = pool_model_round_ids
         self.pool_model_names = pool_model_names
         self.pool_eval_preds = pool_eval_preds
         self.pool_test_preds = pool_test_preds
+        self.pool_submit_preds = pool_submit_preds
 
 
 class HyperModelEnsembleSelection(HyperModel):
+    # TODO : fix bug
     # class for model with ensemble selection
 
     def __init__(self, dataset, context, params, round_id):
@@ -542,29 +548,31 @@ class HyperModelEnsembleSelection(HyperModel):
         self.selection = None
 
     def cv_pool(self, pool, y, y_test, cv_folds, threshold, depth):
-        y_pred_eval_list = []
-        y_pred_test_list = []
+        y_pred_eval_list, y_pred_test_list, y_pred_submit_list = [], [], []
         self.params = {**{'depth': depth}, **self.params}
         for i, (train_index, eval_index) in enumerate(cv_folds):
             print('fold %d' % i)
             # we will select a list of models in order to get the best score
-            selection_round_ids, selection_names, pred_select_eval, pred_select_test = [], [], [], []
+            selection_round_ids, selection_names = [], []
+            pred_select_eval, pred_select_test, pred_select_submit = [], [], []
             best_score = METRIC_NULL
             for i in range(self.params['rounds']):
                 # print('round %d' % i)
                 # find the best model to be added in the selection
                 best_score_round = METRIC_NULL
                 l_selection = len(selection_round_ids)
-                for u, m, p_eval, p_test in zip(pool.pool_model_round_ids, pool.pool_model_names, pool.pool_eval_preds,
-                                                pool.pool_test_preds):
+                for u, m, p_eval, p_test, p_submit in zip(pool.pool_model_round_ids, pool.pool_model_names, pool.pool_eval_preds,
+                                                pool.pool_test_preds, pool.pool_submit_preds):
                     # prediction = weighted average of predictions
                     try:
                         if l_selection < 1:
                             y_pred_eval = p_eval
                             y_pred_test = p_test
+                            y_pred_submit = p_submit
                         else:
                             y_pred_eval = (pred_select_eval * l_selection + p_eval) / (l_selection + 1)
                             y_pred_test = (pred_select_test * l_selection + p_test) / (l_selection + 1)
+                            y_pred_submit = (pred_select_submit * l_selection + p_submit) / (l_selection + 1)
                         if np.shape(y[train_index]) == np.shape(y_pred_eval[train_index]):
                             score = self.dataset.evaluate_metric(y[train_index], y_pred_eval[train_index])
                         else:
@@ -575,12 +583,12 @@ class HyperModelEnsembleSelection(HyperModel):
                         # print('best score round', m, score)
                         best_score_round = score
                         m_round, u_round = m, u
-                        pred_round_eval, pred_round_test = y_pred_eval, y_pred_test
+                        pred_round_eval, pred_round_test , pred_round_submit= y_pred_eval, y_pred_test, y_pred_submit
                 # at the end of the search for the round, check if the overall score is better
                 if best_score_round < best_score:
                     # print('best score:', best_score_round)
                     best_score = best_score_round
-                    pred_select_eval, pred_select_test = pred_round_eval, pred_round_test
+                    pred_select_eval, pred_select_test, pred_select_submit= pred_round_eval, pred_round_test, pred_round_submit
                     selection_names += [m_round]
                     selection_round_ids += [u_round]
                 else:
@@ -591,6 +599,7 @@ class HyperModelEnsembleSelection(HyperModel):
             print(np.shape(eval_index))
             y_pred_eval_list.append(pred_select_eval[eval_index])
             y_pred_test_list.append(pred_select_test)
+            y_pred_submit_list.append(pred_select_submit)
 
         # calculate weights for the models
         df = pd.DataFrame([(round_id, name, 1) for round_id, name in zip(selection_round_ids, selection_names)])
@@ -601,7 +610,7 @@ class HyperModelEnsembleSelection(HyperModel):
         self.importance = self.selection[['name', 'weight']]
         self.importance.columns = ['feature', 'importance']
 
-        return True, y_pred_eval_list, y_pred_test_list
+        return True, y_pred_eval_list, y_pred_test_list, y_pred_submit_list
 
     def save_importance(self):
         # saves feature importance (as a dataframe)
@@ -620,8 +629,7 @@ class HyperModelStacking(HyperModel):
     @abstractmethod
     def cv_pool(self, pool, y, y_test, cv_folds, threshold, depth):
         # TODO: select a subset of the pool (best models)
-        y_pred_eval = []
-        y_pred_test = []
+        y_pred_eval, y_pred_test, y_pred_submit = [], [], []
         self.params = {**{'depth': depth}, **self.params}
         # set feature names
         if self.dataset.problem_type == 'regression':
@@ -636,23 +644,26 @@ class HyperModelStacking(HyperModel):
         for i, (train_index, eval_index) in enumerate(cv_folds):
             print('fold %d' % i)
             # create X by stacking predictions
-            for j, (u, m, p_eval, p_test) in enumerate(
+            for j, (u, m, p_eval, p_test, p_submit) in enumerate(
                     zip(pool.pool_model_round_ids, pool.pool_model_names, pool.pool_eval_preds,
-                        pool.pool_test_preds)):
+                        pool.pool_test_preds, pool.pool_submit_preds)):
                 # check if array has 2 dimensions
                 shape = len(np.shape(p_eval))
                 if shape == 1:
                     p_eval = np.reshape(p_eval, (len(p_eval), 1))
                     p_test = np.reshape(p_test, (len(p_test), 1))
+                    p_submit = np.reshape(p_test, (len(p_submit), 1))
                 if j == 0:
                     X_train = p_eval[train_index]
                     X_eval = p_eval[eval_index]
                     X_test = p_test
+                    X_submit = p_submit
                 else:
                     # stack vertically the predictions
                     X_train = np.concatenate((X_train, p_eval[train_index]), axis=1)
                     X_eval = np.concatenate((X_eval, p_eval[eval_index]), axis=1)
                     X_test = np.concatenate((X_test, p_test), axis=1)
+                    X_submit = np.concatenate((X_submit, p_submit), axis=1)
 
             if i == 0 and self.model.early_stopping:
                 # with early stopping, we perform an initial round to get number of rounds
@@ -664,20 +675,21 @@ class HyperModelStacking(HyperModel):
                 if score > threshold:
                     print('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
                     time.sleep(10)
-                    return True, y_pred_eval, y_pred_test
+                    return True, 0, 0, 0
 
             # train on X_train
             self.model.fit(X_train, y[train_index])
             y_pred = self.model.predict(X_eval)
             y_pred_eval.append(y_pred)
             y_pred_test.append(self.model.predict(X_test))
+            y_pred_submit.append(self.model.predict(X_submit))
             score = self.dataset.evaluate_metric(y[eval_index], y_pred)
             if score > threshold:
                 print('found outlier: %.5f with threshold %.5f' % (score, threshold))
                 time.sleep(10)
-                return True, y_pred_eval, y_pred_test
+                return True, 0, 0, 0
 
-        return False, y_pred_eval, y_pred_test
+        return False, y_pred_eval, y_pred_test, y_pred_submit
 
     # TODO: implement predict
     # TODO: implement load/save

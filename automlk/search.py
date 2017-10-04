@@ -38,8 +38,8 @@ def job_search(msg_search):
         # pre-processing on level 1 only
         t_start = time.time()
         context, X_train, y_train, X_test, y_test, X_submit = __pre_processing(context, msg_search['pipeline'],
-                                                                             X_train_ini, y_train_ini,
-                                                                             X_test_ini, y_test_ini, X_submit_ini)
+                                                                               X_train_ini, y_train_ini,
+                                                                               X_test_ini, y_test_ini, X_submit_ini)
         t_end = time.time()
         msg_search['pp_data'] = context.pp_data
         msg_search['pp_feature'] = context.pp_feature
@@ -85,17 +85,17 @@ def __pre_processing(context, pipeline, X_train, y_train, X_test, y_test, X_subm
     return context, X_train, y_train, X_test, y_test, X_submit
 
 
-def __search(dataset, solution, model, msg_search, X_train, y_train, X_test, y_test, X_submit, id_submit, y_eval_list, i_eval,
+def __search(dataset, solution, model, msg_search, X_train, y_train, X_test, y_test, X_submit, id_submit, y_eval_list,
+             i_eval,
              cv_folds, pool):
     print('optimizing with %s, params: %s' % (solution.name, model.params))
 
     # fit, test & score
     t_start = time.time()
     if msg_search['level'] == 2:
-        outlier, y_pred_eval_list, y_pred_test_list, y_pred_submit_list = model.cv_pool(pool, y_train, y_test,
-                                                                              X_submit, cv_folds,
-                                                                              msg_search['threshold'],
-                                                                              msg_search['ensemble_depth'])
+        outlier, y_pred_eval_list, y_pred_test_list, y_pred_submit_list = model.cv_pool(pool, y_train, y_test, cv_folds,
+                                                                                        msg_search['threshold'],
+                                                                                        msg_search['ensemble_depth'])
     else:
         outlier, y_pred_eval_list, y_pred_test_list, y_pred_submit_list = model.cv(X_train, y_train,
                                                                                    X_test, y_test,
@@ -191,7 +191,8 @@ def __get_pool_models(dataset, depth):
     preds_eval = [x[0] for x in preds]
     preds_test = [x[1] for x in preds]
 
-    return EnsemblePool(round_ids, model_names, preds_eval, preds_test)
+    # TODO replace submit
+    return EnsemblePool(round_ids, model_names, preds_eval, preds_test, preds_test)
 
 
 def __store_search_error(dataset, t, e, model):

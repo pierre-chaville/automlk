@@ -1,18 +1,25 @@
-from .context import *
 import json
+import time
+from .context import *
 
 # try to import redis
-try:
-    import redis
-    # force_file_storage = 1/0
-    use_redis = True
-    rds = redis.Redis(get_config()['store'])
-    print('using redis')
-except:
+use_redis = False
+if get_config()['store'] == 'redis':
+    try:
+        import redis
+        # force_file_storage = 1/0
+        use_redis = True
+        rds = redis.Redis()
+        print('using redis')
+    except:
+        use_redis = False
+
+if not use_redis:
     # we will use simple file storage
-    use_redis = False
     store_folder = get_data_folder() + '/store'
-    print('redis not installed: using file storage instead')
+    if not store_folder:
+        os.makedirs(store_folder)
+    print('redis not installed: using file storage instead in %s' % store_folder)
 
 
 def get_key_store(key):
@@ -20,9 +27,12 @@ def get_key_store(key):
     if use_redis:
         return json.loads(rds.get(str(key)))
     else:
-        if exists_key_store(key):
-            return json.load(open(store_folder + '/' + key + '.json', 'r'))
-        else:
+        try:
+            if exists_key_store(key):
+                return json.load(open(store_folder + '/' + __clean_key(key) + '.json', 'r'))
+            else:
+                return None
+        except:
             return None
 
 
@@ -31,7 +41,7 @@ def set_key_store(key, value):
     if use_redis:
         rds.set(str(key), json.dumps(value))
     else:
-        with open(store_folder + '/' + str(key) + '.json', 'w') as f:
+        with open(store_folder + '/' + __clean_key(key) + '.json', 'w') as f:
             json.dump(value, f)
 
 
@@ -40,7 +50,7 @@ def exists_key_store(key):
     if use_redis:
         return rds.exists(str(key))
     else:
-        return os.path.exists(store_folder + '/' + key + '.json')
+        return os.path.exists(store_folder + '/' + __clean_key(key) + '.json')
 
 
 def incr_key_store(key, amount=1):
@@ -77,7 +87,7 @@ def rpush_key_store(key, value):
     else:
         if exists_key_store(key):
             l = get_key_store(key)
-            set_key_store(key, l.append(value))
+            set_key_store(key, l + [value])
         else:
             set_key_store(key, [value])
 
@@ -103,10 +113,18 @@ def brpop_key_store(key):
     else:
         if exists_key_store(key):
             l = get_key_store(key)
-            e = l[0]
-            set_key_store(key, l[1:])
-            return e
+            if isinstance(l, list) and len(l) > 0:
+                e = l[0]
+                if len(l) > 1:
+                    set_key_store(key, l[1:])
+                else:
+                    set_key_store(key, [])
+                return e
+            else:
+                time.sleep(1)
+                return None
         else:
+            time.sleep(1)
             return None
 
 
@@ -127,7 +145,11 @@ def list_key_store(key):
     if use_redis:
         return [json.loads(x) for x in rds.lrange(key, 0, -1)]
     else:
-        return get_key_store(key)
+        l = get_key_store(key)
+        if l != None:
+            return l
+        else:
+            return []
 
 
 def llen_key_store(key):
@@ -138,7 +160,7 @@ def llen_key_store(key):
         if exists_key_store(key):
             return len(get_key_store(key))
         else:
-            return None
+            return 0
 
 
 def sadd_key_store(key, value):
@@ -160,3 +182,8 @@ def smembers_key_store(key):
         return [json.loads(m) for m in rds.smembers(str(key))]
     else:
         return get_key_store(key)
+
+
+def __clean_key(key):
+    # modify name of the key in order to be usable in file store
+    return str(key).replace(':', '__')

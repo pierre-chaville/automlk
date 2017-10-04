@@ -64,7 +64,10 @@ def print_duration(y):
 def print_params(p):
     # easy print function for dictionary of params
     excluded = ['verbose', 'task', 'n_jobs', 'random_state', 'silent', 'warm_start']
-    return ", ".join([key.replace('_', ' ') + ': ' + print_value(p[key]) for key in p.keys() if key not in excluded])
+    if p != None:
+        return ", ".join([key.replace('_', ' ') + ': ' + print_value(p[key]) for key in p.keys() if key not in excluded])
+    else:
+        return None
 
 
 app = Flask(__name__)
