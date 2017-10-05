@@ -59,7 +59,7 @@ You may create directly a dataset by using the 'New Dataset' option in the menu:
 We can access to a specific dataset in clicking on the row of the required dataset.
 When a dataset is created, there is only the features and analysis of the data available:
 
-.. figure:: img/dataset.png
+.. figure:: img/dataset_set.png
    :scale: 70 %
    :alt: dataset
 

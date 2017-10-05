@@ -34,7 +34,7 @@ The architecture is distributed and can be installed on multiple machines
 * the Redis store is an in-memory database and queue manager
 
 .. figure:: img/architecture.png
-   :scale: 50 %
+   :scale: 100 %
    :alt: architecture of automlk
 
    independent components of the architecture
@@ -43,7 +43,7 @@ The architecture is distributed and can be installed on multiple machines
 The software architecture is organized in concentric layers:
 
 .. figure:: img/software.png
-   :scale: 50 %
+   :scale: 100 %
    :alt: software components
 
    software components of the architecture
