@@ -40,6 +40,15 @@ The architecture is distributed and can be installed on multiple machines
    independent components of the architecture
 
 
+The software architecture is organized in concentric layers:
+
+.. figure:: img/software.png
+   :scale: 50 %
+   :alt: software components
+
+   software components of the architecture
+
+
 Usage
 -----
 
@@ -56,6 +65,7 @@ Then launch the web app in /automlk-app folder:
     python run.py
 
 This will launch the web app, which can be accessed via a web browser, at address:
+
 .. code-block:: python
 
     http://localhost:5001

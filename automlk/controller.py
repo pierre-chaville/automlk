@@ -9,11 +9,12 @@ from .monitor import heart_beep
 PATIENCE_RANDOM = 100
 PATIENCE_ENSEMBLE = 100
 
-"""
-this is the controller module
-"""
 
 def launch_controller():
+    """
+    controller process: manages the search strategy and send instruction to workers
+    :return:
+    """
 
     i_dataset = -1
     # controls the optimization rounds and sends instructions to the workers
@@ -40,9 +41,6 @@ def launch_controller():
             msg_search = __create_search_round(dataset_id)
 
             # send queue the next job to do
-            msg_search.pop('choices')
-            msg_search.pop('choices_feature')
-            msg_search.pop('start')
             print('sending %s' % msg_search)
             lpush_key_store(SEARCH_QUEUE, msg_search)
             heart_beep('controller', msg_search)
@@ -65,9 +63,6 @@ def __create_search_round(dataset_id):
     # generate round id
     round_id = incr_key_store('dataset:%s:round_counter' % dataset_id) - 1
 
-    # generate context
-    # context = HyperContext(dataset.problem_type, dataset.x_cols, dataset.cat_cols, dataset.missing_cols)
-
     # generate pre-processing pipeline and pre-processing params
     i_pp = round_id % len(search['choices_feature'])
     ref = search['choices_feature'][i_pp]
@@ -89,8 +84,12 @@ def __create_search_round(dataset_id):
         params = get_random_params(solution.space_params)
 
     # generate search message
-    return {**search, **{'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': solution.ref,
+    msg_search = {**search, **{'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': solution.ref,
                          'model_name': solution.name, 'model_params': params, 'pipeline': pipeline}}
+    msg_search.pop('choices')
+    msg_search.pop('choices_feature')
+    msg_search.pop('start')
+    return msg_search
 
 
 def __find_search_store(dataset):

@@ -27,7 +27,6 @@ def heart_beep(module, msg):
 
     # save msg in store
     set_key_store('monitor:%s:%s' % (module, id), msg_beep)
-    print(msg_beep)
 
 
 def get_heart_beeps(module):

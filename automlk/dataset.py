@@ -14,6 +14,30 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
                    other_metrics=[], val_col='index', cv_folds=5, val_col_shuffle=True,
                    holdout_ratio=0.2, filename_test='', filename_cols='', filename_submit='', is_public=False, url='',
                    col_submit=''):
+    """
+    creates a dataset
+
+    :param name: name of the dataset
+    :param description: description of the dataset
+    :param problem_type: 'regression' or 'classification'
+    :param y_col: name of the target column
+    :param is_uploaded: not used
+    :param source: source of the dataset
+    :param filename_train: file path of the training set
+    :param metric: metric to be used to select the best models ('mse', 'rmse', 'log_loss', ...)
+    :param other_metrics: list of secondary metrics
+    :param val_col: column name to perform the cross validation (default = 'index')
+    :param cv_folds: number of cross validation folds (default = 5)
+    :param val_col_shuffle: need to shuffle in cross validation (default = false)
+    :param holdout_ratio: holdout ration to split train / eval set
+    :param filename_test: name of the test set (benchmark mode)
+    :param filename_cols: file to describe columns
+    :param filename_submit: name of the submit set (competition mode)
+    :param is_public: is the dataset in the public domain (true / false)
+    :param url: url of the dataset
+    :param col_submit: index column to be used in submit file (competition mode)
+    :return: dataset object
+    """
 
     # create object and control data
     creation_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
