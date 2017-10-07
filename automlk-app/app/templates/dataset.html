@@ -78,16 +78,12 @@
                             <td width="80%">{{dataset.description}}</td>
                         </tr>
                         <tr>
-                            <td>Public</td>
-                            <td>{{dataset.is_public}}</td>
-                        </tr>
-                        <tr>
-                            <td>With test Set</td>
-                            <td>{{dataset.is_test_set}}</td>
-                        </tr>
-                        <tr>
                             <td>Url</td>
                             <td><a target="_blank" href="{{dataset.url}}">{{dataset.url}}</a></td>
+                        </tr>
+                        <tr>
+                            <td>Mode</td>
+                            <td>{{dataset.mode}}</td>
                         </tr>
                         <tr>
                             <td>Train set</td>
@@ -97,6 +93,16 @@
                         <tr>
                             <td>Test set</td>
                             <td>{{dataset.filename_test}}</td>
+                        </tr>
+                        {% endif %}
+                        {% if dataset.filename_submit != '' %}
+                        <tr>
+                            <td>Submit set</td>
+                            <td>{{dataset.filename_submit}}</td>
+                        </tr>
+                        <tr>
+                            <td>Column submit</td>
+                            <td>{{dataset.col_submit}}</td>
                         </tr>
                         {% endif %}
                     </table>

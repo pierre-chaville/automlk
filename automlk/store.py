@@ -53,6 +53,15 @@ def exists_key_store(key):
         return os.path.exists(store_folder + '/' + __clean_key(key) + '.json')
 
 
+def del_key_store(key):
+    # deletes key in store
+    if use_redis:
+        rds.delete(str(key))
+    else:
+        if exists_key_store(key):
+            os.remove(store_folder + '/' + __clean_key(key) + '.json')
+
+
 def incr_key_store(key, amount=1):
     # increments value of key in store with amount
     if use_redis:
@@ -64,6 +73,7 @@ def incr_key_store(key, amount=1):
             return value + amount
         else:
             set_key_store(key, amount)
+            return amount
 
 
 def get_counter_store(key, amount=1):
@@ -77,7 +87,7 @@ def get_counter_store(key, amount=1):
         if exists_key_store(key):
             return get_key_store(key)
         else:
-            return None
+            return 0
 
 
 def rpush_key_store(key, value):
@@ -87,7 +97,10 @@ def rpush_key_store(key, value):
     else:
         if exists_key_store(key):
             l = get_key_store(key)
-            set_key_store(key, l + [value])
+            if isinstance(l, list):
+                set_key_store(key, l + [value])
+            else:
+                set_key_store(key, [value])
         else:
             set_key_store(key, [value])
 
@@ -99,11 +112,26 @@ def rpop_key_store(key):
     else:
         if exists_key_store(key):
             l = get_key_store(key)
-            e = l[0]
-            set_key_store(key, l[1:])
-            return e
+            if isinstance(l, list):
+                e = l[0]
+                set_key_store(key, l[1:])
+                return e
+            else:
+                set_key_store(key, [])
+                return []
         else:
             return None
+
+
+def lrem_key_store(key, value):
+    # removes value from the list of key in store
+    if use_redis:
+        rds.lrem(str(key), json.dumps(value))
+    else:
+        if exists_key_store(key):
+            l = get_key_store(key)
+            lr = [x for x in l if x != value]
+            set_key_store(key, lr)
 
 
 def brpop_key_store(key):
@@ -135,7 +163,10 @@ def lpush_key_store(key, value):
     else:
         if exists_key_store(key):
             l = get_key_store(key)
-            set_key_store(key, [value] + l)
+            if isinstance(l, list):
+                set_key_store(key, [value] + l)
+            else:
+                set_key_store(key, [value])
         else:
             set_key_store(key, [value])
 
@@ -158,7 +189,11 @@ def llen_key_store(key):
         return rds.llen(str(key))
     else:
         if exists_key_store(key):
-            return len(get_key_store(key))
+            l = get_key_store(key)
+            if isinstance(l, list):
+                return len(l)
+            else:
+                return 0
         else:
             return 0
 

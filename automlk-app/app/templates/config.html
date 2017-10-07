@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3>Configuration set-up</h3>
+
+
+<table>
+    <tr>
+        <td width="50%">
+            <form action="" method="post" name="update">
+                {{ form.hidden_tag() }}
+                {{ form.csrf_token }}
+                <div class="form-group">
+                    <label>Data storage</label>
+                    {{ form.data(class="form-control")}}
+                </div>
+                <div class="form-group">
+                    <label>Theme</label>
+                    {{ form.theme(class="form-control")}}
+                </div>
+                <div class="form-group">
+                    <label>Store</label>
+                    {{ form.store(class="form-control", **{"onchange":"changeMode(this.value)"}) }}
+                </div>
+                <div class="form-group" id="store_group">
+                    <label>Store url</label>
+                    {{ form.store_url(class="form-control")}}
+                </div>
+                <div style="height:50px"></div>
+                <nav class="navbar navbar-default navbar-fixed-bottom" role="navigation">
+                    <div class="container" style="padding:5px">
+                        <button type="submit" class="btn btn-default" style="float:right;">Save</button>
+                    </div>
+                </nav>
+            </form>
+        </td>
+    </tr>
+</table>
+
+<script type="text/javascript">
+    function changeMode(sel) {
+        if(sel=="redis") {
+            jQuery("#store_group").show();
+        } else {
+            jQuery("#store_group").hide();
+        }
+    }
+
+</script>
+
+<script type="text/javascript">
+    window.onload = changeMode("{{form.store.data}}")
+</script>
+
+
+{% endblock %}

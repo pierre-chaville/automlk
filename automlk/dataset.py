@@ -2,6 +2,8 @@ import pickle
 import pandas as pd
 import numpy as np
 import datetime
+import shutil
+
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 from .metrics import metric_map
@@ -10,9 +12,9 @@ from .graphs import graph_correl_features, graph_histogram
 from .store import *
 
 
-def create_dataset(name, description, problem_type, y_col, is_uploaded, source, filename_train, metric,
+def create_dataset(name, description, problem_type, y_col, is_uploaded, source, mode, filename_train, metric,
                    other_metrics=[], val_col='index', cv_folds=5, val_col_shuffle=True,
-                   holdout_ratio=0.2, filename_test='', filename_cols='', filename_submit='', is_public=False, url='',
+                   holdout_ratio=0.2, filename_test='', filename_cols='', filename_submit='', url='',
                    col_submit=''):
     """
     creates a dataset
@@ -23,9 +25,10 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
     :param y_col: name of the target column
     :param is_uploaded: not used
     :param source: source of the dataset
+    :param mode: standard (train set), benchmark (train + test set), competition (train + submit set)
     :param filename_train: file path of the training set
     :param metric: metric to be used to select the best models ('mse', 'rmse', 'log_loss', ...)
-    :param other_metrics: list of secondary metrics
+    :param other_metrics: secondary metrics, separated by comma (eg: f1, accuracy)
     :param val_col: column name to perform the cross validation (default = 'index')
     :param cv_folds: number of cross validation folds (default = 5)
     :param val_col_shuffle: need to shuffle in cross validation (default = false)
@@ -33,7 +36,6 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
     :param filename_test: name of the test set (benchmark mode)
     :param filename_cols: file to describe columns
     :param filename_submit: name of the submit set (competition mode)
-    :param is_public: is the dataset in the public domain (true / false)
     :param url: url of the dataset
     :param col_submit: index column to be used in submit file (competition mode)
     :return: dataset object
@@ -42,10 +44,11 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
     # create object and control data
     creation_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    dt = DataSet(0, name, description, problem_type, y_col, is_uploaded, source, filename_train, metric,
-                 other_metrics=other_metrics, val_col=val_col, cv_folds=cv_folds, val_col_shuffle=val_col_shuffle,
-                 holdout_ratio=holdout_ratio, filename_test=filename_test, filename_cols=filename_cols,
-                 filename_submit=filename_submit, is_public=is_public, col_submit=col_submit,
+    dt = DataSet(0, name, description, problem_type, y_col, is_uploaded, source, mode, filename_train, metric,
+                 other_metrics=other_metrics.replace(' ', '').split(','), val_col=val_col, cv_folds=cv_folds,
+                 val_col_shuffle=val_col_shuffle, holdout_ratio=holdout_ratio,
+                 filename_test=filename_test, filename_cols=filename_cols,
+                 filename_submit=filename_submit, col_submit=col_submit,
                  url=url, creation_date=creation_date)
 
     # control data
@@ -62,6 +65,7 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
     rpush_key_store('dataset:list', dataset_id)
 
     dt.save(dataset_id)
+    dt.create_folders()
     dt.finalize_creation(df_train, df_test, df_submit)
 
     # create train & test set
@@ -83,17 +87,109 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
     return dt
 
 
-# TODO: add competition mode (submission test set)
+def get_dataset(dataset_id):
+    """
+    get the descriptive data of a dataset
+
+    :param dataset_id: id of the dataset
+    :return: dataset object
+    """
+    d = get_key_store('dataset:%s' % dataset_id)
+
+    # upward compatibility
+    if 'mode' not in d['init_data'].keys():
+        if d['init_data']['filename_test'] != '':
+            d['init_data']['mode'] = 'benchmark'
+        elif d['init_data']['filename_submit'] != '':
+            d['init_data']['mode'] = 'competition'
+        else:
+            d['init_data']['mode'] = 'standard'
+    if 'is_public' in d['init_data'].keys():
+        d['init_data'].pop('is_public')
+
+    # then load dataset object
+    dt = DataSet(**d['init_data'])
+    dt.load(d['load_data'], d['features'])
+    return dt
+
+
+def update_dataset(dataset_id, name, description, is_uploaded, source, url):
+    """
+    update specific fields of the dataset
+
+    :param dataset_id:
+    :param name:
+    :param description:
+    :param is_uploaded:
+    :param source:
+    :param url:
+    :return:
+    """
+    dt = get_dataset(dataset_id)
+    dt.name = name
+    dt.description = description
+    dt.is_uploaded = is_uploaded
+    dt.source = source
+    dt.url = url
+    dt.save(dataset_id)
+
+
+def delete_dataset(dataset_id):
+    """
+    deletes a dataset
+
+    :param dataset_id: id
+    :return:
+    """
+    # deletes dataset folder with results
+    try:
+        shutil.rmtree(get_dataset_folder(dataset_id))
+    except:
+        pass
+
+    # removes entries
+    del_key_store('dataset:%s:status' % dataset_id)
+    del_key_store('dataset:%s:results' % dataset_id)
+    del_key_store('dataset:%s:level' % dataset_id)
+    lrem_key_store('dataset:list', dataset_id)
+
+
+def get_dataset_list(include_status=False):
+    """
+    get the list of all datasets
+
+    :return: list of datasets objects or empty list if error (eg. redis or environment not set)
+    """
+    try:
+        dl = [get_dataset(dataset_id) for dataset_id in get_dataset_ids()]
+        if include_status:
+            for d in dl:
+                d.status = get_key_store('dataset:%s:status' % d.dataset_id)
+                d.results = get_key_store('dataset:%s:results' % d.dataset_id)
+                d.level = get_key_store('dataset:%s:level' % d.dataset_id)
+                d.round_counter = get_counter_store('dataset:%s:round_counter' % d.dataset_id)
+        return dl
+    except:
+        return []
+
+
+def get_dataset_ids():
+    """
+    get the list of ids all datasets
+
+    :return: list of ids
+    """
+    return list_key_store('dataset:list')
+
 
 class DataSet(object):
     """
     a dataset is an object managing all the features and data of an experiment
     """
 
-    def __init__(self, dataset_id, name, description, problem_type, y_col, is_uploaded, source, filename_train, metric,
+    def __init__(self, dataset_id, name, description, problem_type, y_col, is_uploaded, source, mode, filename_train, metric,
                  other_metrics, val_col, cv_folds, val_col_shuffle,
-                 holdout_ratio, filename_test, filename_cols, filename_submit, is_public, url, col_submit,
-                 creation_date):
+                 holdout_ratio, filename_test, filename_cols, filename_submit, url, col_submit, creation_date):
         """
         creates a new dataset: it will be automatically stored
 
@@ -103,16 +199,16 @@ class DataSet(object):
         :param y_col: name of the target column
         :param is_uploaded: not used
         :param source: source of the dataset
+        :param mode: standard (train set), benchmark (train + test set), competition (train + submit set)
         :param filename_train: file path of the training set
         :param metric: metric to be used to select the best models ('mse', 'rmse', 'log_loss', ...)
-        :param other_metrics: list of secondary metrics
+        :param other_metrics: list of secondary metrics (as a list)
         :param val_col: column name to perform the cross validation (default = 'index')
         :param cv_folds: number of cross validation folds (default = 5)
         :param val_col_shuffle: need to shuffle in cross validation (default = false)
         :param holdout_ratio: holdout ration to split train / eval set
         :param filename_test: name of the test set
         :param filename_cols: (not implemented)
-        :param is_public: is the dataset in the public domain (true / false)
         :param url: url of the dataset
         """
 
@@ -128,12 +224,34 @@ class DataSet(object):
             raise ValueError('problem type must be regression or classification')
         self.problem_type = problem_type
 
-        self.is_public = is_public
         self.with_test_set = False
         self.url = url
         self.is_uploaded = is_uploaded
         self.source = source  # url or file id
         self.y_col = y_col
+        if filename_train == '':
+            raise ValueError('filename train cannot be empty')
+        # check // mode
+        self.mode = mode
+        if mode not in ['standard', 'benchmark', 'competition']:
+            raise ValueError('mode must be standard, benchmark or competition')
+        if mode == 'standard':
+            if filename_test != '':
+                raise ValueError('test set should be empty in standard mode')
+            if filename_submit != '' or col_submit != '':
+                raise ValueError('submit set should be empty in standard mode')
+        elif mode == 'benchmark':
+            if filename_test == '':
+                raise ValueError('test set cannot be empty in benchmark mode')
+            if filename_submit != '' or col_submit != '':
+                raise ValueError('submit set should be empty in benchmark mode')
+        else:
+            # competition mode
+            if filename_test != '':
+                raise ValueError('test set cannot be empty in competition mode')
+            if filename_submit == '' or col_submit == '':
+                raise ValueError('submit set cannot be empty in competition mode')
+
         self.filename_train = filename_train
         self.filename_test = filename_test
         self.filename_cols = filename_cols
@@ -223,18 +341,17 @@ class DataSet(object):
     def save(self, dataset_id):
         # saves dataset data in a pickle store
         self.dataset_id = dataset_id
-        self.__create_folders()
-        pickle.dump(self, open(self.__folder() + '/dataset.pkl', 'wb'))
+
         # save as json
         store = {'init_data': {'dataset_id': self.dataset_id, 'name': self.name, 'description': self.description,
                                'problem_type': self.problem_type, 'y_col': self.y_col,
-                               'is_uploaded': self.is_uploaded, 'source': self.source,
+                               'is_uploaded': self.is_uploaded, 'source': self.source, 'mode': self.mode,
                                'filename_train': self.filename_train, 'metric': self.metric,
                                'other_metrics': self.other_metrics, 'val_col': self.val_col, 'cv_folds': self.cv_folds,
                                'val_col_shuffle': self.val_col_shuffle,
                                'holdout_ratio': self.holdout_ratio, 'filename_test': self.filename_test,
-                               'filename_cols': self.filename_cols, 'is_public': self.is_public, 'url': self.url,
-                               'filename_submit': self.filename_cols, 'col_submit': self.col_submit,
+                               'filename_cols': self.filename_cols, 'url': self.url,
+                               'filename_submit': self.filename_submit, 'col_submit': self.col_submit,
                                'creation_date': self.creation_date},
                  'load_data': {'size': self.size, 'n_rows': self.n_rows, 'n_cols': self.n_cols,
                                'n_cat_cols': self.n_cat_cols, 'n_missing': self.n_missing,
@@ -272,6 +389,45 @@ class DataSet(object):
         :return: data as a dataframe
         """
         return pd.read_pickle(self.__folder() + '/data/%s.pkl' % part)
+
+    def evaluate_metric(self, y_act, y_pred, metric_name=None):
+        # evaluate score with the metric of the dataset
+        if not metric_name:
+            metric_name = self.metric
+        else:
+            if metric_name not in self.other_metrics:
+                raise ValueError('evaluation metric not listed in other metrics')
+        metric = metric_map[metric_name]
+        try:
+            if metric.need_class:
+                # convert proba to classes
+                y_pred_metric = np.argmax(y_pred, axis=1)
+            else:
+                y_pred_metric = y_pred
+
+            # use sign before metrics to always compare best is min in comparisons
+            # but requires to display abs value for display
+            if metric.best_is_min:
+                if metric.name == 'log_loss':
+                    return metric.function(y_act, y_pred_metric, labels=list(range(self.y_n_classes)))
+                else:
+                    return metric.function(y_act, y_pred_metric)
+            else:
+                return -metric.function(y_act, y_pred_metric)
+        except Exception as e:
+            print('error in evaluating metric %s: %s' % (metric_name, e))
+            return METRIC_NULL
+
+    def create_folders(self):
+        # create folders
+        root = get_data_folder() + '/%s' % self.dataset_id
+        os.makedirs(root)
+        os.makedirs(root + '/data')
+        os.makedirs(root + '/predict')
+        os.makedirs(root + '/submit')
+        os.makedirs(root + '/features')
+        os.makedirs(root + '/models')
+        os.makedirs(root + '/graphs')
 
     def __folder(self):
         # storage folder of the dataset
@@ -339,45 +495,6 @@ class DataSet(object):
                 y_class_names = [str(x) for x in np.sort(uniques)]
 
         return features, is_y_categorical, y_n_classes, y_class_names
-
-    def evaluate_metric(self, y_act, y_pred, metric_name=None):
-        # evaluate score with the metric of the dataset
-        if not metric_name:
-            metric_name = self.metric
-        else:
-            if metric_name not in self.other_metrics:
-                raise ValueError('evaluation metric not listed in other metrics')
-        metric = metric_map[metric_name]
-        try:
-            if metric.need_class:
-                # convert proba to classes
-                y_pred_metric = np.argmax(y_pred, axis=1)
-            else:
-                y_pred_metric = y_pred
-
-            # use sign before metrics to always compare best is min in comparisons
-            # but requires to display abs value for display
-            if metric.best_is_min:
-                if metric.name == 'log_loss':
-                    return metric.function(y_act, y_pred_metric, labels=list(range(self.y_n_classes)))
-                else:
-                    return metric.function(y_act, y_pred_metric)
-            else:
-                return -metric.function(y_act, y_pred_metric)
-        except Exception as e:
-            print('error in evaluating metric %s: %s' % (metric_name, e))
-            return METRIC_NULL
-
-    def __create_folders(self):
-        # create folders
-        root = get_data_folder() + '/%s' % self.dataset_id
-        os.makedirs(root)
-        os.makedirs(root + '/data')
-        os.makedirs(root + '/predict')
-        os.makedirs(root + '/submit')
-        os.makedirs(root + '/features')
-        os.makedirs(root + '/models')
-        os.makedirs(root + '/graphs')
 
     def __import_data(self, filename, part):
         # copy file in the dataset
@@ -522,39 +639,3 @@ def get_y_eval(dataset_id):
     return pickle.load(open(get_dataset_folder(dataset_id) + '/y_eval.pkl', 'rb'))
 
 
-def get_dataset_list(include_status=False):
-    """
-    get the list of all datasets
-
-    :return: list of datasets objects
-    """
-    dl = [get_dataset(dataset_id) for dataset_id in get_dataset_ids()]
-    if include_status:
-        for d in dl:
-            d.status = get_key_store('dataset:%s:status' % d.dataset_id)
-            d.results = get_key_store('dataset:%s:results' % d.dataset_id)
-            d.level = get_key_store('dataset:%s:level' % d.dataset_id)
-            d.round_counter = get_counter_store('dataset:%s:round_counter' % d.dataset_id)
-    return dl
-
-
-def get_dataset_ids():
-    """
-    get the list of ids all datasets
-
-    :return: list of ids
-    """
-    return list_key_store('dataset:list')
-
-
-def get_dataset(dataset_id):
-    """
-    get the descriptive data of a dataset
-
-    :param dataset_id: id of the dataset
-    :return: dataset object
-    """
-    d = get_key_store('dataset:%s' % dataset_id)
-    dt = DataSet(**d['init_data'])
-    dt.load(d['load_data'], d['features'])
-    return dt
