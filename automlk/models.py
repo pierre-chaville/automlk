@@ -9,8 +9,8 @@ import numpy as np
 import pandas as pd
 
 from .spaces.model import *
-from .spaces.hyper import get_random_params
-from .dataset import METRIC_NULL, get_dataset_folder
+from .config import METRIC_NULL
+from .dataset import get_dataset_folder
 
 # TODO: add naives bayes and decision trees
 
@@ -38,7 +38,6 @@ except:
     import_catboost = False
     print('could not import Catboost. This model will not be used')
 
-
 try:
     from .utils.keras_wrapper import keras_create_model, keras_compile_model, import_keras, to_categorical
 except:
@@ -61,7 +60,7 @@ def get_pred_eval_test(uid, round_id):
     return pickle.load(open(get_dataset_folder(uid) + '/predict/%s.pkl' % round_id, 'rb'))
 
 
-class HyperModel(object):
+class Model(object):
     __metaclass__ = ABCMeta
 
     # abstract class for model hyper optimization
@@ -143,7 +142,8 @@ class HyperModel(object):
     @abstractmethod
     def save_model(self):
         # saves parameters of the model
-        pickle.dump([self.model], open(get_dataset_folder(self.dataset.dataset_id) + '/models/%s.pkl' % self.round_id, 'wb'))
+        pickle.dump([self.model],
+                    open(get_dataset_folder(self.dataset.dataset_id) + '/models/%s.pkl' % self.round_id, 'wb'))
 
     @abstractmethod
     def save_importance(self):
@@ -171,7 +171,7 @@ def binary_proba(y):
     return np.stack([1 - y, y], axis=1)
 
 
-class HyperModelLogisticRegression(HyperModel):
+class ModelLogisticRegression(Model):
     # class for model Logistic regression
 
     def __init__(self, dataset, context, params, round_id):
@@ -183,7 +183,7 @@ class HyperModelLogisticRegression(HyperModel):
         self.model = linear.LogisticRegression(**self.params)
 
 
-class HyperModelLinearRegressor(HyperModel):
+class ModelLinearRegressor(Model):
     # class for model Linear regression
 
     def __init__(self, dataset, context, params, round_id):
@@ -191,7 +191,7 @@ class HyperModelLinearRegressor(HyperModel):
         self.model = linear.LinearRegression(**self.params)
 
 
-class HyperModelLassoRegressor(HyperModel):
+class ModelLassoRegressor(Model):
     # class for model Lasso Linear regression
 
     def __init__(self, dataset, context, params, round_id):
@@ -199,7 +199,7 @@ class HyperModelLassoRegressor(HyperModel):
         self.model = linear.Lasso(**self.params)
 
 
-class HyperModelRidgeRegressor(HyperModel):
+class ModelRidgeRegressor(Model):
     # class for model Ridge Linear regression
 
     def __init__(self, dataset, context, params, round_id):
@@ -207,7 +207,7 @@ class HyperModelRidgeRegressor(HyperModel):
         self.model = linear.Ridge(**self.params)
 
 
-class HyperModelHuberRegressor(HyperModel):
+class ModelHuberRegressor(Model):
     # class for model Huber Linear regression
 
     def __init__(self, dataset, context, params, round_id):
@@ -215,7 +215,7 @@ class HyperModelHuberRegressor(HyperModel):
         self.model = linear.HuberRegressor(**self.params)
 
 
-class HyperModelLinearSVC(HyperModel):
+class ModelLinearSVC(Model):
     # class for model SVM classification
 
     def __init__(self, dataset, context, params, round_id):
@@ -223,7 +223,7 @@ class HyperModelLinearSVC(HyperModel):
         self.model = svm.LinearSVC(**self.params)
 
 
-class HyperModelLinearSVR(HyperModel):
+class ModelLinearSVR(Model):
     # class for model SVM regression
 
     def __init__(self, dataset, context, params, round_id):
@@ -231,7 +231,7 @@ class HyperModelLinearSVR(HyperModel):
         self.model = svm.LinearSVR(**self.params)
 
 
-class HyperModelSVM(HyperModel):
+class ModelSVM(Model):
     # class for model SVM kernel
 
     def __init__(self, dataset, context, params, round_id):
@@ -242,7 +242,7 @@ class HyperModelSVM(HyperModel):
             self.model = svm.SVC(**self.params)
 
 
-class HyperModelKnn(HyperModel):
+class ModelKnn(Model):
     # class for model KNN
 
     def __init__(self, dataset, context, params, round_id):
@@ -253,7 +253,7 @@ class HyperModelKnn(HyperModel):
             self.model = knn.KNeighborsClassifier(**self.params)
 
 
-class HyperModelAdaBoost(HyperModel):
+class ModelAdaBoost(Model):
     # class for model AdaBoost
 
     def __init__(self, dataset, context, params, round_id):
@@ -264,7 +264,7 @@ class HyperModelAdaBoost(HyperModel):
             self.model = ske.AdaBoostClassifier(**self.params)
 
 
-class HyperModelGradientBoosting(HyperModel):
+class ModelGradientBoosting(Model):
     # class for model AdaBoost
 
     def __init__(self, dataset, context, params, round_id):
@@ -275,7 +275,7 @@ class HyperModelGradientBoosting(HyperModel):
             self.model = ske.GradientBoostingClassifier(**self.params)
 
 
-class HyperModelExtraTrees(HyperModel):
+class ModelExtraTrees(Model):
     # class for model Extra trees
 
     def __init__(self, dataset, context, params, round_id):
@@ -286,7 +286,7 @@ class HyperModelExtraTrees(HyperModel):
             self.model = ske.ExtraTreesClassifier(**self.params)
 
 
-class HyperModelRandomForest(HyperModel):
+class ModelRandomForest(Model):
     # class for model Random Forest
 
     def __init__(self, dataset, context, params, round_id):
@@ -297,7 +297,7 @@ class HyperModelRandomForest(HyperModel):
             self.model = ske.RandomForestClassifier(**self.params)
 
 
-class HyperModelLightGBM(HyperModel):
+class ModelLightGBM(Model):
     # class for model LightGBM
 
     def __init__(self, dataset, context, params, round_id):
@@ -356,7 +356,7 @@ class HyperModelLightGBM(HyperModel):
         pickle.dump(self.importance, open(self.feature_filename(), 'wb'))
 
 
-class HyperModelXgBoost(HyperModel):
+class ModelXgBoost(Model):
     # class for model XGBOOST
 
     def __init__(self, dataset, context, params, round_id):
@@ -407,7 +407,7 @@ class HyperModelXgBoost(HyperModel):
         pickle.dump(importance, open(self.feature_filename(), 'wb'))
 
 
-class HyperModelCatboost(HyperModel):
+class ModelCatboost(Model):
     # class for model Catboost
 
     def __init__(self, dataset, context, params, round_id):
@@ -466,7 +466,7 @@ class HyperModelCatboost(HyperModel):
         pickle.dump(self.importance, open(self.feature_filename(), 'wb'))
 
 
-class HyperModelNN(HyperModel):
+class ModelNN(Model):
     # class for model Neural Networks
 
     def __init__(self, dataset, context, params, round_id):
@@ -539,7 +539,7 @@ class EnsemblePool(object):
         self.pool_submit_preds = pool_submit_preds
 
 
-class HyperModelEnsembleSelection(HyperModel):
+class ModelEnsembleSelection(Model):
     # TODO : fix bug
     # class for model with ensemble selection
 
@@ -561,34 +561,37 @@ class HyperModelEnsembleSelection(HyperModel):
                 # find the best model to be added in the selection
                 best_score_round = METRIC_NULL
                 l_selection = len(selection_round_ids)
-                for u, m, p_eval, p_test, p_submit in zip(pool.pool_model_round_ids, pool.pool_model_names, pool.pool_eval_preds,
-                                                pool.pool_test_preds, pool.pool_submit_preds):
+                for u, m, p_eval, p_test, p_submit in zip(pool.pool_model_round_ids, pool.pool_model_names,
+                                                          pool.pool_eval_preds, pool.pool_test_preds,
+                                                          pool.pool_submit_preds):
                     # prediction = weighted average of predictions
-                    try:
-                        if l_selection < 1:
-                            y_pred_eval = p_eval
-                            y_pred_test = p_test
-                            y_pred_submit = p_submit
-                        else:
-                            y_pred_eval = (pred_select_eval * l_selection + p_eval) / (l_selection + 1)
-                            y_pred_test = (pred_select_test * l_selection + p_test) / (l_selection + 1)
-                            y_pred_submit = (pred_select_submit * l_selection + p_submit) / (l_selection + 1)
-                        if np.shape(y[train_index]) == np.shape(y_pred_eval[train_index]):
-                            score = self.dataset.evaluate_metric(y[train_index], y_pred_eval[train_index])
-                        else:
-                            score = METRIC_NULL
-                    except:
+                    # try:
+                    if l_selection < 1:
+                        y_pred_eval = p_eval
+                        y_pred_test = p_test
+                        y_pred_submit = p_submit
+                    else:
+                        y_pred_eval = (pred_select_eval * l_selection + p_eval) / (l_selection + 1)
+                        y_pred_test = (pred_select_test * l_selection + p_test) / (l_selection + 1)
+                        y_pred_submit = (pred_select_submit * l_selection + p_submit) / (l_selection + 1)
+                    if np.shape(y[train_index]) == np.shape(y_pred_eval[train_index]):
+                        score = self.dataset.evaluate_metric(y[train_index], y_pred_eval[train_index])
+                    else:
                         score = METRIC_NULL
+                    # except:
+                    #    score = METRIC_NULL
+
                     if score < best_score_round:
                         # print('best score round', m, score)
                         best_score_round = score
                         m_round, u_round = m, u
-                        pred_round_eval, pred_round_test , pred_round_submit= y_pred_eval, y_pred_test, y_pred_submit
+                        pred_round_eval, pred_round_test, pred_round_submit = y_pred_eval, y_pred_test, y_pred_submit
+
                 # at the end of the search for the round, check if the overall score is better
                 if best_score_round < best_score:
-                    # print('best score:', best_score_round)
+                    print('best score:', best_score_round)
                     best_score = best_score_round
-                    pred_select_eval, pred_select_test, pred_select_submit= pred_round_eval, pred_round_test, pred_round_submit
+                    pred_select_eval, pred_select_test, pred_select_submit = pred_round_eval, pred_round_test, pred_round_submit
                     selection_names += [m_round]
                     selection_round_ids += [u_round]
                 else:
@@ -610,14 +613,14 @@ class HyperModelEnsembleSelection(HyperModel):
         self.importance = self.selection[['name', 'weight']]
         self.importance.columns = ['feature', 'importance']
 
-        return True, y_pred_eval_list, y_pred_test_list, y_pred_submit_list
+        return False, y_pred_eval_list, y_pred_test_list, y_pred_submit_list
 
     def save_importance(self):
         # saves feature importance (as a dataframe)
         pickle.dump(self.importance, open(self.feature_filename(), 'wb'))
 
 
-class HyperModelStacking(HyperModel):
+class ModelStacking(Model):
     # class for model with ensemble stacking
 
     __metaclass__ = ABCMeta
@@ -633,12 +636,13 @@ class HyperModelStacking(HyperModel):
         self.params = {**{'depth': depth}, **self.params}
         # set feature names
         if self.dataset.problem_type == 'regression':
-            self.feature_names = [name+'_'+str(round_id) for round_id, name in zip(pool.pool_model_round_ids, pool.pool_model_names)]
+            self.feature_names = [name + '_' + str(round_id) for round_id, name in
+                                  zip(pool.pool_model_round_ids, pool.pool_model_names)]
         else:
             self.feature_names = []
             for round_id, name in zip(pool.pool_model_round_ids, pool.pool_model_names):
                 for k in range(self.dataset.y_n_classes):
-                    self.feature_names.append(name+'_'+str(k)+'_'+str(round_id))
+                    self.feature_names.append(name + '_' + str(k) + '_' + str(round_id))
         self.model.feature_names = self.feature_names
 
         for i, (train_index, eval_index) in enumerate(cv_folds):
@@ -701,65 +705,65 @@ class HyperModelStacking(HyperModel):
             pickle.dump(self.importance, open(self.feature_filename(), 'wb'))
 
 
-class HyperModelStackingExtraTrees(HyperModelStacking):
+class ModelStackingExtraTrees(ModelStacking):
     # class for stacking with model Extra trees
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelExtraTrees(dataset, context, params, round_id)
+        self.model = ModelExtraTrees(dataset, context, params, round_id)
 
 
-class HyperModelStackingRandomForest(HyperModelStacking):
+class ModelStackingRandomForest(ModelStacking):
     # class for stacking with model Extra trees
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelRandomForest(dataset, context, params, round_id)
+        self.model = ModelRandomForest(dataset, context, params, round_id)
 
 
-class HyperModelStackingGradientBoosting(HyperModelStacking):
+class ModelStackingGradientBoosting(ModelStacking):
     # class for stacking with model Extra trees
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelGradientBoosting(dataset, context, params, round_id)
+        self.model = ModelGradientBoosting(dataset, context, params, round_id)
 
 
-class HyperModelStackingLinear(HyperModelStacking):
+class ModelStackingLinear(ModelStacking):
     # class for stacking with model Extra trees
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelLinearRegressor(dataset, context, params, round_id)
+        self.model = ModelLinearRegressor(dataset, context, params, round_id)
 
 
-class HyperModelStackingLogistic(HyperModelStacking):
+class ModelStackingLogistic(ModelStacking):
     # class for stacking with model Logistic regression
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelLogisticRegression(dataset, context, params, round_id)
+        self.model = ModelLogisticRegression(dataset, context, params, round_id)
 
 
-class HyperModelStackingXgBoost(HyperModelStacking):
+class ModelStackingXgBoost(ModelStacking):
     # class for stacking with model XgBoost
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelXgBoost(dataset, context, params, round_id)
+        self.model = ModelXgBoost(dataset, context, params, round_id)
 
 
-class HyperModelStackingLightGBM(HyperModelStacking):
+class ModelStackingLightGBM(ModelStacking):
     # class for stacking with model LightGBM
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelLightGBM(dataset, context, params, round_id)
+        self.model = ModelLightGBM(dataset, context, params, round_id)
 
 
-class HyperModelStackingNN(HyperModelStacking):
+class ModelStackingNN(ModelStacking):
     # class for stacking with model NN
 
     def __init__(self, dataset, context, params, round_id):
         super().__init__(dataset, context, params, round_id)
-        self.model = HyperModelNN(dataset, context, params, round_id)
+        self.model = ModelNN(dataset, context, params, round_id)

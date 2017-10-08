@@ -7,7 +7,8 @@ import seaborn.apionly as sns
 import itertools
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import confusion_matrix
-from .context import METRIC_NULL, get_dataset_folder
+from .config import METRIC_NULL
+from .context import get_dataset_folder
 
 
 def graph_histogram(dataset_id, col, is_categorical, values, part='train'):

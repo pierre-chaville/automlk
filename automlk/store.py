@@ -1,20 +1,21 @@
+import os
 import json
 import time
-from .context import *
+from .config import get_use_redis, set_use_redis
+from .context import get_config, get_data_folder
 
 # try to import redis
-use_redis = False
-if get_config()['store'] == 'redis':
+__config = get_config()
+if __config['store'] == 'redis':
     try:
         import redis
-        # force_file_storage = 1/0
-        use_redis = True
-        rds = redis.Redis()
+        rds = redis.Redis(host=__config['store_url'])
         print('using redis')
+        set_use_redis(True)
     except:
-        use_redis = False
+        set_use_redis(False)
 
-if not use_redis:
+if not get_use_redis():
     # we will use simple file storage
     store_folder = get_data_folder() + '/store'
     if not store_folder:
@@ -24,7 +25,7 @@ if not use_redis:
 
 def get_key_store(key):
     # retieves value from key in store
-    if use_redis:
+    if get_use_redis():
         return json.loads(rds.get(str(key)))
     else:
         try:
@@ -38,7 +39,7 @@ def get_key_store(key):
 
 def set_key_store(key, value):
     # sets value to key in store
-    if use_redis:
+    if get_use_redis():
         rds.set(str(key), json.dumps(value))
     else:
         with open(store_folder + '/' + __clean_key(key) + '.json', 'w') as f:
@@ -47,7 +48,7 @@ def set_key_store(key, value):
 
 def exists_key_store(key):
     # checks if a key exists
-    if use_redis:
+    if get_use_redis():
         return rds.exists(str(key))
     else:
         return os.path.exists(store_folder + '/' + __clean_key(key) + '.json')
@@ -55,7 +56,7 @@ def exists_key_store(key):
 
 def del_key_store(key):
     # deletes key in store
-    if use_redis:
+    if get_use_redis():
         rds.delete(str(key))
     else:
         if exists_key_store(key):
@@ -64,7 +65,7 @@ def del_key_store(key):
 
 def incr_key_store(key, amount=1):
     # increments value of key in store with amount
-    if use_redis:
+    if get_use_redis():
         return rds.incr(str(key), amount)
     else:
         if exists_key_store(key):
@@ -76,9 +77,9 @@ def incr_key_store(key, amount=1):
             return amount
 
 
-def get_counter_store(key, amount=1):
+def get_counter_store(key):
     # returns raw value of key in store with amount
-    if use_redis:
+    if get_use_redis():
         if rds.exists(str(key)):
             return int(rds.get(str(key)))
         else:
@@ -92,7 +93,7 @@ def get_counter_store(key, amount=1):
 
 def rpush_key_store(key, value):
     # add value to the end of a list of key in store
-    if use_redis:
+    if get_use_redis():
         rds.rpush(str(key), json.dumps(value))
     else:
         if exists_key_store(key):
@@ -107,7 +108,7 @@ def rpush_key_store(key, value):
 
 def rpop_key_store(key):
     # returns and pop the 1st element of a list of key in store
-    if use_redis:
+    if get_use_redis():
         return json.loads(rds.rpop(str(key)))
     else:
         if exists_key_store(key):
@@ -125,7 +126,7 @@ def rpop_key_store(key):
 
 def lrem_key_store(key, value):
     # removes value from the list of key in store
-    if use_redis:
+    if get_use_redis():
         rds.lrem(str(key), json.dumps(value))
     else:
         if exists_key_store(key):
@@ -136,7 +137,7 @@ def lrem_key_store(key, value):
 
 def brpop_key_store(key):
     # returns and pop the 1st element of a list of key in store with blocking
-    if use_redis:
+    if get_use_redis():
         return json.loads(rds.brpop(str(key))[1])
     else:
         if exists_key_store(key):
@@ -158,7 +159,7 @@ def brpop_key_store(key):
 
 def lpush_key_store(key, value):
     # add value to the beginning of a list of key in store
-    if use_redis:
+    if get_use_redis():
         rds.lpush(str(key), json.dumps(value))
     else:
         if exists_key_store(key):
@@ -173,7 +174,7 @@ def lpush_key_store(key, value):
 
 def list_key_store(key):
     # returns the complete list of values
-    if use_redis:
+    if get_use_redis():
         return [json.loads(x) for x in rds.lrange(key, 0, -1)]
     else:
         l = get_key_store(key)
@@ -185,7 +186,7 @@ def list_key_store(key):
 
 def llen_key_store(key):
     # returns the length of a list of key in store
-    if use_redis:
+    if get_use_redis():
         return rds.llen(str(key))
     else:
         if exists_key_store(key):
@@ -200,7 +201,7 @@ def llen_key_store(key):
 
 def sadd_key_store(key, value):
     # add value to set key
-    if use_redis:
+    if get_use_redis():
         return rds.sadd(str(key), json.dumps(value))
     else:
         if exists_key_store(key):
@@ -213,7 +214,7 @@ def sadd_key_store(key, value):
 
 def smembers_key_store(key):
     # returns members of set key
-    if use_redis:
+    if get_use_redis():
         return [json.loads(m) for m in rds.smembers(str(key))]
     else:
         return get_key_store(key)

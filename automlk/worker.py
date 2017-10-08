@@ -2,6 +2,7 @@ import datetime
 import gc
 import os
 import socket
+from .config import *
 from .context import HyperContext
 from .dataset import get_dataset
 from .graphs import graph_pred_histogram, graph_predict
@@ -11,7 +12,7 @@ from .monitor import heart_beep
 from .solutions_pp import pp_solutions_map
 
 
-def launch_worker():
+def worker():
     # periodically pool the receiver queue for a search job 
     while True:
         # poll queue

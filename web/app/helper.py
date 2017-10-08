@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
-from automlk.search import get_importance #, get_pred_eval_test, METRIC_NULL
-#from automlk.dataset import get_y_eval
+from automlk.worker import get_importance
+
 
 def dataset_folder(dt_uid):
     # return the folder where search results are stored

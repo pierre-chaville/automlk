@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Import dataset list from file</h3>
+
+<form action="import" method="POST" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+    {{ form.csrf_token }}
+    <div class="form-group">
+        <label>Dataset data to import</label>
+        {{ form.file_import(class="form-control") }}
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+
+{% endblock %}

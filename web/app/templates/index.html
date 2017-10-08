@@ -4,17 +4,16 @@
 <table class="table table-bordered table-hover">
     <thead>
     <th>name</th>
-    <th>status</th>
-    <th>level</th>
+    <th colspan="2">status / level</th>
     <th><i class="fa fa-play" aria-hidden="true"></i></th>
     <th>#</th>
     <th>description</th>
     <th>mode</th>
     <th>problem</th>
-    <th>records</th>
-    <th>features</th>
-    <th>action</th>
-     </thead>
+    <th>rows</th>
+    <th>cols</th>
+    <th colspan="3">actions</th>
+    </thead>
     {% for dataset in datasets %}
     <tr>
         <td>
@@ -56,38 +55,42 @@
             <span class="label label-info">{{ dataset.results }} / {{ dataset.round_counter }}</span>
         </td>
         <td width="30%">
-            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{
-                dataset.description[:100]}}...</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{dataset.description[:100]}}...</a>
         </td>
         <td>
-            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{
-                dataset.mode}}</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{dataset.mode}}</a>
         </td>
         <td>
-            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{
-                dataset.problem_type}}</a>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{dataset.problem_type}}</a>
         </td>
         <td>
-            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{
-                dataset.n_rows}}K</a>
+            <a href="/dataset/{{dataset.dataset_id}}"
+               style="color:inherit; text-decoration: none;">{{dataset.n_rows}}K</a>
         </td>
         <td>
-            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{
-                dataset.n_cols}}</a>
+            <a href="/dataset/{{dataset.dataset_id}}"
+               style="color:inherit; text-decoration: none;">{{dataset.n_cols}}</a>
         </td>
-        <td width="8%">
+        <td>
             <span data-toggle="tooltip" data-placement="left" title="edit dataset">
-                <a href="/update/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;"><i class="fa fa-pencil-square-o"></i></a></span>
-            &nbsp;&nbsp;
+                <a href="/update/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;"><i
+                        class="fa fa-pencil-square-o"></i></a></span>
+        </td>
+        <td>
             <span data-toggle="tooltip" data-placement="left" title="duplicate dataset">
-                <a href="/duplicate/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;"><i class="fa fa-files-o"></i></a></span>
-            &nbsp;&nbsp;
-            <span data-toggle="tooltip" data-placement="left" title="delete dataset"><a href="#DeleteModal" class="open_DeleteModal" style="color:inherit; text-decoration: none;"
-               data-toggle="modal" data-target="#DeleteModal"
-               data-id="{{dataset.dataset_id}}"
-               data-name="{{dataset.name}}"
-               data-description="{{dataset.description}}"
-            ><i class="fa fa-trash-o" aria-hidden="true"></i></a></span>
+                <a href="/duplicate/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;"><i
+                        class="fa fa-files-o"></i></a></span>
+        </td>
+        <td>
+            <span data-toggle="tooltip" data-placement="left" title="delete dataset"><a href="#DeleteModal"
+                                                                                        class="open_DeleteModal"
+                                                                                        style="color:inherit; text-decoration: none;"
+                                                                                        data-toggle="modal"
+                                                                                        data-target="#DeleteModal"
+                                                                                        data-id="{{dataset.dataset_id}}"
+                                                                                        data-name="{{dataset.name}}"
+                                                                                        data-description="{{dataset.description}}">
+                <i class="fa fa-trash-o" aria-hidden="true"></i></a></span>
         </td>
     </tr>
     {% endfor %}
@@ -99,6 +102,7 @@ $(".modal-body #id").val($(this).data('id'));
 $(".modal-body #name").val($(this).data('name'));
 $(".modal-body #description").val($(this).data('description'));
 });
+
 </script>
 
 <!--
@@ -140,5 +144,6 @@ $(".modal-body #description").val($(this).data('description'));
     setInterval(function() {
       window.location.reload();
     }, 300000);
+
 </script>
 {% endblock %}

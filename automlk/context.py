@@ -1,13 +1,6 @@
-#coding: utf-8
-
 import os
 import json
-
-METRIC_NULL = 1e7
-SEARCH_QUEUE = 'controller:search_queue'
-RESULTS_QUEUE = 'controller:results_queue'
-CONTROLLER_ID = 'controller:dataset_id'
-
+from .config import set_use_redis
 
 def get_dataset_folder(dataset_id):
     """
@@ -40,8 +33,27 @@ def set_config(data, theme, store, store_url):
     :param store_url: url if redis mode
     :return:
     """
+    # check data
+    if not os.path.exists(data):
+        raise EnvironmentError('data folder %s do not exist' % data)
+
+    if store == 'redis':
+        # check connection to redis
+        try:
+            import redis
+            rds = redis.Redis(host=store_url)
+            rds.exists('test')
+        except:
+            raise EnvironmentError('could not connect to redis')
+        set_use_redis(True)
+    else:
+        store_folder = data+'/store'
+        if not os.path.exists(store_folder):
+            os.makedirs(store_folder)
+        set_use_redis(False)
+
+    # then save config
     config = {'data': data, 'theme': theme, 'store': store, 'store_url': store_url}
-    print(json.dumps(config))
     with open('../config.json', 'w') as f:
         f.write(json.dumps(config) + '\n')
 
@@ -49,9 +61,22 @@ def set_config(data, theme, store, store_url):
 def get_data_folder():
     """
     retrieves root folder from 'automlk.json' configuration file
-    :return: storage folder of the data
+    :return: storage folder name of the data
     """
     return get_config()['data']
+
+
+def get_uploads_folder():
+    """
+    folder to store file uploads
+
+    :return: folder name
+    """
+    folder = get_data_folder() + '/uploads'
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    return folder
+
 
 class HyperContext():
 

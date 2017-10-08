@@ -1,13 +1,13 @@
 from app import app
 import time
 import os
+import uuid
 from flask import render_template, send_file, redirect, request, abort, flash
-from werkzeug import secure_filename
 from .helper import *
-from .form import CreateDatasetForm, UpdateDatasetForm, DeleteDatasetForm, ConfigForm
-from automlk.context import get_dataset_folder, get_config, set_config
+from .form import CreateDatasetForm, UpdateDatasetForm, DeleteDatasetForm, ConfigForm, ImportForm
+from automlk.context import get_uploads_folder, get_dataset_folder, get_config, set_config
 from automlk.dataset import get_dataset_list, get_dataset, delete_dataset, update_dataset
-from automlk.search import get_search_rounds
+from automlk.worker import get_search_rounds
 from automlk.graphs import graph_history_search
 from automlk.store import set_key_store
 from automlk.dataset import create_dataset
@@ -129,15 +129,42 @@ def create():
     return render_template('create.html', form=form, config=get_config())
 
 
+def check_upload_file(f):
+    # check and upload a file
+    if f.filename == '':
+        return ''
+    if f.filename == '':
+        flash('file %s type must be csv, xls or xlsx' % f.filename)
+        return ''
+    ext = f.filename.split('.')[-1].lower()
+    if ext not in ['csv', 'xls', 'xlsx']:
+        flash('file %s type must be csv, xls or xlsx' % f.filename)
+        return ''
+    else:
+        upload = get_uploads_folder() + '/' + str(uuid.uuid4()) + '.' + ext
+        f.save(upload)
+        return upload
+
+
 def create_dataset_form(form):
     # performs creation of a dataset from a form
     if form.validate():
         try:
+            if form.mode_file.data == 'upload':
+                form.filename_cols.data = check_upload_file(form.file_cols.data)
+                form.filename_train.data = check_upload_file(form.file_train.data)
+                if form.mode.data == 'benchmark':
+                    form.filename_test.data = check_upload_file(form.file_test.data)
+                else:
+                    form.filename_test.data = ''
+                if form.mode.data == 'competition':
+                    form.filename_submit.data = check_upload_file(form.file_submit.data)
+                else:
+                    form.filename_submit.data = ''
+
             dt = create_dataset(name=form.name.data,
                                 description=form.description.data,
-                                is_uploaded=form.is_uploaded.data,
                                 source=form.source.data,
-                                is_public=form.is_public.data,
                                 url=form.url.data,
                                 problem_type=form.problem_type.data,
                                 metric=form.metric.data,
@@ -177,14 +204,13 @@ def duplicate(dataset_id):
         # copy data to form
         form.name.data = dataset.name + ' (copy)'
         form.description.data = dataset.description
-        form.is_uploaded.data = dataset.is_uploaded
         form.source.data = dataset.source
-        form.is_public.data = dataset.is_public
         form.url.data = dataset.url
         form.problem_type.data = dataset.problem_type
         form.metric.data = dataset.metric
         form.other_metrics.data = ",".join(dataset.other_metrics)
         form.mode.data = dataset.mode
+        form.mode_file.data = 'path'
         form.filename_train.data = dataset.filename_train
         form.holdout_ratio.data = int(dataset.holdout_ratio * 100)
         form.filename_cols.data = dataset.filename_cols
@@ -238,27 +264,31 @@ def delete():
 @app.route('/import', methods=['GET', 'POST'])
 def import_file():
     # form to import a file of dataset descriptions
+    form = ImportForm()
     if request.method == 'POST':
-        f = request.files['file']
-        ext = f.filename.split('.')[-1].lower()
-        if ext not in ['csv', 'xls', 'xlsx']:
-            flash('file type must be csv, xls or xlsx')
-        else:
-            if ext == 'csv':
-                df = pd.read_csv(f)
+        if form.validate():
+            f = form.file_import.data
+            ext = f.filename.split('.')[-1].lower()
+            if ext not in ['csv', 'xls', 'xlsx']:
+                flash('file type must be csv, xls or xlsx')
             else:
-                df = pd.read_excel(f)
-            try:
-                line_number = 1
-                for line in df.fillna('').to_dict(orient='records'):
-                    print('creating dataset %s in %s' % (line['name'], line['problem_type']))
-                    create_dataset(**line)
-                    line_number += 1
-                return redirect('index')
-            except Exception as e:
-                flash('Error in line %d: %s' % (line_number, str(e)))
+                if ext == 'csv':
+                    df = pd.read_csv(f)
+                else:
+                    df = pd.read_excel(f)
+                try:
+                    line_number = 1
+                    for line in df.fillna('').to_dict(orient='records'):
+                        print('creating dataset %s in %s' % (line['name'], line['problem_type']))
+                        create_dataset(**line)
+                        line_number += 1
+                    return redirect('index')
+                except Exception as e:
+                    flash('Error in line %d: %s' % (line_number, str(e)))
+        else:
+            print('not validated')
 
-    return render_template('import.html', config=get_config())
+    return render_template('import.html', form=form, config=get_config())
 
 
 @app.route('/monitor', methods=['GET'])
@@ -274,11 +304,13 @@ def config():
     form = ConfigForm()
     if request.method == 'POST':
         if form.validate():
-            set_config(data=form.data.data,
-                       theme=form.theme.data,
-                       store=form.store.data,
-                       store_url=form.store_url.data)
-            # return redirect('/index')
+            try:
+                set_config(data=form.data.data,
+                           theme=form.theme.data,
+                           store=form.store.data,
+                           store_url=form.store_url.data)
+            except Exception as e:
+                flash(str(e))
     else:
         config = get_config()
 

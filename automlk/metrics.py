@@ -4,12 +4,13 @@ import sklearn.metrics
 
 class Metric(object):
     # metric class
-    def __init__(self, name, function, problem_type, best_is_min, need_class=False):
+    def __init__(self, name, function, problem_type, best_is_min, need_class=False, binary=False):
         self.name = name
         self.function = function
         self.problem_type = problem_type
         self.best_is_min = best_is_min
         self.need_class = need_class
+        self.binary = binary
 
 # additional metrics not included in sklearn
 
@@ -31,7 +32,7 @@ metric_list = [
     Metric('precision', sklearn.metrics.precision_score, 'classification', False, True),
     Metric('recall', sklearn.metrics.recall_score, 'classification', False, True),
     Metric('f1', sklearn.metrics.f1_score, 'classification', False, True),
-    Metric('auc', sklearn.metrics.auc, 'classification', False, True),
+    Metric('auc', sklearn.metrics.roc_auc_score, 'classification', False, False, True),
     Metric('hinge', sklearn.metrics.hinge_loss, 'classification', True),
 
     # regression metrics

@@ -6,13 +6,14 @@ import shutil
 
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
+from .config import METRIC_NULL
+from .context import get_dataset_folder, get_data_folder
 from .metrics import metric_map
-from .context import METRIC_NULL, get_dataset_folder, get_data_folder
 from .graphs import graph_correl_features, graph_histogram
 from .store import *
 
 
-def create_dataset(name, description, problem_type, y_col, is_uploaded, source, mode, filename_train, metric,
+def create_dataset(name, description, problem_type, y_col, source, mode, filename_train, metric,
                    other_metrics=[], val_col='index', cv_folds=5, val_col_shuffle=True,
                    holdout_ratio=0.2, filename_test='', filename_cols='', filename_submit='', url='',
                    col_submit=''):
@@ -23,7 +24,6 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
     :param description: description of the dataset
     :param problem_type: 'regression' or 'classification'
     :param y_col: name of the target column
-    :param is_uploaded: not used
     :param source: source of the dataset
     :param mode: standard (train set), benchmark (train + test set), competition (train + submit set)
     :param filename_train: file path of the training set
@@ -44,8 +44,9 @@ def create_dataset(name, description, problem_type, y_col, is_uploaded, source, 
     # create object and control data
     creation_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    dt = DataSet(0, name, description, problem_type, y_col, is_uploaded, source, mode, filename_train, metric,
-                 other_metrics=other_metrics.replace(' ', '').split(','), val_col=val_col, cv_folds=cv_folds,
+    others = [m for m in other_metrics.replace(' ', '').split(',') if m != '']
+    dt = DataSet(0, name, description, problem_type, y_col, source, mode, filename_train, metric,
+                 other_metrics=others, val_col=val_col, cv_folds=cv_folds,
                  val_col_shuffle=val_col_shuffle, holdout_ratio=holdout_ratio,
                  filename_test=filename_test, filename_cols=filename_cols,
                  filename_submit=filename_submit, col_submit=col_submit,
@@ -106,6 +107,8 @@ def get_dataset(dataset_id):
             d['init_data']['mode'] = 'standard'
     if 'is_public' in d['init_data'].keys():
         d['init_data'].pop('is_public')
+    if 'is_uploaded' in d['init_data'].keys():
+        d['init_data'].pop('is_uploaded')
 
     # then load dataset object
     dt = DataSet(**d['init_data'])
@@ -187,7 +190,7 @@ class DataSet(object):
     a dataset is an object managing all the features and data of an experiment
     """
 
-    def __init__(self, dataset_id, name, description, problem_type, y_col, is_uploaded, source, mode, filename_train, metric,
+    def __init__(self, dataset_id, name, description, problem_type, y_col, source, mode, filename_train, metric,
                  other_metrics, val_col, cv_folds, val_col_shuffle,
                  holdout_ratio, filename_test, filename_cols, filename_submit, url, col_submit, creation_date):
         """
@@ -197,7 +200,6 @@ class DataSet(object):
         :param description: description of the dataset
         :param problem_type: 'regression' or 'classification'
         :param y_col: name of the target column
-        :param is_uploaded: not used
         :param source: source of the dataset
         :param mode: standard (train set), benchmark (train + test set), competition (train + submit set)
         :param filename_train: file path of the training set
@@ -226,7 +228,6 @@ class DataSet(object):
 
         self.with_test_set = False
         self.url = url
-        self.is_uploaded = is_uploaded
         self.source = source  # url or file id
         self.y_col = y_col
         if filename_train == '':
@@ -345,7 +346,7 @@ class DataSet(object):
         # save as json
         store = {'init_data': {'dataset_id': self.dataset_id, 'name': self.name, 'description': self.description,
                                'problem_type': self.problem_type, 'y_col': self.y_col,
-                               'is_uploaded': self.is_uploaded, 'source': self.source, 'mode': self.mode,
+                               'source': self.source, 'mode': self.mode,
                                'filename_train': self.filename_train, 'metric': self.metric,
                                'other_metrics': self.other_metrics, 'val_col': self.val_col, 'cv_folds': self.cv_folds,
                                'val_col_shuffle': self.val_col_shuffle,
@@ -403,7 +404,10 @@ class DataSet(object):
                 # convert proba to classes
                 y_pred_metric = np.argmax(y_pred, axis=1)
             else:
-                y_pred_metric = y_pred
+                if metric.binary:
+                    y_pred_metric = y_pred[:, 1]
+                else:
+                    y_pred_metric = y_pred
 
             # use sign before metrics to always compare best is min in comparisons
             # but requires to display abs value for display
@@ -532,7 +536,8 @@ class Feature(object):
                 self.col_type = 'numerical'
             elif raw_type.startswith('int'):
                 self.col_type = 'numerical'
-            elif raw_type in ['str', 'object']:
+            else:
+                # raw_type in ['str', 'object']:
                 self.col_type = 'categorical'
         # TODO : manage dates and text
 
@@ -543,13 +548,11 @@ class Feature(object):
 
 
 def __create_train_test(dataset):
-    print('loading train set')
     dataset = get_dataset(dataset.dataset_id)
     data_train = dataset.get_data()
     # TODO: split according to val_col
     # split into train & test set
     if dataset.with_test_set:
-        print('loading test set')
         data_test = dataset.get_data('test')
 
         X_train = data_train[dataset.x_cols]
@@ -619,7 +622,6 @@ def __store_eval_set(dataset, y_train, y_test, cv_folds):
 def __prepare_y(dataset, y_train, y_test):
     # pre-processing of y: categorical
     if dataset.problem_type == 'classification':
-        print('y label encoding')
         # encode class values as integers
         encoder = LabelEncoder()
         encoder.fit([str(x) for x in np.concatenate((y_train, y_test), axis=0)])
