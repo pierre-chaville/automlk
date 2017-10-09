@@ -24,7 +24,7 @@ download and then install:
 Usage
 -----
 
-Launch the web app in /automlk-app folder:
+Launch the web app in /web folder:
 
     python run.py
 

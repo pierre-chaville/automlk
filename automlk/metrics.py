@@ -19,8 +19,8 @@ def rmse(y_act, y_pred):
     return math.sqrt(sklearn.metrics.mean_squared_error(y_act, y_pred))
 
 
-# def rmsle(y_act, y_pred):
-#     return math.sqrt(sklearn.metrics.mean_squared_log_error(y_act, y_pred))
+def rmsle(y_act, y_pred):
+    return math.sqrt(sklearn.metrics.mean_squared_log_error(y_act, y_pred))
 
 
 # metrics
@@ -40,8 +40,8 @@ metric_list = [
     Metric('rmse', rmse, 'regression', True),
     Metric('mae', sklearn.metrics.mean_absolute_error, 'regression', True),
     Metric('median', sklearn.metrics.median_absolute_error, 'regression', True),
-    # Metric('msle', sklearn.metrics.mean_squared_log_error, 'regression', True),
-    # Metric('rmsle', rmsle, 'regression', True),
+    Metric('msle', sklearn.metrics.mean_squared_log_error, 'regression', True),
+    Metric('rmsle', rmsle, 'regression', True),
     Metric('r2', sklearn.metrics.r2_score, 'regression', False)
 ]
 

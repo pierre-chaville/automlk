@@ -58,7 +58,7 @@ install as:
 
     python setup.py install
 
-Then launch the web app in /automlk-app folder:
+Then launch the web app in /web folder:
 
 .. code-block:: python
 

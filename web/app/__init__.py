@@ -41,7 +41,7 @@ def print_score_std(x):
 def print_other_metrics(x):
     # display other metrics
     try:
-        return ", ".join([y+':'+print_score(x[y]) for y in x.keys()])
+        return ", ".join([y+': '+print_score(x[y]) for y in x.keys()])
     except:
         return 'N/A'
 

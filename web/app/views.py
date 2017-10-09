@@ -245,7 +245,6 @@ def update(dataset_id):
         # copy data to form
         form.name.data = dataset.name + ' (copy)'
         form.description.data = dataset.description
-        form.is_uploaded.data = dataset.is_uploaded
         form.source.data = dataset.source
         form.url.data = dataset.url
 

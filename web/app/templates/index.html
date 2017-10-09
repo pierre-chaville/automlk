@@ -52,7 +52,7 @@
             {% endif %}
         </td>
         <td>
-            <span class="label label-info">{{ dataset.results }} / {{ dataset.round_counter }}</span>
+            <span class="label label-info">{{ dataset.results }}</span><br><span class="label label-default">{{ dataset.round_counter }}</span>
         </td>
         <td width="30%">
             <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{dataset.description[:100]}}...</a>

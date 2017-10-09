@@ -36,7 +36,8 @@
             <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{ print_other_metrics(r.eval_other_metrics) }}</a>
         </td>
         <td style="text-align:center">
-            <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{print_duration(r.duration_process+r.duration_model)}}</a>
+            <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{print_duration(r.duration_process)}}
+                <br>{{print_duration(r.duration_model)}}</a>
         </td>
         {% for col in cols %}
         <td style="text-align:center">
