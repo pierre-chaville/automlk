@@ -31,6 +31,30 @@ def get_best_models(df):
     return pd.merge(best, counts, on='model_name')
 
 
+def get_best_pp(df):
+    # get the best results per pre-processing
+
+    df = df[df.level == 1]
+    if len(df) < 1:
+        return pd.DataFrame()
+
+    return pd.DataFrame()
+
+    df['pp_feature_name'] = df['pp_feature'].map(lambda x: x[0])
+    df['pp_feature_params'] = df['pp_feature'].map(lambda x: x[1])
+
+    best = df.sort_values(by=['pp_feature_name', 'cv_max']).groupby('pp_feature_name', as_index=False).first().sort_values(
+        by='cv_max').fillna('')
+
+    counts = df[['pp_feature_name', 'round_id']].groupby('pp_feature_name', as_index=False).count()
+    counts.columns = ['pp_feature_name', 'searches']
+
+    # relative performance
+    best['rel_score'] = abs(100 * (best.cv_max - best.cv_max.max()) / (best.cv_max.max() - best.cv_max.min()))
+
+    return pd.merge(best, counts, on='pp_feature_name')
+
+
 def get_best_details(df, model_name):
     # get the best results for a model
     best = df[df.model_name == model_name].sort_values(by='cv_max')
@@ -76,10 +100,12 @@ def get_best_details(df, model_name):
 def get_data_steps(process):
     # generate a list of process steps from the json description
     steps = []
-    for step_name in process.keys():
-        params = process[step_name]
-        steps.append((step_name, [(key, params[key]) for key in params.keys()]))
+    if isinstance(process, dict):
+        for step_name in process.keys():
+            params = process[step_name]
+            steps.append((step_name, [(key, params[key]) for key in params.keys()]))
     return steps
+
 
 def get_feature_steps(process_name, params):
     # generate a list of process steps from the json description
@@ -99,7 +125,7 @@ def get_feature_importance(uid, round_id):
     # get feature importance for the selected model round
 
     df = get_importance(uid, round_id)
-    if not isinstance(df, pd.DataFrame):
+    if not isinstance(df, pd.DataFrame) or 'importance' not in df.columns:
         return []
 
     df['pct_importance'] = np.round(100 * df.importance / df.importance.sum(), 1)

@@ -1,0 +1,4 @@
+name,description,to_keep,col_type
+id,id,FALSE,
+sentiment,Sentiment of the review; 1 for positive reviews and 0 for negative reviews,,
+review,Text of the review,,text

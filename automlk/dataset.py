@@ -13,7 +13,7 @@ from .graphs import graph_correl_features, graph_histogram
 from .store import *
 
 
-def create_dataset(name, description, problem_type, y_col, source, mode, filename_train, metric,
+def create_dataset(name, domain, description, problem_type, y_col, source, mode, filename_train, metric,
                    other_metrics=[], val_col='index', cv_folds=5, val_col_shuffle=True,
                    holdout_ratio=0.2, filename_test='', filename_cols='', filename_submit='', url='',
                    col_submit=''):
@@ -21,6 +21,7 @@ def create_dataset(name, description, problem_type, y_col, source, mode, filenam
     creates a dataset
 
     :param name: name of the dataset
+    :param domain: domain classification of the dataset (string separated by /)
     :param description: description of the dataset
     :param problem_type: 'regression' or 'classification'
     :param y_col: name of the target column
@@ -45,7 +46,7 @@ def create_dataset(name, description, problem_type, y_col, source, mode, filenam
     creation_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     others = [m for m in other_metrics.replace(' ', '').split(',') if m != '']
-    dt = DataSet(0, name, description, problem_type, y_col, source, mode, filename_train, metric,
+    dt = DataSet(0, name, domain, description, problem_type, y_col, source, mode, filename_train, metric,
                  other_metrics=others, val_col=val_col, cv_folds=cv_folds,
                  val_col_shuffle=val_col_shuffle, holdout_ratio=holdout_ratio,
                  filename_test=filename_test, filename_cols=filename_cols,
@@ -98,6 +99,7 @@ def get_dataset(dataset_id):
     d = get_key_store('dataset:%s' % dataset_id)
 
     # upward compatibility
+    # new fields
     if 'mode' not in d['init_data'].keys():
         if d['init_data']['filename_test'] != '':
             d['init_data']['mode'] = 'benchmark'
@@ -105,6 +107,11 @@ def get_dataset(dataset_id):
             d['init_data']['mode'] = 'competition'
         else:
             d['init_data']['mode'] = 'standard'
+    if 'domain' not in d['init_data'].keys():
+        d['init_data']['domain'] = ''
+    if 'text_cols' not in d['load_data'].keys():
+        d['load_data']['text_cols'] = []
+    # deleted fields
     if 'is_public' in d['init_data'].keys():
         d['init_data'].pop('is_public')
     if 'is_uploaded' in d['init_data'].keys():
@@ -116,7 +123,7 @@ def get_dataset(dataset_id):
     return dt
 
 
-def update_dataset(dataset_id, name, description, is_uploaded, source, url):
+def update_dataset(dataset_id, name, domain, description, is_uploaded, source, url):
     """
     update specific fields of the dataset
 
@@ -130,6 +137,7 @@ def update_dataset(dataset_id, name, description, is_uploaded, source, url):
     """
     dt = get_dataset(dataset_id)
     dt.name = name
+    dt.domain = domain
     dt.description = description
     dt.is_uploaded = is_uploaded
     dt.source = source
@@ -190,13 +198,14 @@ class DataSet(object):
     a dataset is an object managing all the features and data of an experiment
     """
 
-    def __init__(self, dataset_id, name, description, problem_type, y_col, source, mode, filename_train, metric,
+    def __init__(self, dataset_id, name, domain, description, problem_type, y_col, source, mode, filename_train, metric,
                  other_metrics, val_col, cv_folds, val_col_shuffle,
                  holdout_ratio, filename_test, filename_cols, filename_submit, url, col_submit, creation_date):
         """
         creates a new dataset: it will be automatically stored
 
         :param name: name of the dataset
+        :param domain: domain classification of the dataset (string separated by /)
         :param description: description of the dataset
         :param problem_type: 'regression' or 'classification'
         :param y_col: name of the target column
@@ -219,6 +228,7 @@ class DataSet(object):
         # descriptive data:
         self.dataset_id = dataset_id
         self.name = name
+        self.domain = domain
         self.description = description
 
         # problem and optimisation
@@ -325,6 +335,9 @@ class DataSet(object):
         self.cat_cols = [col.name for col in self.features if
                          (col.name in self.x_cols) and (col.col_type == 'categorical')]
 
+        self.text_cols = [col.name for col in self.features if
+                         (col.name in self.x_cols) and (col.col_type == 'text')]
+
         self.missing_cols = [col.name for col in self.features if col.n_missing > 0]
 
         return df_cols, df_train, df_test, df_submit
@@ -344,8 +357,8 @@ class DataSet(object):
         self.dataset_id = dataset_id
 
         # save as json
-        store = {'init_data': {'dataset_id': self.dataset_id, 'name': self.name, 'description': self.description,
-                               'problem_type': self.problem_type, 'y_col': self.y_col,
+        store = {'init_data': {'dataset_id': self.dataset_id, 'name': self.name, 'domain': self.domain,
+                               'description': self.description, 'problem_type': self.problem_type, 'y_col': self.y_col,
                                'source': self.source, 'mode': self.mode,
                                'filename_train': self.filename_train, 'metric': self.metric,
                                'other_metrics': self.other_metrics, 'val_col': self.val_col, 'cv_folds': self.cv_folds,
@@ -356,7 +369,7 @@ class DataSet(object):
                                'creation_date': self.creation_date},
                  'load_data': {'size': self.size, 'n_rows': self.n_rows, 'n_cols': self.n_cols,
                                'n_cat_cols': self.n_cat_cols, 'n_missing': self.n_missing,
-                               'with_test_set': self.with_test_set, 'x_cols': self.x_cols,
+                               'with_test_set': self.with_test_set, 'x_cols': self.x_cols, 'text_cols': self.text_cols,
                                'cat_cols': self.cat_cols, 'missing_cols': self.missing_cols,
                                'self.best_is_min': self.best_is_min, 'is_y_categorical': self.is_y_categorical,
                                'y_n_classes': self.y_n_classes, 'y_class_names': self.y_class_names},
@@ -441,7 +454,7 @@ class DataSet(object):
         # check data file in the dataset
 
         ext = filename.split('.')[-1].lower()
-        if ext not in ['csv', 'xls', 'xlsx']:
+        if ext not in ['csv', 'tsv', 'xls', 'xlsx']:
             raise TypeError('unknown dataset format: use csv, xls or xlsx')
 
         if not os.path.exists(filename):
@@ -453,6 +466,8 @@ class DataSet(object):
         ext = filename.split('.')[-1]
         if ext == 'csv':
             df = pd.read_csv(filename)
+        elif ext == 'tsv':
+            df = pd.read_csv(filename, sep='\t', header=0)
         elif ext in ['xls', 'xlsx']:
             df = pd.read_excel(filename)
         return df
@@ -530,6 +545,8 @@ class Feature(object):
 
         # initialize type
         if col_type != '':
+            if col_type not in ['numerical', 'categorical', 'text']:
+                raise ValueError('feature %s col type: %s should be numerical, categorical or text' % (name, col_type))
             self.col_type = col_type
         else:
             if raw_type.startswith('float'):

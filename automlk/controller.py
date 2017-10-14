@@ -63,31 +63,29 @@ def __create_search_round(dataset_id):
     # generate round id
     round_id = incr_key_store('dataset:%s:round_counter' % dataset_id) - 1
 
-    # generate pre-processing pipeline and pre-processing params
-    i_pp = round_id % len(search['choices_feature'])
-    ref = search['choices_feature'][i_pp]
-    pp_list = __get_pp_data_list(dataset) + [ref]
-    pipeline = [(s, get_random_params(pp_solutions_map[s].space_params)) for s in pp_list]
-
     # generate model and model params
     i_round = round_id % len(search['choices'])
     ref = search['choices'][i_round]
     solution = model_solutions_map[ref]
+    default_mode = False
     if search['level'] == 1:
         if round_id < len(search['choices'])-1:
             # mode = default
             params = solution.default_params
+            default_mode = True
         else:
             params = get_random_params(solution.space_params)
     else:
         search['ensemble_depth'] = random.randint(1, 10)
         params = get_random_params(solution.space_params)
 
+    # generate pre-processing pipeline and pre-processing params
+    pipeline = __get_pipeline(dataset, default_mode, round_id)
+
     # generate search message
     msg_search = {**search, **{'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': solution.ref,
                          'model_name': solution.name, 'model_params': params, 'pipeline': pipeline}}
     msg_search.pop('choices')
-    msg_search.pop('choices_feature')
     msg_search.pop('start')
     return msg_search
 
@@ -95,34 +93,55 @@ def __create_search_round(dataset_id):
 def __find_search_store(dataset):
     # add data for this dataset from the store
     if exists_key_store('dataset:%s:search' % dataset.dataset_id):
-        return get_key_store('dataset:%s:search' % dataset.dataset_id)
+        search = get_key_store('dataset:%s:search' % dataset.dataset_id)
+        return search
     else:
         return {'start': 0, 'level': 1, 'threshold': 0,
                 'choices': __get_model_class_list(dataset, 1),
-                'choices_feature': __get_pp_feature_list(dataset),
                 }
 
 
-def __get_pp_data_list(dataset):
+def __get_pipeline(dataset, default_mode, i_round):
     # generates the list of potential data pre-processing depending on the problem type
-    choices = []
+    pipeline = []
+    # X pre-processing: text
+    if len(dataset.text_cols) > 0:
+        pipeline.append(__get_pp_choice(dataset, 'text', default_mode, i_round))
     # X pre-processing: categorical
     if len(dataset.cat_cols) > 0:
-        choices.append('CE')
+        pipeline.append(__get_pp_choice(dataset, 'categorical', default_mode, i_round))
     # missing values
     if len(dataset.missing_cols) > 0:
-        choices.append('MISS')
+        pipeline.append(__get_pp_choice(dataset, 'missing', default_mode, i_round))
     # scaling
-    choices.append('SCALE')
-    return choices
+    pipeline.append(__get_pp_choice(dataset, 'scaling', default_mode, i_round))
+    # feature selection
+    pipeline.append(__get_pp_choice(dataset, 'feature', default_mode, i_round))
+    return pipeline
 
 
-def __get_pp_feature_list(dataset):
-    # generates the list of potential feature pre-processing depending on the problem type
+def __get_pp_choice(dataset, category, default_mode, i_round):
+    # select a solution bewteen the list of potential solutions from the category
+    choices = __get_pp_list(dataset, category, default_mode)
+    i_pp = i_round % len(choices)
+    ref = choices[i_pp]
+    s = pp_solutions_map[ref]
+    if default_mode:
+        params = s.default_params
+    else:
+        params = get_random_params(s.space_params)
+    return ref, category, s.name, params
+
+
+def __get_pp_list(dataset, category, default_mode):
+    # generates the list of potential pre-processing choices in a specific category, depending on the problem type
     choices = []
     for s in pp_solutions:
-        if s.pp_type == 'feature' and dataset.n_rows < s.limit_size:
-            choices.append(s.ref)
+        if s.pp_type == category and dataset.n_rows < s.limit_size:
+            if default_mode and s.default_solution:
+                choices.append(s.ref)
+            elif not default_mode:
+                choices.append(s.ref)
     return choices
 
 

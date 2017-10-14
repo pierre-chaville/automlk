@@ -1,0 +1,55 @@
+<h5>found in {{best|count}} models and {{n_searches}} configurations</h5>
+<table class="table table-bordered">
+    <thead>
+    <th>process</th>
+    <th style="vertical-align:top; text-align:center">cv max</th>
+    <th style="vertical-align:top; text-align:center">eval</th>
+    <th style="vertical-align:top; text-align:center">test</th>
+    <th style="vertical-align:top; text-align:center">cv</th>
+    <th style="vertical-align:top; text-align:center">other</th>
+    <th style="vertical-align:top; text-align:center">#</th>
+    <th style="vertical-align:top; text-align:center">duration</th>
+    <th>params</th>
+    </thead>
+    {% for r in best_pp %}
+    <tr>
+        <td><a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="text-decoration: none;">{{ r.pp_feature_name}}</a></td>
+        <td style="text-align:center">
+            <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="font-size:18px; color:inherit; text-decoration: none;">{{
+                print_score(r.cv_max) }}</a>
+            <div class="progress" style="height:10px">
+                <div class="progress-bar progress-bar-success" role="progressbar"
+                     style="width:{{r.rel_score}}%">
+                </div>
+            </div>
+        </td>
+        <td style="text-align:center">
+            <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">{{
+                print_score(r.score_eval) }}</a>
+        </td>
+        <td style="text-align:center">
+            <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">{{
+                print_score(r.score_test) }}</a>
+        </td>
+        <td style="text-align:center">
+            <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">
+                {{print_score(r.cv_mean) }}<br>+/-{{ print_score_std(r.cv_std) }}</a></td>
+        </td>
+        <td>
+            <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">{{ print_other_metrics(r.eval_other_metrics) }}</a></td>
+        </td>
+        <td style="text-align:center">
+            <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">{{ r.searches}}</a>
+        </td>
+        <td style="text-align:center">
+            <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">
+                {{print_duration(r.duration_process) }}<br>{{print_duration(r.duration_model) }}
+                </a>
+        </td>
+        <td>
+            <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">
+                {{ print_params(r.model_params) }}</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>

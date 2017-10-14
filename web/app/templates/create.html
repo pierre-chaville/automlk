@@ -17,6 +17,11 @@
                     placeholder="enter a unique name to identify the dataset")}}
                 </div>
                 <div class="form-group">
+                    <label>Domain classification</label>
+                    {{ form.domain(class="form-control",
+                    placeholder="enter a domain classification eventually separated with /")}}
+                </div>
+                <div class="form-group">
                     <label>Description</label>
                     {{ form.description(class="form-control", rows=3,
                     placeholder="enter the objective of this dataset and the meaning of data")}}

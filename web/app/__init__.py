@@ -45,6 +45,7 @@ def print_other_metrics(x):
     except:
         return 'N/A'
 
+
 def print_value(x):
     # easy print function for dictionary value
     return ('%6.4f' % x).rstrip('0').rstrip('.') if isinstance(x, float) else str(x)

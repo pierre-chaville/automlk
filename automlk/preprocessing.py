@@ -1,9 +1,15 @@
 from abc import ABCMeta, abstractmethod
 import numpy as np
+import pandas as pd
 import category_encoders as ce
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, MaxAbsScaler, Imputer, PolynomialFeatures
-from sklearn.decomposition import TruncatedSVD, FastICA
+from sklearn.decomposition import TruncatedSVD, FastICA, PCA
+from sklearn.feature_selection import SelectFromModel
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.svm import LinearSVC, LinearSVR
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from .spaces.process import *
+from .utils.text_encoders import *
 
 
 class HyperProcess(object):
@@ -37,19 +43,83 @@ class HyperProcess(object):
 class HyperProcessCategorical(HyperProcess):
     # class for process categorical encoding
 
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
     def __init__(self, context, params):
         super().__init__(context, params)
 
+    @abstractmethod
     def fit(self, X, y):
-        encoder = getattr(ce, self.params['encoder'])
-        self.transformer = encoder(cols=self.context.cat_cols, drop_invariant=self.params['drop_invariant'])
+        # encoder = getattr(ce, self.params['encoder'])
+        # self.transformer = encoder(cols=self.context.cat_cols, drop_invariant=self.params['drop_invariant'])
         self.transformer.fit(X, y)
-
         # update new list of columns
         Xt = self.transformer.transform(X.copy())
         self.context.cat_cols = []
         self.context.feature_names = Xt.columns
-        print('the context has now %d features' % len(self.context.feature_names))
+
+
+class HyperProcessOneHot(HyperProcessCategorical):
+    # class for process categorical encoding - one hot
+
+    def __init__(self, context, params):
+        super().__init__(context, params)
+        self.transformer = ce.OneHotEncoder(**params)
+
+
+class HyperProcessBaseN(HyperProcessCategorical):
+    # class for process categorical encoding - base N
+
+    def __init__(self, context, params):
+        super().__init__(context, params)
+        self.transformer = ce.BaseNEncoder(**params)
+
+
+class HyperProcessHashing(HyperProcessCategorical):
+    # class for process categorical encoding - hashing
+
+    def __init__(self, context, params):
+        super().__init__(context, params)
+        self.transformer = ce.HashingEncoder(**params)
+
+
+class HyperProcessBOW(HyperProcess):
+    # class for process bag of words for text
+
+    def __init__(self, context, params):
+        super().__init__(context, params)
+        self.tfidf = params['tfidf']
+        self.first_words = params['first_words']
+
+    def fit(self, X, y):
+        self.transformer = []
+        for col in self.context.text_cols:
+            text = [clean_text(s, self.first_words) for s in X[col].values]
+            params = self.params
+            params.pop('tfidf')
+            params.pop('first_words')
+            if self.tfidf:
+                encoder = TfidfVectorizer(**params)
+            else:
+                encoder = CountVectorizer(**params)
+            encoder.fit(text)
+            self.context.feature_names.remove(col)
+            self.context.feature_names += [col+'__'+x.replace(' ', '_') for x in encoder.get_feature_names()]
+            self.transformer.append((col, encoder))
+        # update new list of columns
+        self.context.text_cols = []
+
+    def transform(self, X):
+        # transform X
+        for col, encoder in self.transformer:
+            # remove col in X
+            text = [clean_text(s, self.first_words) for s in X[col].values]
+            T = pd.DataFrame(encoder.transform(text).todense()).reset_index(drop=True)
+            T.columns = [col+'__'+x.replace(' ', '_') for x in encoder.get_feature_names()]
+            X = pd.concat([X.reset_index(drop=True), T], axis=1)
+            X.drop(col, axis=1, inplace=True)
+        return X
 
 
 class HyperProcessMissing(HyperProcess):
@@ -72,6 +142,16 @@ class HyperProcessMissing(HyperProcess):
             return X.fillna(-1)
 
 
+class HyperProcessMissingFixed(HyperProcess):
+    # class for transformation of missing values with a fixed value
+
+    def __init__(self, context, params):
+        super().__init__(context, params)
+
+    def transform(self, X):
+        return X.fillna(self.params['fixed'])
+
+
 class HyperProcessScaling(HyperProcess):
     # class for scaling transformation
 
@@ -87,9 +167,20 @@ class HyperProcessScaling(HyperProcess):
             self.transformer = MaxAbsScaler()
         elif self.params['scaler'] == 'robust':
             self.transformer = RobustScaler()
-
         self.transformer.fit(X, y)
 
+
+class HyperProcessNoScaling(HyperProcess):
+    # class for no scaling transformation
+
+    def __init__(self, context, params):
+        super().__init__(context, params)
+
+    def transform(self, X):
+        if isinstance(X, pd.DataFrame):
+            return X.as_matrix()
+        else:
+            return X
 
 
 class HyperProcessTruncatedSVD(HyperProcess):
@@ -98,15 +189,11 @@ class HyperProcessTruncatedSVD(HyperProcess):
     def __init__(self, context, params):
         super().__init__(context, params)
 
-    def __check_params(self):
-        self.params['n_components'] = int(self.params['reduction_ratio'] * len(self.context.feature_names))
-        self.params.pop('reduction_ratio', None)
-
     def fit(self, X, y):
+        self.params['n_components'] = min(self.params['n_components'], int(np.shape(X)[1]/2))
         self.transformer = TruncatedSVD(**self.params)
-        self.transformer.fit(X)
-        self.context.feature_names = ['SVD_%d' for i in range(self.params['n_components'])]
-        print('the context has now %d features' % len(self.context.feature_names))
+        self.transformer.fit(X, y)
+        self.context.feature_names = ['SVD_%d' % i for i in range(self.params['n_components'])]
 
 
 class HyperProcessFastICA(HyperProcess):
@@ -115,15 +202,24 @@ class HyperProcessFastICA(HyperProcess):
     def __init__(self, context, params):
         super().__init__(context, params)
 
-    def __check_params(self):
-        self.params['n_components'] = int(self.params['reduction_ratio'] * len(self.context.feature_names))
-        self.params.pop('reduction_ratio', None)
+    def fit(self, X, y):
+        self.params['n_components'] = min(self.params['n_components'], int(np.shape(X)[1]/2))
+        self.transformer = FastICA(**self.params)
+        self.transformer.fit(X, y)
+        self.context.feature_names = ['ICA_%d' % i for i in range(self.params['n_components'])]
+
+
+class HyperProcessPCA(HyperProcess):
+    # class for PCA feature transformation
+
+    def __init__(self, context, params):
+        super().__init__(context, params)
 
     def fit(self, X, y):
-        self.transformer = FastICA(**self.params)
-        self.transformer.fit(X)
-        self.context.feature_names = ['ICA_%d' for i in range(self.params['n_components'])]
-        print('the context has now %d features' % len(self.context.feature_names))
+        self.params['n_components'] = min(self.params['n_components'], int(np.shape(X)[1]/2))
+        self.transformer = PCA(**self.params)
+        self.transformer.fit(X, y)
+        self.context.feature_names = ['PCA_%d' % i for i in range(self.params['n_components'])]
 
 
 class HyperProcessPolynomial(HyperProcess):
@@ -131,20 +227,45 @@ class HyperProcessPolynomial(HyperProcess):
 
     def __init__(self, context, params):
         super().__init__(context, params)
-        self.process_name = 'Polynomial'
-
-    def set_default_params(self):
-        self.params = default_polynomial
-
-    def set_random_params(self):
-        self.params = get_random_params(space_polynomial)
 
     def fit(self, X, y):
         self.transformer = PolynomialFeatures(**self.params)
         self.transformer.fit(X)
-
         self.context.feature_names = self.transformer.get_feature_names(self.context.feature_names)
-        print('the context has now %d features' % len(self.context.feature_names))
+
+
+class HyperProcessSelectFromModel(HyperProcess):
+    # class for feature selection
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def __init__(self, context, params):
+        super().__init__(context, params)
+
+    @abstractmethod
+    def fit(self, X, y):
+        self.transformer.fit_transform(X, y)
+        support = self.transformer.get_support()
+        self.context.feature_names = [f for i, f in enumerate(self.context.feature_names) if support[i]]
+
+
+class HyperProcessSelectionLinearSVR(HyperProcessSelectFromModel):
+    # class for feature selection with SVM model
+
+    def __init__(self, context, params):
+        super().__init__(context, params)
+        self.transformer = SelectFromModel(LinearSVR(**self.params))
+
+
+class HyperProcessSelectionRf(HyperProcessSelectFromModel):
+    # class for feature selection with Random forest
+
+    def __init__(self, context, params):
+        super().__init__(context, params)
+        if self.context.problem_type == 'regression':
+            self.transformer = SelectFromModel(RandomForestRegressor(**self.params))
+        else:
+            self.transformer = SelectFromModel(RandomForestClassifier(**self.params))
 
 
 class HyperProcessPassThrough(HyperProcess):
@@ -152,7 +273,6 @@ class HyperProcessPassThrough(HyperProcess):
 
     def __init__(self, context, params):
         super().__init__(context, params)
-        self.process_name = 'PassThrough'
 
     def transform(self, X):
         return X

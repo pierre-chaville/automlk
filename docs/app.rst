@@ -1,5 +1,5 @@
-App
-===
+User guide
+==========
 
 The dataset and the results of the search are best viewed with the web app through a standard browers.
 
@@ -23,8 +23,6 @@ or from another machine with the ip address of the machine where the server is r
 
 (in this example, we suppose the address of the server is 192.168.0.10)
 
-User guide
-==========
 
 Home
 ----

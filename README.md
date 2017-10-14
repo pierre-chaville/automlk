@@ -6,14 +6,17 @@ This toolkit is designed to be integrated within a python project, but also inde
 
 The framework is designed with similar principles than auto-sklearn, with the following improvements:
 - web interface (flask) to review the datasets, the search results and graphs
-- distributed architecture with multiple search workers
+- distributed architecture with multiple search workers on multiple machines
+- can also be run on a single machine
 - include sklearn models, but also Xgboost, LightGBM, CatBoost and keras Neural Networks
 - 2nd level ensembling with model selection and stacking
 - can be used in competition mode (to generate a submit file from a test set), on public mode (separate train set and public set) and standard mode.
 
 We have provided some public datasets to initialize the framework and compare results with best scores.
 
-Find the documentation [here](http://automlk.readthedocs.io/en/latest/)
+[Find the documentation here](http://automlk.readthedocs.io/en/latest/)
+
+*This framework is currently an alpha version*
 
 Installation
 ------------
@@ -21,9 +24,10 @@ download and then install:
 
     python setup.py install
 
+then run the web server to define the set-up and launch the workers ([see documentation](http://automlk.readthedocs.io/en/latest/))
+
 Usage
 -----
-
 Launch the web app in /web folder:
 
     python run.py
@@ -49,15 +53,6 @@ optional:
 - Keras with Theano or Tensorflow
 
 - Redis (for in memory key/value storage and queues)
-
-Architecture
-------------
-
-The architecture is distributed and can be installed on multiple machines
-* the web app for user interaction and display results
-* the controller manages the search between models and parameters
-* the workers execute the pre-processing steps and cross validation (cpu intensive): the more workers are run in parallel, the quicker the results
-* the Redis store is an in-memory database and queue manager
 
 References
 ----------

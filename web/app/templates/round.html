@@ -106,29 +106,30 @@
 
     <!-- process steps !-->
     <div id="process" class="tab-pane">
-        <h3>Data Pre-processing</h3>
-        {% for step in pp_data %}
-        <h4><i class="fa fa-th" aria-hidden="true"></i> {{ step[0] }}</h4>
-        <table class="table table-bordered">
-            {% for p in step[1] %}
-            <tr>
-                <td width="30%">{{ p[0] }}</td>
-                <td>{{ p[1] }}</td>
-            </tr>
-            {% endfor %}
-        </table>
+        <h4>Pre-processing steps</h4>
+        {% for step in pipeline %}
+
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <span class="label label-primary">{{ step[1] }}</span>&nbsp;&nbsp;{{ step[2] }}
+            </div>
+            <div class="panel-body">
+                {{ print_params(step[3]) }}
+            </div>
+        </div>
         {% endfor %}
 
-        <h3>Feature Pre-processing</h3>
-        <h4><i class="fa fa-th" aria-hidden="true"></i> {{ pp_feature[0] }}</h4>
+        <!--
         <table class="table table-bordered">
-            {% for p in pp_feature[1] %}
+            {% for step in pipeline %}
             <tr>
-                <td width="30%">{{ p[0] }}</td>
-                <td>{{ p[1] }}</td>
+                <td><h4><i class="fa fa-th" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;{{ step[1] }}</h4></td>
+                <td><h5>{{ step[2] }}</h5></td>
+                <td>{{ print_params(step[3]) }}</td>
             </tr>
-            {% endfor %}
+        {% endfor %}
         </table>
+        !-->
     </div>
 
     <!-- feature importance with progress bars !-->

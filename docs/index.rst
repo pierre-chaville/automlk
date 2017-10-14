@@ -23,57 +23,6 @@ The framework is designed with similar principles than auto-sklearn, with the fo
 
 We have provided some public datasets to initialize the framework and compare results with best scores.
 
-Architecture
-------------
-
-The architecture is distributed and can be installed on multiple machines
-
-* the web app for user interaction and display results
-* the controller manages the search between models and parameters
-* the workers execute the pre-processing steps and cross validation (cpu intensive): the more workers are run in parallel, the quicker the results
-* the Redis store is an in-memory database and queue manager
-
-.. figure:: img/architecture.png
-   :scale: 100 %
-   :alt: architecture of automlk
-
-   independent components of the architecture
-
-
-The software architecture is organized in concentric layers:
-
-.. figure:: img/software.png
-   :scale: 100 %
-   :alt: software components
-
-   software components of the architecture
-
-
-Usage
------
-
-install as:
-
-.. code-block:: python
-
-    python setup.py install
-
-Then launch the web app in /web folder:
-
-.. code-block:: python
-
-    python run.py
-
-This will launch the web app, which can be accessed via a web browser, at address:
-
-.. code-block:: python
-
-    http://localhost:5001
-
-From the web app, you can now import the example of datasets (import in the menu, then select the dataset.csv in the /data folder)
-
-You can launch the search in a dataset simply by clicking on the |> button in the home screen, and view the results through with the web interface.
-The search will continue automatically until the search is completed.
 
 Content
 -------
@@ -81,9 +30,13 @@ Content
 .. toctree::
     :maxdepth: 3
 
+    app
+    install
+    architecture
     dataset
     searching
-    app
+    models
+    pre_processing
 
 
 Indices

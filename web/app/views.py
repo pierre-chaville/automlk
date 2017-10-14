@@ -4,7 +4,7 @@ import os
 import uuid
 from flask import render_template, send_file, redirect, request, abort, flash
 from .helper import *
-from .form import CreateDatasetForm, UpdateDatasetForm, DeleteDatasetForm, ConfigForm, ImportForm
+from .form import CreateDatasetForm, UpdateDatasetForm, DeleteDatasetForm, ConfigForm, ImportForm, DomainForm
 from automlk.context import get_uploads_folder, get_dataset_folder, get_config, set_config
 from automlk.dataset import get_dataset_list, get_dataset, delete_dataset, update_dataset
 from automlk.worker import get_search_rounds
@@ -19,8 +19,13 @@ from automlk.monitor import get_heart_beeps
 def index():
     # home page: list of models
     datasets = get_dataset_list(include_status=True)[::-1]
-    form = DeleteDatasetForm()
-    return render_template('index.html', datasets=datasets, refresher=int(time.time()), del_form=form, config=get_config())
+    sel_form = DomainForm()
+    sel_form.set_choices([d.domain for d in datasets])
+    del_form = DeleteDatasetForm()
+    if request.method == 'POST':
+        datasets = [d for d in datasets if d.domain.startswith(sel_form.domain.data)]
+    return render_template('index.html', datasets=datasets, refresher=int(time.time()),
+                           sel_form=sel_form, del_form=del_form, config=get_config())
 
 
 @app.route('/start/<string:dataset_id>', methods=['GET'])
@@ -42,13 +47,14 @@ def dataset(dataset_id):
     search = get_search_rounds(dataset.dataset_id)
     if len(search) > 0:
         best = get_best_models(search)
+        best_pp = get_best_pp(search.copy())
         # separate models (level 0) from ensembles (level 1)
         best1 = best[best.level == 1]
         best2 = best[best.level == 2]
         graph_history_search(dataset, search, best1, 1)
         graph_history_search(dataset, search, best2, 2)
         return render_template('dataset.html', dataset=dataset, best1=best1.to_dict(orient='records'),
-                               best2=best2.to_dict(orient='records'),
+                               best2=best2.to_dict(orient='records'), best_pp=best_pp.to_dict(orient='records'),
                                n_searches1=len(search[search.level == 1]),
                                n_searches2=len(search[search.level == 2]),
                                refresher=int(time.time()), config=get_config())
@@ -78,11 +84,16 @@ def round(prm):
     dataset = get_dataset(dataset_id)
     search = get_search_rounds(dataset.dataset_id)
     round = search[search.round_id == int(round_id)].to_dict(orient='records')[0]
-    pp_data = get_data_steps(round['pp_data'])
-    pp_feature = get_feature_steps(round['pp_feature'][0], round['pp_feature'][1])
+    pipeline = round['pipeline']
+    if len(pipeline) < 1 or len(pipeline[0]) != 4:
+        print('len pipeline', len(pipeline[0]))
+        pipeline = []
+    else:
+        # exclude passthrough and no scaling for display
+        pipeline = [s for s in pipeline if s[0] not in ['NO-SCALE', 'PASS']]
     params = get_round_params(search, round_id)
     features = get_feature_importance(dataset.dataset_id, round_id)
-    return render_template('round.html', dataset=dataset, round=round, pp_data=pp_data, pp_feature=pp_feature,
+    return render_template('round.html', dataset=dataset, round=round, pipeline=pipeline,
                            features=features, params=params, cols=params.keys(), refresher=int(time.time()), config=get_config())
 
 
@@ -125,7 +136,6 @@ def create():
         r = create_dataset_form(form)
         if r:
             return r
-
     return render_template('create.html', form=form, config=get_config())
 
 
@@ -137,8 +147,8 @@ def check_upload_file(f):
         flash('file %s type must be csv, xls or xlsx' % f.filename)
         return ''
     ext = f.filename.split('.')[-1].lower()
-    if ext not in ['csv', 'xls', 'xlsx']:
-        flash('file %s type must be csv, xls or xlsx' % f.filename)
+    if ext not in ['csv', 'tsv', 'xls', 'xlsx']:
+        flash('file %s type must be csv, tsv, xls or xlsx' % f.filename)
         return ''
     else:
         upload = get_uploads_folder() + '/' + str(uuid.uuid4()) + '.' + ext
@@ -163,6 +173,7 @@ def create_dataset_form(form):
                     form.filename_submit.data = ''
 
             dt = create_dataset(name=form.name.data,
+                                domain=form.domain.data,
                                 description=form.description.data,
                                 source=form.source.data,
                                 url=form.url.data,
@@ -180,7 +191,6 @@ def create_dataset_form(form):
                                 y_col=form.y_col.data,
                                 val_col=form.val_col.data,
                                 val_col_shuffle=form.val_col_shuffle.data)
-
             return redirect('index')
         except Exception as e:
             flash(e)
@@ -203,6 +213,7 @@ def duplicate(dataset_id):
 
         # copy data to form
         form.name.data = dataset.name + ' (copy)'
+        form.domain.data = dataset.domain
         form.description.data = dataset.description
         form.source.data = dataset.source
         form.url.data = dataset.url
@@ -234,6 +245,7 @@ def update(dataset_id):
         if form.validate():
             update_dataset(dataset_id,
                            name=form.name.data,
+                           domain=form.domain.data,
                            description=form.description.data,
                            is_uploaded=form.is_uploaded.data,
                            source=form.source.data,
@@ -244,10 +256,10 @@ def update(dataset_id):
 
         # copy data to form
         form.name.data = dataset.name + ' (copy)'
+        form.domain.data = dataset.domain
         form.description.data = dataset.description
         form.source.data = dataset.source
         form.url.data = dataset.url
-
     return render_template('update.html', form=form, config=get_config())
 
 
@@ -268,11 +280,13 @@ def import_file():
         if form.validate():
             f = form.file_import.data
             ext = f.filename.split('.')[-1].lower()
-            if ext not in ['csv', 'xls', 'xlsx']:
-                flash('file type must be csv, xls or xlsx')
+            if ext not in ['csv', 'tsv', 'xls', 'xlsx']:
+                flash('file type must be csv, tsv, xls or xlsx')
             else:
                 if ext == 'csv':
                     df = pd.read_csv(f)
+                elif ext == 'tsv':
+                    df = pd.read_csv(f, sep='\t', header=0)
                 else:
                     df = pd.read_excel(f)
                 try:

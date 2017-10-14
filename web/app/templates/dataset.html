@@ -8,15 +8,14 @@
     {% if best2|count > 0 %}
     <li><a data-toggle="tab" href="#ensembles">Ensembles</a></li>
     {% endif %}
+    <li><a data-toggle="tab" href="#pp">Process</a></li>
     <li><a data-toggle="tab" href="#graph">Search</a></li>
     <li><a data-toggle="tab" href="#dataset">Dataset</a></li>
-    <li><a data-toggle="tab" href="#stats">Stats</a></li>
     <li><a data-toggle="tab" href="#features">Features</a></li>
     <li><a data-toggle="tab" href="#data">Data</a></li>
     <li><a data-toggle="tab" href="#correl">Correlations</a></li>
     {% else %}
     <li class="active"><a data-toggle="tab" href="#dataset">Dataset</a></li>
-    <li><a data-toggle="tab" href="#stats">Stats</a></li>
     <li><a data-toggle="tab" href="#features">Features</a></li>
     <li><a data-toggle="tab" href="#data">Data</a></li>
     <li><a data-toggle="tab" href="#correl">Correlations</a></li>
@@ -30,6 +29,10 @@
         {% set n_searches = n_searches1 %}
         {% include 'models.html' %}
     </div>
+    <div id="pp" class="tab-pane">
+        {% include 'pp.html' %}
+    </div>
+
     <div id="graph" class="tab-pane">
         <table>
             <tr>
@@ -105,6 +108,30 @@
                             <td>{{dataset.col_submit}}</td>
                         </tr>
                         {% endif %}
+                        <tr>
+                            <td>Size</td>
+                            <td>{{dataset.size}} MB</td>
+                        </tr>
+                        <tr>
+                            <td>Rows</td>
+                            <td>{{dataset.n_rows}} K</td>
+                        </tr>
+                        <tr>
+                            <td>Columns</td>
+                            <td>{{dataset.n_cols}}</td>
+                        </tr>
+                        <tr>
+                            <td>Categorical</td>
+                            <td>{{dataset.n_cat_cols}}</td>
+                        </tr>
+                        <tr>
+                            <td>Text</td>
+                            <td>{{dataset.text_cols|count}}</td>
+                        </tr>
+                        <tr>
+                            <td>Missing</td>
+                            <td>{{dataset.n_missing}}</td>
+                        </tr>
                     </table>
                 </td>
                 <td width="50%">
@@ -172,43 +199,9 @@
                             <td>Categorical columns</td>
                             <td width="70%">{{ print_list(dataset.cat_cols) }}</td>
                         </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </div>
-    <div id="stats" class="tab-pane">
-        <table class="table">
-            <tr>
-                <td width="50%">
-                    <table class="table">
                         <tr>
-                            <td>Size</td>
-                            <td>{{dataset.size}} MB</td>
-                        </tr>
-                        <tr>
-                            <td>Number of records</td>
-                            <td>{{dataset.n_rows}} K</td>
-                        </tr>
-                        <tr>
-                            <td>Number of features</td>
-                            <td>{{dataset.n_cols}}</td>
-                        </tr>
-                        <tr>
-                            <td>Number of categorical features</td>
-                            <td>{{dataset.n_cat_cols}}</td>
-                        </tr>
-                        <tr>
-                            <td>Number of features with missing values</td>
-                            <td>{{dataset.n_missing}}</td>
-                        </tr>
-                    </table>
-                </td>
-                <td width="50%">
-                    <table class="table">
-                        <tr>
-                            <td></td>
-                            <td></td>
+                            <td>Text columns</td>
+                            <td width="70%">{{ print_list(dataset.text_cols) }}</td>
                         </tr>
                     </table>
                 </td>
@@ -242,7 +235,7 @@
                 <td>{{col.col_type}}</td>
                 <td>{% if col.n_missing!= 0 %}{{col.n_missing}}{% endif %}</td>
                 <td>{{col.n_unique_values}}</td>
-                <td>{{col.first_unique_values}}</td>
+                <td>{{col.first_unique_values[:200]}}{% if col.first_unique_values|count > 200 %}...{% endif %}</td>
             </tr>
             {% endfor %}
         </table>

@@ -80,9 +80,10 @@ def get_uploads_folder():
 
 class HyperContext():
 
-    def __init__(self, problem_type, feature_names, cat_cols, missing_cols):
+    def __init__(self, problem_type, feature_names, cat_cols, text_cols, missing_cols):
         self.problem_type = problem_type
         self.pipeline = []
         self.feature_names = feature_names.copy()
         self.cat_cols = cat_cols.copy()
+        self.text_cols = text_cols.copy()
         self.missing_cols = missing_cols.copy()

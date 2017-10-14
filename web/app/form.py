@@ -8,6 +8,7 @@ class CreateDatasetForm(Form):
     # this is the form to create a dataset
 
     name = StringField(validators=[DataRequired()])
+    domain = StringField(validators=[DataRequired()])
     description = TextAreaField()
     problem_type = SelectField(choices=[('classification', 'classification'), ('regression', 'regression')])
     y_col = StringField(validators=[DataRequired()])
@@ -45,6 +46,7 @@ class UpdateDatasetForm(Form):
     # this is the form to update specific fields of a dataset
 
     name = StringField(validators=[DataRequired()])
+    domain = StringField(validators=[DataRequired()])
     description = TextAreaField()
     is_uploaded = BooleanField()
     source = StringField()
@@ -56,6 +58,7 @@ class DeleteDatasetForm(Form):
 
     id = StringField('id')
     name = StringField('name')
+    domain = StringField('domain')
     description = TextAreaField('description')
 
 
@@ -74,3 +77,12 @@ class ImportForm(Form):
     # form to import datasets
 
     file_import = FileField()
+
+
+class DomainForm(Form):
+    # form to select domain
+
+    domain = SelectField(choices=[])
+
+    def set_choices(self, choices):
+        self.domain.choices = [(x, x) for x in set(['']+choices)]

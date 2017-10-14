@@ -33,8 +33,8 @@ def job_search(msg_search):
     X_train_ini, X_test_ini, y_train_ini, y_test_ini, X_submit_ini, id_submit, cv_folds, y_eval_list, y_eval, i_eval = pickle.load(
         open(get_dataset_folder(msg_search['dataset_id']) + '/data/eval_set.pkl', 'rb'))
 
-    context = HyperContext(dataset.problem_type, dataset.x_cols, dataset.cat_cols, dataset.missing_cols)
-
+    context = HyperContext(dataset.problem_type, dataset.x_cols, dataset.cat_cols, dataset.text_cols,
+                           dataset.missing_cols)
     if msg_search['level'] == 1:
         # pre-processing on level 1 only
         t_start = time.time()
@@ -42,55 +42,42 @@ def job_search(msg_search):
                                                                                X_train_ini, y_train_ini,
                                                                                X_test_ini, y_test_ini, X_submit_ini)
         t_end = time.time()
-        msg_search['pp_data'] = context.pp_data
-        msg_search['pp_feature'] = context.pp_feature
         msg_search['duration_process'] = int(t_end - t_start)
     else:
         msg_search['duration_process'] = 0
-        msg_search['pp_data'] = []
-        msg_search['pp_feature'] = []
         X_train, y_train, X_test, y_test, X_submit = X_train_ini, y_train_ini, X_test_ini, y_test_ini, X_submit_ini
 
     solution = model_solutions_map[msg_search['solution']]
-
     model = solution.model(dataset, context, msg_search['model_params'], msg_search['round_id'])
     msg_search['model_class'] = model.__class__.__name__
     if msg_search['level'] == 2:
         pool = __get_pool_models(dataset, msg_search['ensemble_depth'])
     else:
         pool = None
-
     __search(dataset, solution, model, msg_search, X_train, y_train, X_test, y_test, X_submit, id_submit,
              y_eval_list, i_eval, cv_folds, pool)
 
 
 def __pre_processing(context, pipeline, X_train, y_train, X_test, y_test, X_submit):
     # performs the different pre-processing steps
-    context.pp_data = {}
-    context.pp_feature = []
-    for s, params in pipeline:
-        solution = pp_solutions_map[s]
+    context.pipeline = pipeline
+    for ref, category, name, params in pipeline:
+        solution = pp_solutions_map[ref]
         p_class = solution.process
         process = p_class(context, params)
-        print('executing process', solution.name, process.params)
+        print('executing process', category, name, process.params)
         X_train = process.fit_transform(X_train, y_train)
         X_test = process.transform(X_test)
         if len(X_submit) > 0:
             X_submit = process.transform(X_submit)
-
-        if solution.pp_type == 'data':
-            context.pp_data[solution.name] = process.params
-        else:
-            context.pp_feature = [solution.name, process.params]
+        print('-> %d features' % len(context.feature_names))
 
     return context, X_train, y_train, X_test, y_test, X_submit
 
 
 def __search(dataset, solution, model, msg_search, X_train, y_train, X_test, y_test, X_submit, id_submit, y_eval_list,
-             i_eval,
-             cv_folds, pool):
+             i_eval, cv_folds, pool):
     print('optimizing with %s, params: %s' % (solution.name, model.params))
-
     # fit, test & score
     t_start = time.time()
     if msg_search['level'] == 2:
