@@ -1,10 +1,10 @@
-from flask_wtf import Form
+from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, BooleanField, SelectField, IntegerField, FileField
 from wtforms.validators import DataRequired
 from automlk.metrics import metric_list
 
 
-class CreateDatasetForm(Form):
+class CreateDatasetForm(FlaskForm):
     # this is the form to create a dataset
 
     name = StringField(validators=[DataRequired()])
@@ -42,7 +42,7 @@ class CreateDatasetForm(Form):
 
 
 
-class UpdateDatasetForm(Form):
+class UpdateDatasetForm(FlaskForm):
     # this is the form to update specific fields of a dataset
 
     name = StringField(validators=[DataRequired()])
@@ -53,7 +53,7 @@ class UpdateDatasetForm(Form):
     url = StringField()
 
 
-class DeleteDatasetForm(Form):
+class DeleteDatasetForm(FlaskForm):
     # form to confirm delete of a dataset
 
     id = StringField('id')
@@ -62,7 +62,7 @@ class DeleteDatasetForm(Form):
     description = TextAreaField('description')
 
 
-class ConfigForm(Form):
+class ConfigForm(FlaskForm):
     # form to configure set-up
 
     data = StringField('data')
@@ -73,13 +73,13 @@ class ConfigForm(Form):
     store_url = StringField('store_url')
 
 
-class ImportForm(Form):
+class ImportForm(FlaskForm):
     # form to import datasets
 
     file_import = FileField()
 
 
-class DomainForm(Form):
+class DomainForm(FlaskForm):
     # form to select domain
 
     domain = SelectField(choices=[])

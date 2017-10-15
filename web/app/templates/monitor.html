@@ -14,7 +14,7 @@
     {% for p in controller %}
     {% include "processes.html" %}
     {% endfor %}
-<tr><td colspan="5"><h4>Workers</h4></td></tr>
+<tr><td colspan="5"><h4>{{ workers|count }} Workers</h4></td></tr>
     {% for p in workers %}
     {% include "processes.html" %}
     {% endfor %}

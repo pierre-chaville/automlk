@@ -31,6 +31,14 @@ def get_best_models(df):
     return pd.merge(best, counts, on='model_name')
 
 
+def __select_cat(c, pipeline):
+    # select the element in the pipeline with category c
+    for p in pipeline:
+        if p[1] == c:
+            return p
+    return '', '', '', ''
+
+
 def get_best_pp(df):
     # get the best results per pre-processing
 
@@ -38,21 +46,34 @@ def get_best_pp(df):
     if len(df) < 1:
         return pd.DataFrame()
 
-    return pd.DataFrame()
+    # find categories used for this model
+    cat = []
+    for p in df.pipeline.values:
+        cat += [s[1] for s in p]
+    cat = set(cat)
+    print(cat)
 
-    df['pp_feature_name'] = df['pp_feature'].map(lambda x: x[0])
-    df['pp_feature_params'] = df['pp_feature'].map(lambda x: x[1])
+    # for each category, we will want to find the best model
+    all_cat = []
+    for c in ['text', 'categorical', 'missing', 'scaling', 'feature']:
+        if c in cat:
+            df['cat_ref'] = df['pipeline'].map(lambda x: __select_cat(c, x)[0])
+            df['cat_name'] = df['pipeline'].map(lambda x: __select_cat(c, x)[1])
+            df['cat_process'] = df['pipeline'].map(lambda x: __select_cat(c, x)[2])
+            df['cat_params'] = df['pipeline'].map(lambda x: __select_cat(c, x)[3])
 
-    best = df.sort_values(by=['pp_feature_name', 'cv_max']).groupby('pp_feature_name', as_index=False).first().sort_values(
-        by='cv_max').fillna('')
+            best = df.sort_values(by=['cat_ref', 'cv_max']).groupby('cat_ref', as_index=False).first().sort_values(
+                by='cv_max').fillna('')
 
-    counts = df[['pp_feature_name', 'round_id']].groupby('pp_feature_name', as_index=False).count()
-    counts.columns = ['pp_feature_name', 'searches']
+            counts = df[['cat_ref', 'round_id']].groupby('cat_ref', as_index=False).count()
+            counts.columns = ['cat_ref', 'searches']
 
-    # relative performance
-    best['rel_score'] = abs(100 * (best.cv_max - best.cv_max.max()) / (best.cv_max.max() - best.cv_max.min()))
+            # relative performance
+            best['rel_score'] = abs(100 * (best.cv_max - best.cv_max.max()) / (best.cv_max.max() - best.cv_max.min()))
 
-    return pd.merge(best, counts, on='pp_feature_name')
+            all_cat.append((c, pd.merge(best, counts, on='cat_ref').to_dict(orient='records')))
+
+    return all_cat
 
 
 def get_best_details(df, model_name):
@@ -62,6 +83,64 @@ def get_best_details(df, model_name):
     # create params detailed dataframe
     params = []
     for p, round_id in zip(best.model_params.values, best.round_id.values):
+        params.append({**{'round_id': round_id}, **p})
+
+    params = pd.DataFrame(params)
+    if len(params) > 1:
+        to_drop = []
+        # remove cols with 1 unique value
+        for col in params.columns:
+            l = params[col].map(str).unique()
+            if len(l) <= 1:
+                to_drop.append(col)
+        if len(to_drop) > 0:
+            params.drop(to_drop, axis=1, inplace=True)
+
+    # strip underscores in column names
+    new_col = []
+    for col in params.columns:
+        if col != 'round_id':
+            new_col.append(col.replace('_', ' '))
+        else:
+            new_col.append(col)
+    params.columns = new_col
+
+    # round floating values
+    for col in params.columns:
+        if col != 'round_id':
+            params[col] = params[col].fillna('').map(print_value)
+
+    # params.fillna('', inplace=True)
+    best = pd.merge(best, params, on='round_id')
+
+    # relative performance
+    best['rel_score'] = abs(100 * (best['cv_max'] - best['cv_max'].max()) / (best['cv_max'].max() - best['cv_max'].min()))
+    return [col for col in params.columns if col != 'round_id'], best
+
+
+def __select_process(process, pipeline):
+    # select the element in the pipeline with category c
+    for p in pipeline:
+        if p[2] == process:
+            return p
+    return '', '', '', ''
+
+
+def get_best_details_pp(df, process_name):
+    # get the best results for a model
+    df['is_selected'] = df.pipeline.map(lambda x: __select_process(process_name, x)[2] != '')
+    df = df[df.is_selected]
+
+    df['cat_ref'] = df['pipeline'].map(lambda x: __select_process(process_name, x)[0])
+    df['cat_name'] = df['pipeline'].map(lambda x: __select_process(process_name, x)[1])
+    df['cat_process'] = df['pipeline'].map(lambda x: __select_process(process_name, x)[2])
+    df['cat_params'] = df['pipeline'].map(lambda x: __select_process(process_name, x)[3])
+
+    best = df.sort_values(by='cv_max')
+
+    # create params detailed dataframe
+    params = []
+    for p, round_id in zip(best.cat_params.values, best.round_id.values):
         params.append({**{'round_id': round_id}, **p})
 
     params = pd.DataFrame(params)

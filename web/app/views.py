@@ -54,7 +54,7 @@ def dataset(dataset_id):
         graph_history_search(dataset, search, best1, 1)
         graph_history_search(dataset, search, best2, 2)
         return render_template('dataset.html', dataset=dataset, best1=best1.to_dict(orient='records'),
-                               best2=best2.to_dict(orient='records'), best_pp=best_pp.to_dict(orient='records'),
+                               best2=best2.to_dict(orient='records'), best_pp=best_pp,
                                n_searches1=len(search[search.level == 1]),
                                n_searches2=len(search[search.level == 2]),
                                refresher=int(time.time()), config=get_config())
@@ -65,7 +65,7 @@ def dataset(dataset_id):
 # TODO: graph per parameter
 
 
-@app.route('/details/<string:prm>', methods=['GET', 'POST'])
+@app.route('/details/<string:prm>', methods=['GET'])
 def details(prm):
     # list of searches for a specific type of model
     dataset_id, model = prm.split(';')
@@ -74,6 +74,18 @@ def details(prm):
     cols, best = get_best_details(search, model)
     best = best.to_dict(orient='records')[:10]
     return render_template('details.html', dataset=dataset, model=model, best=best, cols=cols,
+                           refresher=int(time.time()), config=get_config())
+
+
+@app.route('/details_pp/<string:prm>', methods=['GET'])
+def details_pp(prm):
+    # list of searches for a specific type of pre-processing
+    dataset_id, process = prm.split(';')
+    dataset = get_dataset(dataset_id)
+    search = get_search_rounds(dataset.dataset_id)
+    cols, best = get_best_details_pp(search, process)
+    best = best.to_dict(orient='records')[:10]
+    return render_template('details_pp.html', dataset=dataset, process=process, best=best, cols=cols,
                            refresher=int(time.time()), config=get_config())
 
 
@@ -86,7 +98,6 @@ def round(prm):
     round = search[search.round_id == int(round_id)].to_dict(orient='records')[0]
     pipeline = round['pipeline']
     if len(pipeline) < 1 or len(pipeline[0]) != 4:
-        print('len pipeline', len(pipeline[0]))
         pipeline = []
     else:
         # exclude passthrough and no scaling for display
