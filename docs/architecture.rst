@@ -1,5 +1,5 @@
 Architecture
-------------
+============
 
 The architecture is distributed and can be installed on multiple machines
 

@@ -66,9 +66,14 @@ class ConfigForm(FlaskForm):
     # form to configure set-up
 
     data = StringField('data')
-    theme = SelectField(choices=[('darkly', 'darkly'), ('flatly', 'flatly'), ('cerulean', 'cerulean'),
-                                 ('cyborg', 'cyborg'), ('slate', 'slate'), ('solar', 'solar'),
-                                 ('superhero', 'superhero'), ('yeti', 'yeti')])
+    theme = SelectField(choices=[('bootswatch/3.3.7/darkly', 'darkly'),
+                                 ('bootstrap/3.3.7/css', 'bootstrap'),
+                                 ('bootswatch/3.3.7/flatly', 'flatly'),
+                                 ('bootswatch/3.3.7/cerulean', 'cerulean'),
+                                 ('bootswatch/3.3.7/cyborg', 'cyborg'),
+                                 ('bootswatch/3.3.7/slate', 'slate'),
+                                 ('bootswatch/3.3.7/solar', 'solar')
+                                 ])
     store = SelectField(choices=[('redis', 'redis'), ('file', 'file')])
     store_url = StringField('store_url')
 

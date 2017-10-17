@@ -40,6 +40,13 @@ def pause(dataset_id):
     return redirect('/index')
 
 
+@app.route('/gendoc/<string:dataset_id>', methods=['GET', 'POST'])
+def gendoc(dataset_id):
+    dataset = get_dataset(dataset_id)
+    gener_doc(dataset)
+    return redirect('/dataset/%s' % dataset_id)
+
+
 @app.route('/dataset/<string:dataset_id>', methods=['GET', 'POST'])
 def dataset(dataset_id):
     # zoom on a specific dataset

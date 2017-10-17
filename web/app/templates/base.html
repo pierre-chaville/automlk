@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="../static/flatly/bootstrap.min.css">
     !-->
 
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/{{config.theme}}/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/{{config.theme}}/bootstrap.min.css">
     <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="../static/css/nav.css">
 
@@ -39,18 +39,31 @@
                     <a href="/index">Home</a>
                 </li>
                 <li class="dropdown">
-                    <a href="/create"><span data-toggle="tooltip" data-placement="left" title="create new dataset">Create</span></a>
+                    <a href="#" data-toggle="dropdown" class="dropdown-toggle">New <b class="caret"></b></a>
+                    <ul class="dropdown-menu">
+                        <li class="dropdown">
+                            <a href="/create"><span data-toggle="tooltip" data-placement="left"
+                                                    title="create new dataset">Dataset</span></a>
+                        </li>
+                        <li class="dropdown">
+                            <a href="/import"><span data-toggle="tooltip" data-placement="left"
+                                                    title="import datasets from a file description">Import</span></a>
+                        </li>
+                    </ul>
                 </li>
                 <li class="dropdown">
-                    <a href="/import"><span data-toggle="tooltip" data-placement="left"
-                                            title="import datasets from a file description">Import</span></a>
-                </li>
-                <li class="dropdown">
-                    <a href="/monitor"><span data-toggle="tooltip" data-placement="left"
-                                             title="monitor controller and workers">Monitor</span></a>
-                </li>
-                <li class="dropdown">
-                    <a href="/config"><span data-toggle="tooltip" data-placement="left" title="configuration set-up">Config</span></a>
+                    <a href="#" data-toggle="dropdown" class="dropdown-toggle">Admin <b class="caret"></b></a>
+                    <ul class="dropdown-menu">
+
+                        <li class="dropdown">
+                            <a href="/monitor"><span data-toggle="tooltip" data-placement="left"
+                                                     title="monitor controller and workers">Monitor</span></a>
+                        </li>
+                        <li class="dropdown">
+                            <a href="/config"><span data-toggle="tooltip" data-placement="left"
+                                                    title="configuration set-up">Config</span></a>
+                        </li>
+                    </ul>
                 </li>
             </ul>
             <ul class="nav navbar-nav navbar-right">

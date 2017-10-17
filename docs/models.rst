@@ -1,13 +1,8 @@
 List of models
---------------
+==============
 
-+--------------------------------------------------------+
-| models                                                 |
-+--------------------------------------------------------+
-| random forest                                          |
-+--------------------------------------------------------+
-| logistic regression                                    |
-+--------------------------------------------------------+
+The following models are included in autoMLk, with their respective hyper-parameters:
 
-.. autoclass:: automlk.solutions.ModelSolution
+.. include:: solutions.rst
+
 

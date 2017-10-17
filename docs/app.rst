@@ -3,7 +3,7 @@ User guide
 
 The dataset and the results of the search are best viewed with the web app through a standard browers.
 
-to start the app, please go in the automlk-app folder and run the app server:
+to start the app, please go in the web folder and run the app server:
 
 .. code-block:: python
 
@@ -35,24 +35,43 @@ The home page shows the list of datasets:
 
    list of datasets in autoMLk
 
+You can select a list of datasets from a specific domain, with the selector at the top right:
+
+.. figure:: img/domain.png
+   :scale: 70 %
+   :alt: domain
+
+   list of datasets per domain
+
+
 Dataset
 -------
 
-To import the list of datasets (or a new list):
+To import the list of preloaded datasets (or your own list), you can select the option 'Import' in the menu 'New':
 
-.. figure:: img/import_datasets.png
+.. figure:: img/import.png
    :scale: 70 %
    :alt: import datasets
 
    import a list of datasets
 
-You may create directly a dataset by using the 'New Dataset' option in the menu:
+You may create directly a dataset by using the 'Dataset' option in the menu 'New':
 
 .. figure:: img/create_dataset.png
    :scale: 70 %
    :alt: create dataset
 
    create a new dataset
+
+
+You may afterwards update *some fields* of a dataset by using the edit icon in the list of datasets in the home page:
+
+.. figure:: img/update.png
+   :scale: 70 %
+   :alt: update dataset
+
+   update a dataset
+
 
 We can access to a specific dataset in clicking on the row of the required dataset.
 When a dataset is created, there is only the features and analysis of the data available:
@@ -70,7 +89,6 @@ By clicking on the various tabs, we can view:
    :alt: features
 
    the list of features of the dataset
-
 
 .. figure:: img/hist.png
    :scale: 70 %
@@ -90,13 +108,29 @@ We need to launch the search process with various models in order to access to b
 Results and best models
 -----------------------
 
-When the search is launched, 2 additional tabs are available:
+When the search is launched, 3 additional tabs are available:
 
-.. figure:: img/best.png
+.. figure:: img/dataset.png
    :scale: 70 %
    :alt: models with the best scores
 
    Best models by eval score
+
+And specifically on 1 model:
+
+.. figure:: img/model.png
+   :scale: 70 %
+   :alt: models with the best scores
+
+   Best models by eval score
+
+And per pre-processing steps:
+
+.. figure:: img/process.png
+   :scale: 70 %
+   :alt: pre-processing steps with the best scores
+
+   pre-processing steps by eval score
 
 .. figure:: img/search.png
    :scale: 70 %
@@ -175,8 +209,11 @@ We can view the performance of the various ensemble models, and the models used 
    feature importance for an ensemble model
 
 
+Admin
+_____
+
 Monitoring
-----------
+__________
 
 The monitoring screen displays the different status of the different components in the architecture: controller and workers
 
@@ -185,3 +222,21 @@ The monitoring screen displays the different status of the different components 
    :alt: monitoring
 
    monitoring panel
+
+Config
+______
+
+.. figure:: img/config.png
+   :scale: 70 %
+   :alt: admin console
+
+   configuration panel
+
+
+It is also possible to modify the theme of the user interface directly from the config panel:
+
+.. figure:: img/new_config.png
+   :scale: 70 %
+   :alt: admin console
+
+   configuration panel

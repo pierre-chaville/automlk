@@ -14,11 +14,13 @@
     <li><a data-toggle="tab" href="#features">Features</a></li>
     <li><a data-toggle="tab" href="#data">Data</a></li>
     <li><a data-toggle="tab" href="#correl">Correlations</a></li>
+    <!-- <li><a data-toggle="tab" href="#doc">Documentation</a></li> !-->
     {% else %}
     <li class="active"><a data-toggle="tab" href="#dataset">Dataset</a></li>
     <li><a data-toggle="tab" href="#features">Features</a></li>
     <li><a data-toggle="tab" href="#data">Data</a></li>
     <li><a data-toggle="tab" href="#correl">Correlations</a></li>
+    <!-- <li><a data-toggle="tab" href="#doc">Documentation</a></li> !-->
     {% endif %}
 </ul>
 
@@ -43,7 +45,7 @@
                     <img src="/get_img_dataset/{{dataset.dataset_id}};models_1?{{refresher}}"></img>
                 </td>
             </tr>
-    {% if best2|count > 0 %}
+            {% if best2|count > 0 %}
             <tr>
                 <td>
                     <img src="/get_img_dataset/{{dataset.dataset_id}};history_2?{{refresher}}"></img>
@@ -52,7 +54,7 @@
                     <img src="/get_img_dataset/{{dataset.dataset_id}};models_2?{{refresher}}"></img>
                 </td>
             </tr>
-    {% endif %}
+            {% endif %}
         </table>
     </div>
     {% if best2|count > 0 %}
@@ -246,6 +248,14 @@
     <div id="correl" class="tab-pane">
         <img src="/get_img_dataset/{{dataset.dataset_id}};correl?{{refresher}}"></img>
     </div>
+    <div id="doc" class="tab-pane">
+        <h3>Documentation</h3>
+        <br>
+        <br>
+        <form action="/gendoc/{{dataset.dataset_id}}">
+            <input type="submit" class="btn btn-default" value="Generate documentation"/>
+        </form>
+    </div>
 </div>
 
 {% if n_searches1 >= 0 %}
@@ -253,6 +263,7 @@
     setInterval(function() {
       window.location.reload();
     }, 300000);
+
 
 </script>
 {% endif %}
