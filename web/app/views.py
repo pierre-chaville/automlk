@@ -4,6 +4,7 @@ import os
 import uuid
 from flask import render_template, send_file, redirect, request, abort, flash
 from .helper import *
+from .doc import gener_doc
 from .form import CreateDatasetForm, UpdateDatasetForm, DeleteDatasetForm, ConfigForm, ImportForm, DomainForm
 from automlk.context import get_uploads_folder, get_dataset_folder, get_config, set_config
 from automlk.dataset import get_dataset_list, get_dataset, delete_dataset, update_dataset

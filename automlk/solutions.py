@@ -35,13 +35,13 @@ model_solutions = [
     ModelSolution('ADA-C', 'AdaBoost', ModelAdaBoost, default_adaboost,
                   space_adaboost_classifier, 'classification'),
     ModelSolution('KNN-C', 'Knn', ModelKnn, default_knn,
-                  space_knn, 'classification', limit_size=10000),
+                  space_knn, 'classification', limit_size=10),
     ModelSolution('SVC', 'SVM', ModelSVM, default_svc,
-                  space_svc, 'classification', limit_size=2000),
+                  space_svc, 'classification', limit_size=2),
     ModelSolution('LOGIT', 'Logistic Regression', ModelLogisticRegression, default_logistic_regression,
                   space_logistic_regression, 'classification'),
     ModelSolution('NN-C', 'Neural Networks', ModelNN, default_keras,
-                  space_keras, 'classification', selectable=import_keras),
+                  space_keras, 'classification', selectable=import_keras, limit_size=10),
 
     # regressors
     ModelSolution('LGBM-R', 'LightGBM', ModelLightGBM, default_lightgbm_regressor,
@@ -59,11 +59,11 @@ model_solutions = [
     ModelSolution('ADA-R', 'AdaBoost', ModelAdaBoost, default_adaboost,
                   space_adaboost_regressor, 'regression'),
     ModelSolution('KNN-R', 'Knn', ModelKnn, default_knn,
-                  space_knn, 'regression', limit_size=10000),
+                  space_knn, 'regression', limit_size=10),
     ModelSolution('SVR', 'SVM', ModelSVM, default_svr,
-                  space_svr, 'regression', limit_size=2000),
+                  space_svr, 'regression', limit_size=2),
     ModelSolution('LSVR', 'Linear SVR', ModelLinearSVR, default_linear_svr,
-                  space_linear_svr, 'regression'),
+                  space_linear_svr, 'regression', limit_size=10),
     ModelSolution('LR', 'Linear Regression', ModelLinearRegressor, default_linear_regression,
                   space_linear_regression, 'regression'),
     ModelSolution('RIDGE', 'Ridge Regression', ModelRidgeRegressor, default_ridge_regression,
@@ -73,7 +73,7 @@ model_solutions = [
     ModelSolution('HUBER', 'Huber Regression', ModelHuberRegressor, default_huber_regression,
                   space_huber_regression, 'regression'),
     ModelSolution('NN-R', 'Neural Networks', ModelNN, default_keras,
-                  space_keras, 'regression', selectable=import_keras),
+                  space_keras, 'regression', selectable=import_keras, limit_size=10),
 
     # ensembles
     # TODO: fix and improve this model
