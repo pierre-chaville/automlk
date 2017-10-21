@@ -16,7 +16,8 @@ class CreateDatasetForm(FlaskForm):
     source = StringField()
     url = StringField()
 
-    mode = SelectField(choices=[('standard', 'standard'), ('benchmark', 'benchmark'), ('competition', 'competition')], default='standard')
+    mode = SelectField(choices=[('standard', 'standard'), ('benchmark', 'benchmark'), ('competition', 'competition')],
+                       default='standard')
     mode_file = SelectField(choices=[('upload', 'upload'), ('path', 'file path')], default='upload')
 
     filename_cols = StringField()
@@ -39,7 +40,6 @@ class CreateDatasetForm(FlaskForm):
     holdout_ratio = IntegerField(default=20)
     val_col = StringField(default='index')
     val_col_shuffle = BooleanField(default=True)
-
 
 
 class UpdateDatasetForm(FlaskForm):
@@ -74,6 +74,12 @@ class ConfigForm(FlaskForm):
                                  ('bootswatch/3.3.7/slate', 'slate'),
                                  ('bootswatch/3.3.7/solar', 'solar')
                                  ])
+    bootstrap = StringField('bootstrap')
+    graph_style = SelectField(choices=[('default', 'default'),
+                                       ('bmh', 'bmh'),
+                                       ('ggplot', 'ggplot'),
+                                       ('seaborn', 'seaborn'),
+                                       ])
     store = SelectField(choices=[('redis', 'redis'), ('file', 'file')])
     store_url = StringField('store_url')
 
@@ -90,4 +96,4 @@ class DomainForm(FlaskForm):
     domain = SelectField(choices=[])
 
     def set_choices(self, choices):
-        self.domain.choices = [(x, x) for x in set(['']+choices)]
+        self.domain.choices = [(x, x) for x in set([''] + choices)]

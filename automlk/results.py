@@ -2,11 +2,11 @@ import pandas as pd
 import numpy as np
 from automlk.worker import get_importance
 
-
+"""
 def dataset_folder(dt_uid):
     # return the folder where search results are stored
     return '../datasets/search/%s' % dt_uid
-
+"""
 
 def print_value(x):
     # easy print function for dictionary value
@@ -199,10 +199,10 @@ def get_round_params(df, round_id):
     return params
 
 
-def get_feature_importance(uid, round_id):
+def get_feature_importance(dataset_id, round_id):
     # get feature importance for the selected model round
 
-    df = get_importance(uid, round_id)
+    df = get_importance(dataset_id, round_id)
     if not isinstance(df, pd.DataFrame) or 'importance' not in df.columns:
         return []
 

@@ -8,7 +8,10 @@ import itertools
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import confusion_matrix
 from .config import METRIC_NULL
-from .context import get_dataset_folder
+from .context import get_dataset_folder, get_config
+
+
+TRANSPARENT = False
 
 
 def graph_histogram(dataset_id, col, is_categorical, values, part='train'):
@@ -31,12 +34,12 @@ def graph_histogram(dataset_id, col, is_categorical, values, part='train'):
         # TODO: x axis ticks with labels
 
     plt.figure(figsize=(6, 6))
-    plt.style.use('dark_background')
+    __set_graph_style()
     plt.hist(values, label='actuals', bins=100)
     plt.title('histogram of %s (%s set)' % (col, part))
     plt.xlabel('values')
     plt.ylabel('frequencies')
-    plt.savefig(get_dataset_folder(dataset_id) + '/graphs/_hist_%s_%s.png' % (part, col), transparent=True)
+    plt.savefig(get_dataset_folder(dataset_id) + '/graphs/_hist_%s_%s.png' % (part, col), transparent=TRANSPARENT)
 
 
 def graph_correl_features(dataset, df):
@@ -56,7 +59,7 @@ def graph_correl_features(dataset, df):
     corr = df.corr()
 
     # display heatmap
-    plt.style.use('dark_background')
+    __set_graph_style()
     if dataset.n_cols > 50:
         plt.figure(figsize=(14, 14))
     elif dataset.n_cols > 20:
@@ -71,7 +74,7 @@ def graph_correl_features(dataset, df):
     plt.title('correlation map of the features')
     plt.xticks(rotation=90)
     plt.yticks(rotation=0)
-    plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/_correl.png', transparent=True)
+    plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/_correl.png', transparent=TRANSPARENT)
 
 
 def __get_best_scores(scores):
@@ -115,14 +118,14 @@ def graph_history_search(dataset, df_search, best_models, level):
 
     best_scores = __get_best_scores(scores)
     plt.figure(figsize=(6, 6))
-    plt.style.use('dark_background')
+    __set_graph_style()
 
     plt.plot(list(range(len(best_scores))), best_scores)
     plt.title('best score over time (level=%d)' % level)
     plt.xlabel('total searches')
     plt.ylabel('score')
     plt.ylim(y_lim1, y_lim2)
-    plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/_history_%d.png' % level, transparent=True)
+    plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/_history_%d.png' % level, transparent=TRANSPARENT)
 
     # we will generate a list of the max values values per model
 
@@ -137,7 +140,7 @@ def graph_history_search(dataset, df_search, best_models, level):
     plt.ylabel('score')
     plt.ylim(y_lim1, y_lim2)
     plt.legend(loc=1)
-    plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/_models_%d.png' % level, transparent=True)
+    plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/_models_%d.png' % level, transparent=TRANSPARENT)
 
 
 def graph_predict(dataset, round_id, y, y_pred, part='eval'):
@@ -151,22 +154,22 @@ def graph_predict(dataset, round_id, y, y_pred, part='eval'):
     :return: None
     """
     if dataset.problem_type == 'regression':
-        fig = plt.figure(figsize=(6, 6))
-        plt.style.use('dark_background')
+        plt.figure(figsize=(6, 6))
+        __set_graph_style()
 
         # plot a graph prediction versus actuals
         plt.scatter(y, y_pred, alpha=0.2, s=2)
         mn = min(min(y), min(y_pred))
         mx = max(max(y), max(y_pred))
-        plt.plot((mn, mx), (mn, mx), color='r', lw=0.5)
+        plt.plot((mn, mx), (mn, mx), color='r', lw=0.7)
         plt.xlim(mn, mx)
         plt.ylim(mn, mx)
         plt.xlabel('actuals')
         plt.ylabel('predict')
         plt.title('predict versus actuals (%s set)' % part)
     else:
-        fig = plt.figure(figsize=(8, 6))
-        plt.style.use('dark_background')
+        plt.figure(figsize=(8, 6))
+        __set_graph_style()
 
         # plot a confusion matrix
         normalize = False
@@ -195,7 +198,7 @@ def graph_predict(dataset, round_id, y, y_pred, part='eval'):
         plt.xlabel('Predicted label')
         plt.title('confusion matrix (%s set)' % part)
 
-    plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/predict_%s_%s.png' % (part, round_id), transparent=True)
+    plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/predict_%s_%s.png' % (part, round_id), transparent=TRANSPARENT)
 
 
 def graph_pred_histogram(dataset_id, round_id, y, part='eval'):
@@ -208,9 +211,14 @@ def graph_pred_histogram(dataset_id, round_id, y, part='eval'):
     :return: None
     """
     plt.figure(figsize=(6, 6))
-    plt.style.use('dark_background')
+    __set_graph_style()
     plt.hist(y, label='prediction', bins=100)
     plt.title('histogram of predictions (%s set)' % part)
     plt.xlabel('values')
     plt.ylabel('frequencies')
-    plt.savefig(get_dataset_folder(dataset_id) + '/graphs/hist_%s_%s.png' % (part, round_id), transparent=True)
+    plt.savefig(get_dataset_folder(dataset_id) + '/graphs/hist_%s_%s.png' % (part, round_id), transparent=TRANSPARENT)
+
+
+def __set_graph_style():
+    # set the graph style according to config
+    plt.style.use(get_config()['graph_style'])

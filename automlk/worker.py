@@ -8,12 +8,13 @@ from .dataset import get_dataset
 from .graphs import graph_pred_histogram, graph_predict
 from .solutions import *
 from .store import *
-from .monitor import heart_beep
+from .monitor import heart_beep, init_timer_worker, start_timer_worker, stop_timer_worker
 from .solutions_pp import pp_solutions_map
 
 
 def worker():
     # periodically pool the receiver queue for a search job 
+    init_timer_worker()
     while True:
         # poll queue
         msg_search = brpop_key_store('controller:search_queue')
@@ -22,7 +23,9 @@ def worker():
             print('reveived %s' % msg_search)
             msg_search = {**msg_search, **{'start_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                                            'host_name': socket.gethostname()}}
+            start_timer_worker(msg_search['time_limit'])
             job_search(msg_search)
+            stop_timer_worker()
 
 
 def job_search(msg_search):

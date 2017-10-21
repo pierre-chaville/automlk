@@ -29,7 +29,7 @@ def launch_controller():
 
         # get next dataset to search
         i_dataset += 1
-        if i_dataset > len(active)-1:
+        if i_dataset > len(active) - 1:
             i_dataset = 0
 
         # retrieves dataset and status of search
@@ -69,7 +69,7 @@ def __create_search_round(dataset_id):
     solution = model_solutions_map[ref]
     default_mode = False
     if search['level'] == 1:
-        if round_id < len(search['choices'])-1:
+        if round_id < len(search['choices']) - 1:
             # mode = default
             params = solution.default_params
             default_mode = True
@@ -84,7 +84,8 @@ def __create_search_round(dataset_id):
 
     # generate search message
     msg_search = {**search, **{'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': solution.ref,
-                         'model_name': solution.name, 'model_params': params, 'pipeline': pipeline}}
+                               'model_name': solution.name, 'model_params': params, 'pipeline': pipeline,
+                               'time_limit': __time_limit(dataset)}}
     msg_search.pop('choices')
     msg_search.pop('start')
     return msg_search
@@ -99,6 +100,16 @@ def __find_search_store(dataset):
         return {'start': 0, 'level': 1, 'threshold': 0,
                 'choices': __get_model_class_list(dataset, 1),
                 }
+
+
+def __time_limit(dataset):
+    # determine max delay to execute search
+    if dataset.n_rows < 10:
+        return 60 * int(1 + dataset.n_rows)
+    elif dataset.n_rows < 100:
+        return 600
+    else:
+        return 3600
 
 
 def __get_pipeline(dataset, default_mode, i_round):
@@ -159,7 +170,6 @@ def __get_model_class_list(dataset, level):
 
 
 def __process_result(msg_result):
-
     dataset_id = msg_result['dataset_id']
     # update search history
     rpush_key_store('dataset:%s:rounds' % dataset_id, msg_result)
@@ -196,7 +206,7 @@ def __process_result(msg_result):
     if len_search - search['start'] > 50:
         if len(search['choices']) > 1:
             # reduce list by 2
-            n = int(len(search['choices']) /2)
+            n = int(len(search['choices']) / 2)
             print('focusing list of models to %d models' % n)
             search['start'] = len_search
             search['choices'] = __get_best_models(df, search['level'])[:n]
@@ -212,7 +222,7 @@ def __get_outlier_threshold(df):
     # TODO: adapt threshold with number of [successful] rounds
     df0 = df[(df.cv_max != METRIC_NULL) & (df.level == 1)].groupby('model_name', as_index=False).min()
     scores = np.sort(df0.cv_max.values)
-    outlier = scores[int(len(scores)/2)]
+    outlier = scores[int(len(scores) / 2)]
     print('outlier threshold set at: %.5f ' % outlier)
     return outlier
 
@@ -233,7 +243,8 @@ def __get_best_models(df, level):
     if len(df) < 1:
         return []
 
-    best = df[df.level == level].sort_values(by=['solution', 'cv_max']).groupby('solution', as_index=False).first().sort_values(
+    best = df[df.level == level].sort_values(by=['solution', 'cv_max']).groupby('solution',
+                                                                                as_index=False).first().sort_values(
         by='cv_max')
 
     return list(best.solution.values)

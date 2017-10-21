@@ -1,7 +1,15 @@
 import psutil
 import socket
+import time
+import _thread
+import signal
 import datetime
 from .store import *
+from threading import Timer
+
+__worker_timer_active = False
+__worker_timer_start = None
+__worker_timer_limit = 0
 
 
 def get_heart_beeps(module):
@@ -47,3 +55,42 @@ def heart_beep(module, msg):
 
     # save msg in store
     set_key_store('monitor:%s:%s' % (module, id), msg_beep)
+
+
+def __timer_control():
+    # execute control of max delay
+    global __worker_timer_active
+    global __worker_timer_start
+    global __worker_timer_limit
+    if __worker_timer_active:
+        # check delay
+        t = time.time()
+        if t - __worker_timer_start > __worker_timer_limit:
+            print('max delay %d seconds reached...' % __worker_timer_limit)
+            os.kill(os.getpid(), signal.SIGINT)
+            #_thread.interrupt_main()
+    Timer(10.0, __timer_control, []).start()
+
+
+def init_timer_worker():
+    # set the timer for the worker to monitor max delays, ...
+    global __worker_timer_active
+    __worker_timer_active = False
+    Timer(10.0, __timer_control, []).start()
+
+
+def start_timer_worker(limit):
+    # set the timer for the worker to monitor max delays, ...
+    global __worker_timer_active
+    global __worker_timer_start
+    global __worker_timer_limit
+    __worker_timer_start = time.time()
+    __worker_timer_active = True
+    __worker_timer_limit = limit
+
+
+def stop_timer_worker():
+    # set the timer for the worker to monitor max delays, ...
+    global __worker_timer_active
+    __worker_timer_active = False
+

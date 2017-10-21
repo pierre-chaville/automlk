@@ -3,8 +3,8 @@ import time
 import os
 import uuid
 from flask import render_template, send_file, redirect, request, abort, flash
-from .helper import *
-from .doc import gener_doc
+from automlk.results import *
+from automlk.doc import gener_doc
 from .form import CreateDatasetForm, UpdateDatasetForm, DeleteDatasetForm, ConfigForm, ImportForm, DomainForm
 from automlk.context import get_uploads_folder, get_dataset_folder, get_config, set_config
 from automlk.dataset import get_dataset_list, get_dataset, delete_dataset, update_dataset
@@ -45,7 +45,7 @@ def pause(dataset_id):
 def gendoc(dataset_id):
     dataset = get_dataset(dataset_id)
     gener_doc(dataset)
-    return redirect('/dataset/%s' % dataset_id)
+    return redirect('/dataset/%s#doc' % dataset_id)
 
 
 @app.route('/dataset/<string:dataset_id>', methods=['GET', 'POST'])
@@ -99,13 +99,13 @@ def details_pp(prm):
 
 @app.route('/round/<string:prm>', methods=['GET', 'POST'])
 def round(prm):
-    # details of a search round (1 preprocessing + 1 model configuration)
+    # details of a search round (1 pre-processing + 1 model configuration)
     dataset_id, round_id = prm.split(';')
     dataset = get_dataset(dataset_id)
     search = get_search_rounds(dataset.dataset_id)
     round = search[search.round_id == int(round_id)].to_dict(orient='records')[0]
     pipeline = round['pipeline']
-    if len(pipeline) < 1 or len(pipeline[0]) != 4:
+    if len(pipeline) < 1:
         pipeline = []
     else:
         # exclude passthrough and no scaling for display
@@ -339,6 +339,8 @@ def config():
             try:
                 set_config(data=form.data.data,
                            theme=form.theme.data,
+                           bootstrap=form.bootstrap.data,
+                           graph_style=form.graph_style.data,
                            store=form.store.data,
                            store_url=form.store_url.data)
             except Exception as e:
@@ -349,6 +351,8 @@ def config():
         # copy data to form
         form.data.data = config['data']
         form.theme.data = config['theme']
+        form.bootstrap.data = config['bootstrap']
+        form.graph_style.data = config['graph_style']
         form.store.data = config['store']
         form.store_url.data = config['store_url']
 
