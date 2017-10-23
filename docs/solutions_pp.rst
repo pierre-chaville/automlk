@@ -17,6 +17,9 @@ text encoding:
 **Bag of words**
     *max_features, ngram_range, tfidf, first_words*
 
+**Word2Vec**
+    *dim, n_iter*
+
 
 imputing missing values:
 ------------------------

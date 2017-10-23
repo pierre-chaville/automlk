@@ -105,9 +105,9 @@ def __find_search_store(dataset):
 def __time_limit(dataset):
     # determine max delay to execute search
     if dataset.n_rows < 10:
-        return 60 * int(1 + dataset.n_rows)
+        return 120 * int(1 + dataset.n_rows)
     elif dataset.n_rows < 100:
-        return 600
+        return 1800
     else:
         return 3600
 

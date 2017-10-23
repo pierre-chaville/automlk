@@ -32,7 +32,8 @@ pp_solutions = [
     PpSolution('MISS', 'Missing values', HyperProcessMissing, default_missing, space_missing, 'missing'),
 
     # solutions for text processing
-    PpSolution('BOW', 'Bag of words', HyperProcessBOW, default_bow, space_bow, 'text', default_solution=True),
+    PpSolution('BOW', 'Bag of words', HyperProcessBOW, default_bow, space_bow, 'text'),
+    PpSolution('W2V', 'Word2Vec', HyperProcessWord2Vec, default_word2vec, space_word2vec, 'text', default_solution=True),
 
     # scaling solutions
     PpSolution('SCALE', 'Feature Scaling', HyperProcessScaling, default_scaling, space_scaling, 'scaling'),

@@ -1,4 +1,5 @@
 import os
+import sys
 import pandas as pd
 import numpy as np
 from .worker import get_importance
@@ -42,7 +43,7 @@ def gener_doc(dataset):
     :return:
     """
     # check or create doc folder
-    folder = get_dataset_folder(dataset.dataset_id) + '/doc'
+    folder = get_dataset_folder(dataset.dataset_id) + '/docs'
     if not os.path.exists(folder):
         os.makedirs(folder)
         os.makedirs(folder + '/_build')
@@ -87,8 +88,7 @@ def gener_doc(dataset):
         render('dataset.rst', folder + '/dataset.rst', dataset=dataset, n_searches1=0)
 
     # then generate html and pdf with make
-    # ls_output = subprocess.check_output(['ls'])
-    # print(ls_output)
-    # subprocess.call(['dir;cd ' + folder + ';dir;make html'], shell=True)
-    #os.system('cd ' + folder + ';dir;make html')
-
+    if sys.platform == 'linux':
+        subprocess.call(['sh', '../scripts/gen_doc.sh', os.path.abspath(get_dataset_folder(dataset.dataset_id)+'/docs')])
+    else:
+        os.system('call ../scripts/gen_doc ' + os.path.abspath(get_dataset_folder(dataset.dataset_id)+'/docs'))

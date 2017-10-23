@@ -11,6 +11,13 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from .spaces.process import *
 from .utils.text_encoders import *
 
+try:
+    from gensim.models import Word2Vec, Doc2Vec
+    from gensim.models.doc2vec import TaggedDocument
+    import_gensim = True
+except:
+    import_gensim = False
+
 
 class HyperProcess(object):
     __metaclass__ = ABCMeta
@@ -118,6 +125,33 @@ class HyperProcessBOW(HyperProcess):
             T = pd.DataFrame(encoder.transform(text).todense()).reset_index(drop=True)
             T.columns = [col+'__'+x.replace(' ', '_') for x in encoder.get_feature_names()]
             X = pd.concat([X.reset_index(drop=True), T], axis=1)
+            X.drop(col, axis=1, inplace=True)
+        return X
+
+
+class HyperProcessWord2Vec(HyperProcess):
+    # class for process word2vec for text
+
+    def __init__(self, context, params):
+        super().__init__(context, params)
+
+    def fit(self, X, y):
+        self.transformer = []
+        for col in self.context.text_cols:
+            encoder = model_word2vec(X[col].values, self.params)
+            self.context.feature_names.remove(col)
+            self.context.feature_names += [col + '__len'] + [col+'__'+str(i) for i in range(self.params['dim'])]
+            self.transformer.append((col, encoder))
+        # update new list of columns
+        self.context.text_cols = []
+
+    def transform(self, X):
+        # transform X
+        for col, encoder in self.transformer:
+            T = pd.DataFrame(vector_word2vec(encoder, X[col].values, self.params)).reset_index(drop=True)
+            T.columns = [col + '__len'] + [col+'__'+str(i) for i in range(self.params['dim'])]
+            X = pd.concat([X.reset_index(drop=True), T], axis=1)
+            # remove col in X
             X.drop(col, axis=1, inplace=True)
         return X
 

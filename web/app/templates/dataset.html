@@ -252,6 +252,14 @@
         <h3>Documentation</h3>
         <br>
         <br>
+        {% if doc_path != '' %}
+        <a href="file://{{doc_path}}">Html documentation</a>
+        <br>
+        <br>
+        <a href="/get_doc_pdf/{{dataset.dataset_id}}">Download PDF documentation</a>
+        <br>
+        <br>
+        {% endif %}
         <form action="/gendoc/{{dataset.dataset_id}}">
             <input type="submit" class="btn btn-default" value="Generate documentation"/>
         </form>

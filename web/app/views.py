@@ -2,7 +2,7 @@ from app import app
 import time
 import os
 import uuid
-from flask import render_template, send_file, redirect, request, abort, flash
+from flask import render_template, send_file, redirect, request, abort, flash, send_from_directory
 from automlk.results import *
 from automlk.doc import gener_doc
 from .form import CreateDatasetForm, UpdateDatasetForm, DeleteDatasetForm, ConfigForm, ImportForm, DomainForm
@@ -53,6 +53,9 @@ def dataset(dataset_id):
     # zoom on a specific dataset
     dataset = get_dataset(dataset_id)
     search = get_search_rounds(dataset.dataset_id)
+    doc_path = os.path.abspath(get_dataset_folder(dataset_id) + '/docs/_build/html/index.html')
+    if not os.path.exists(doc_path):
+        doc_path = ''
     if len(search) > 0:
         best = get_best_models(search)
         best_pp = get_best_pp(search.copy())
@@ -65,9 +68,10 @@ def dataset(dataset_id):
                                best2=best2.to_dict(orient='records'), best_pp=best_pp,
                                n_searches1=len(search[search.level == 1]),
                                n_searches2=len(search[search.level == 2]),
-                               refresher=int(time.time()), config=get_config())
+                               doc_path=doc_path, refresher=int(time.time()), config=get_config())
     else:
-        return render_template('dataset.html', dataset=dataset, n_searches1=0, refresher=int(time.time()), config=get_config())
+        return render_template('dataset.html', dataset=dataset, n_searches1=0, doc_path=doc_path,
+                               refresher=int(time.time()), config=get_config())
 
 
 # TODO: graph per parameter
@@ -113,7 +117,8 @@ def round(prm):
     params = get_round_params(search, round_id)
     features = get_feature_importance(dataset.dataset_id, round_id)
     return render_template('round.html', dataset=dataset, round=round, pipeline=pipeline,
-                           features=features, params=params, cols=params.keys(), refresher=int(time.time()), config=get_config())
+                           features=features, params=params, cols=params.keys(), refresher=int(time.time()),
+                           config=get_config())
 
 
 def __path_data(dataset_id):
@@ -135,8 +140,15 @@ def get_img_dataset(prm):
 def get_img_round(prm):
     # retrieves the graph at dataset level from dataset_id;round_id, where dataset_id is dataset id and round_id is round id
     dataset_id, round_id, graph_type = prm.split(';')
-    return send_file(__path_data(dataset_id) + '/graphs/%s_%s.png' % (graph_type, round_id),
-                     mimetype='image/png')
+    return send_file(__path_data(dataset_id) + '/graphs/%s_%s.png' % (graph_type, round_id), mimetype='image/png')
+
+
+@app.route('/get_doc_pdf/<string:dataset_id>', methods=['GET'])
+def get_doc_pdf(dataset_id):
+    # retrieves the pdf document of the dataset
+    # return send_from_directory(directory=__path_data(dataset_id) + '/docs/_build/latex', filename='dataset.pdf')
+    print('send attachement')
+    return send_file(__path_data(dataset_id) + '/docs/_build/latex/dataset.pdf', as_attachment=True)
 
 
 @app.route('/get_submit/<string:prm>', methods=['GET'])
