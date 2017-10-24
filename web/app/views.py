@@ -5,9 +5,9 @@ import uuid
 from flask import render_template, send_file, redirect, request, abort, flash, send_from_directory
 from automlk.results import *
 from automlk.doc import gener_doc
-from .form import CreateDatasetForm, UpdateDatasetForm, DeleteDatasetForm, ConfigForm, ImportForm, DomainForm
+from .form import CreateDatasetForm, UpdateDatasetForm, ResetDatasetForm, DeleteDatasetForm, ConfigForm, ImportForm, DomainForm
 from automlk.context import get_uploads_folder, get_dataset_folder, get_config, set_config
-from automlk.dataset import get_dataset_list, get_dataset, delete_dataset, update_dataset
+from automlk.dataset import get_dataset_list, get_dataset, delete_dataset, update_dataset, reset_dataset
 from automlk.worker import get_search_rounds
 from automlk.graphs import graph_history_search
 from automlk.store import set_key_store
@@ -23,10 +23,11 @@ def index():
     sel_form = DomainForm()
     sel_form.set_choices([d.domain for d in datasets])
     del_form = DeleteDatasetForm()
+    reset_form = ResetDatasetForm()
     if request.method == 'POST':
         datasets = [d for d in datasets if d.domain.startswith(sel_form.domain.data)]
     return render_template('index.html', datasets=datasets, refresher=int(time.time()),
-                           sel_form=sel_form, del_form=del_form, config=get_config())
+                           sel_form=sel_form, reset_form=reset_form, del_form=del_form, config=get_config())
 
 
 @app.route('/start/<string:dataset_id>', methods=['GET'])
@@ -292,6 +293,15 @@ def update(dataset_id):
         form.source.data = dataset.source
         form.url.data = dataset.url
     return render_template('update.html', form=form, config=get_config())
+
+
+@app.route('/reset', methods=['POST'])
+def reset():
+    # reset a dataset
+    form = ResetDatasetForm()
+    if form.validate():
+        reset_dataset(form.reset_id.data)
+    return redirect('/index')
 
 
 @app.route('/delete', methods=['POST'])

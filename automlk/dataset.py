@@ -1,4 +1,5 @@
 import pickle
+import glob
 import pandas as pd
 import numpy as np
 import datetime
@@ -145,14 +146,41 @@ def update_dataset(dataset_id, name, domain, description, is_uploaded, source, u
     dt.save(dataset_id)
 
 
-def delete_dataset(dataset_id):
+def reset_dataset(dataset_id):
     """
-    deletes a dataset
+    reset a dataset: erases the search, reset counters and regenerates the graphs
 
     :param dataset_id: id
     :return:
     """
-    # deletes dataset folder with results
+    root = get_dataset_folder(dataset_id)
+    for folder in ['predict', 'submit', 'features', 'models', 'graphs']:
+        for f in glob.glob(root + '/' + folder + '/*.*'):
+            print(f)
+            os.remove(f)
+
+    # reset entries
+    set_key_store('dataset:%s:status' % dataset_id, 'created')
+    set_key_store('dataset:%s:results' % dataset_id, 0)
+    set_key_store('dataset:%s:level' % dataset_id, 1)
+    if exists_key_store('dataset:%s:round_counter' % dataset_id):
+        del_key_store('dataset:%s:round_counter' % dataset_id)
+    if exists_key_store('dataset:%s:rounds' % dataset_id):
+        del_key_store('dataset:%s:rounds' % dataset_id)
+
+    # create graphs
+    dt = get_dataset(dataset_id)
+    df_train = dt.get_data()
+    dt.create_graphs(df_train, 'train')
+
+
+def delete_dataset(dataset_id):
+    """
+    deletes a dataset and the results
+
+    :param dataset_id: id
+    :return:
+    """
     try:
         shutil.rmtree(get_dataset_folder(dataset_id))
     except:
@@ -163,6 +191,10 @@ def delete_dataset(dataset_id):
     del_key_store('dataset:%s:results' % dataset_id)
     del_key_store('dataset:%s:level' % dataset_id)
     lrem_key_store('dataset:list', dataset_id)
+    if exists_key_store('dataset:%s:round_counter' % dataset_id):
+        del_key_store('dataset:%s:round_counter' % dataset_id)
+    if exists_key_store('dataset:%s:rounds' % dataset_id):
+        del_key_store('dataset:%s:rounds' % dataset_id)
 
 
 def get_dataset_list(include_status=False):
@@ -391,7 +423,7 @@ class DataSet(object):
         self.__import_data(self.filename_train, 'train')
         if self.filename_test != '':
             self.__import_data(self.filename_test, 'test')
-        self.__create_graphs(df_train, 'train')
+        self.create_graphs(df_train, 'train')
         if self.filename_submit != '':
             self.__import_data(self.filename_submit, 'submit')
 
@@ -445,6 +477,14 @@ class DataSet(object):
         os.makedirs(root + '/features')
         os.makedirs(root + '/models')
         os.makedirs(root + '/graphs')
+
+    def create_graphs(self, df, part):
+        # creates the various graphs of the dataset
+        graph_histogram(self.dataset_id, self.y_col, self.is_y_categorical, df[self.y_col].values, part)
+
+        if part == 'train':
+            # histogram of the target columns
+            graph_correl_features(self, df)
 
     def __folder(self):
         # storage folder of the dataset
@@ -520,19 +560,6 @@ class DataSet(object):
         df = self.__read_data(filename)
         # save as pickle
         df.to_pickle(self.__folder() + '/data/%s.pkl' % part)
-
-    def __create_graphs(self, df, part):
-        # creates the various graphs of the dataset
-        graph_histogram(self.dataset_id, self.y_col, self.is_y_categorical, df[self.y_col].values, part)
-
-        if part == 'train':
-            # histogram of the target columns
-            graph_correl_features(self, df)
-
-            # histograpm for each feature
-
-            # TODO: implement update dataset
-            # TODO: implement delete dataset
 
 
 class Feature(object):

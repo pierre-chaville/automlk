@@ -53,6 +53,15 @@ class UpdateDatasetForm(FlaskForm):
     url = StringField()
 
 
+class ResetDatasetForm(FlaskForm):
+    # form to confirm delete of a dataset
+
+    reset_id = StringField('reset_id')
+    reset_name = StringField('reset_name')
+    reset_domain = StringField('reset_domain')
+    reset_description = TextAreaField('reset_description')
+
+
 class DeleteDatasetForm(FlaskForm):
     # form to confirm delete of a dataset
 

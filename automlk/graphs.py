@@ -51,9 +51,9 @@ def graph_correl_features(dataset, df):
     """
     # convert categorical to numerical
     for col in dataset.cat_cols:
-        df[col].fillna('', inplace=True).map(str)
+        df[col].fillna('', inplace=True)
         encoder = LabelEncoder()
-        df[col] = encoder.fit_transform(df[col])
+        df[col] = encoder.fit_transform(df[col].map(str))
 
     # create correlation matrix with pandas
     corr = df.corr()
