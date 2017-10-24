@@ -37,12 +37,9 @@ def model_word2vec(text, params):
     # generate a word2vec model from a text (list of sentences)
     print('generating word2vec')
     train_text = [clean_text(s).split() for s in text]
-    model = Word2Vec(size=params['dim'])
+    model = Word2Vec(**params)
     model.build_vocab(train_text)
-    for i in range(params['n_iter']):
-        print('word2vec epoch', i)
-        shuffle(train_text)
-        model.train(train_text, total_examples=model.corpus_count, epochs=model.iter)
+    model.train(train_text, total_examples=model.corpus_count, epochs=model.iter)
     return model
 
 
@@ -52,7 +49,7 @@ def vector_word2vec(model, text, params):
     v = []
     vector_text = [clean_text(s).split() for s in text]
     for s in vector_text:
-        ww = np.zeros((params['dim']))
+        ww = np.zeros((params['size']))
         n = 0
         for k, w in enumerate(s):
             if w in model.wv:
@@ -72,14 +69,10 @@ def vector_word2vec(model, text, params):
 def model_doc2vec(text, params):
     # generate a doc2vec model from a text (list of sentences)
     print('generating doc2vec')
-    train_text = text.copy()
-    text = [clean_text(s).split() for s in train_text]
-    model = Doc2Vec(size=params['dim'], min_count=1, window=10, sample=1e-4, negative=5)
-    model.build_vocab(text)
-    for i in range(params['n_iter']):
-        print('doc2vec epoch', i)
-        shuffle(train_text)
-        model.train(train_text, total_examples=model.corpus_count, epochs=model.iter)
+    train_text = [TaggedDocument(words=clean_text(s).split(), tags=[i]) for i, s in enumerate(text)]
+    model = Doc2Vec(**params)
+    model.build_vocab(train_text)
+    model.train(train_text, total_examples=model.corpus_count, epochs=model.iter)
     return model
 
 

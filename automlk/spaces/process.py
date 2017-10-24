@@ -23,10 +23,26 @@ space_bow = {'max_features': HyperChoice([200, 500, 1000]),
              }
 
 # word2vec
-default_word2vec = {'dim': 100, 'n_iter': 10}
-space_word2vec = {'dim': HyperChoice([100, 200, 300]),
-                  'n_iter': HyperChoice([5, 10, 20])
+default_word2vec = {'size': 100, 'iter': 20, 'workers': 8}
+space_word2vec = {'size': HyperChoice([50, 100, 200, 400]),
+                  'iter': HyperChoice([10, 20, 50]),
+                  'window': HyperChoice([5, 7, 11]),
+                  'min_count': HyperChoice([2, 5, 10]),
+                  'sg': HyperChoice([0, 1]),
+                  'workers': 8
                   }
+
+# doc2vec
+default_doc2vec = {'size': 100, 'iter': 50, 'workers': 8}
+
+space_doc2vec = {'size': HyperChoice([50, 100, 200, 400]),
+                 'iter': HyperChoice([20, 50, 100]),
+                 'window': HyperChoice([5, 7, 11]),
+                 'min_count': HyperChoice([2, 5, 10]),
+                 'sg': HyperChoice([0, 1]),
+                 'dm': HyperChoice([0, 1]),
+                 'workers': 8
+                 }
 
 # missing values imputing
 

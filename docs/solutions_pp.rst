@@ -18,7 +18,10 @@ text encoding:
     *max_features, ngram_range, tfidf, first_words*
 
 **Word2Vec**
-    *dim, n_iter*
+    *size, iter, window, min_count, sg, workers*
+
+**Doc2Vec**
+    *size, iter, window, min_count, sg, dm, workers*
 
 
 imputing missing values:

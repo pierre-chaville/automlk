@@ -34,6 +34,7 @@ pp_solutions = [
     # solutions for text processing
     PpSolution('BOW', 'Bag of words', HyperProcessBOW, default_bow, space_bow, 'text'),
     PpSolution('W2V', 'Word2Vec', HyperProcessWord2Vec, default_word2vec, space_word2vec, 'text', default_solution=True),
+    PpSolution('D2V', 'Doc2Vec', HyperProcessDoc2Vec, default_doc2vec, space_doc2vec, 'text'),
 
     # scaling solutions
     PpSolution('SCALE', 'Feature Scaling', HyperProcessScaling, default_scaling, space_scaling, 'scaling'),

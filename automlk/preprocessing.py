@@ -140,7 +140,7 @@ class HyperProcessWord2Vec(HyperProcess):
         for col in self.context.text_cols:
             encoder = model_word2vec(X[col].values, self.params)
             self.context.feature_names.remove(col)
-            self.context.feature_names += [col + '__len'] + [col+'__'+str(i) for i in range(self.params['dim'])]
+            self.context.feature_names += [col + '__length'] + [col+'__'+str(i) for i in range(self.params['size'])]
             self.transformer.append((col, encoder))
         # update new list of columns
         self.context.text_cols = []
@@ -149,7 +149,34 @@ class HyperProcessWord2Vec(HyperProcess):
         # transform X
         for col, encoder in self.transformer:
             T = pd.DataFrame(vector_word2vec(encoder, X[col].values, self.params)).reset_index(drop=True)
-            T.columns = [col + '__len'] + [col+'__'+str(i) for i in range(self.params['dim'])]
+            T.columns = [col + '__length'] + [col+'__'+str(i) for i in range(self.params['size'])]
+            X = pd.concat([X.reset_index(drop=True), T], axis=1)
+            # remove col in X
+            X.drop(col, axis=1, inplace=True)
+        return X
+
+
+class HyperProcessDoc2Vec(HyperProcess):
+    # class for process doc2vec for text
+
+    def __init__(self, context, params):
+        super().__init__(context, params)
+
+    def fit(self, X, y):
+        self.transformer = []
+        for col in self.context.text_cols:
+            encoder = model_doc2vec(X[col].values, self.params)
+            self.context.feature_names.remove(col)
+            self.context.feature_names += [col+'__'+str(i) for i in range(self.params['size'])]
+            self.transformer.append((col, encoder))
+        # update new list of columns
+        self.context.text_cols = []
+
+    def transform(self, X):
+        # transform X
+        for col, encoder in self.transformer:
+            T = pd.DataFrame(vector_doc2vec(encoder, X[col].values, self.params)).reset_index(drop=True)
+            T.columns = [col+'__'+str(i) for i in range(self.params['size'])]
             X = pd.concat([X.reset_index(drop=True), T], axis=1)
             # remove col in X
             X.drop(col, axis=1, inplace=True)

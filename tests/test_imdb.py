@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from random import shuffle
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import log_loss
 from gensim.models import Word2Vec, Doc2Vec
@@ -57,7 +56,7 @@ def stack(x, y):
         return np.concatenate([x, to_array(y)], axis=1)
 
 
-mode = 'd2v'
+mode = 'w2v'
 if mode == 'bow':
     # --------------------------------------------------------------------
     # Bag of words
@@ -82,15 +81,17 @@ elif mode == 'w2v':
     print('generating word2vec')
     text = [clean_text(s).split() for s in text]
     dim = 200
-    model = Word2Vec(size=dim)
+    model = Word2Vec(size=dim, iter=50)
     model.build_vocab(text)
+    model.train(text, total_examples=model.corpus_count, epochs=model.iter)
+    """
     train_text = text.copy()
     for i in range(10):
 
         print('epoch', i)
         # shuffle(train_text)
         model.train(train_text, total_examples=model.corpus_count, epochs=model.iter)
-
+    """
     # then calculate word vector per paragraph
     print('generating paragraph vectors')
     v = []
@@ -146,7 +147,6 @@ else:
 
 print('training')
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0)
-#model = RandomForestClassifier(n_estimators=100)
 model = LogisticRegression()
 model.fit(X_train, y_train)
 
@@ -155,7 +155,6 @@ LogisticRegression(C=1.0, class_weight=None, dual=False, fit_intercept=True,
 
 y_pred = model.predict(X_test)
 print('accuracy:', sum(y_pred == y_test) / len(y_test))
-print(model.score(X_test, y_test))
 
 y_pred = model.predict_proba(X_test)
 print('log loss:', log_loss(y_test, y_pred))
