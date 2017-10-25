@@ -33,8 +33,9 @@ pp_solutions = [
 
     # solutions for text processing
     PpSolution('BOW', 'Bag of words', HyperProcessBOW, default_bow, space_bow, 'text'),
-    PpSolution('W2V', 'Word2Vec', HyperProcessWord2Vec, default_word2vec, space_word2vec, 'text', default_solution=True),
-    PpSolution('D2V', 'Doc2Vec', HyperProcessDoc2Vec, default_doc2vec, space_doc2vec, 'text'),
+    PpSolution('W2V', 'Word2Vec', HyperProcessWord2Vec, default_word2vec, space_word2vec, 'text',
+               selectable=import_gensim, default_solution=True),
+    PpSolution('D2V', 'Doc2Vec', HyperProcessDoc2Vec, default_doc2vec, space_doc2vec, 'text', selectable=import_gensim),
 
     # scaling solutions
     PpSolution('SCALE', 'Feature Scaling', HyperProcessScaling, default_scaling, space_scaling, 'scaling'),
@@ -43,7 +44,8 @@ pp_solutions = [
     # feature processing (selection, reduction)
     PpSolution('PASS', 'No Feature selection', HyperProcessPassThrough, NO_PARAMS, NO_PARAMS, 'feature',
                default_solution=True),
-    PpSolution('SVD', 'Truncated SVD', HyperProcessTruncatedSVD, default_truncated_svd, space_truncated_svd, 'feature', limit_size=50),
+    PpSolution('SVD', 'Truncated SVD', HyperProcessTruncatedSVD, default_truncated_svd, space_truncated_svd, 'feature',
+               limit_size=50),
     PpSolution('ICA', 'Fast ICA', HyperProcessFastICA, default_fast_ica, space_fast_ica, 'feature', limit_size=50),
     PpSolution('PCA', 'PCA', HyperProcessPCA, default_pca, space_pca, 'feature', limit_size=50),
     PpSolution('FS-RF', 'Selection RF', HyperProcessSelectionRf, default_sel_rf, space_sel_rf, 'feature'),

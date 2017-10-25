@@ -6,57 +6,19 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import log_loss
 from gensim.models import Word2Vec, Doc2Vec
+from gensim.models.wrappers.fasttext import FastText
+
 from gensim.models.doc2vec import TaggedDocument
 from sklearn.linear_model import LogisticRegression
+from automlk.preprocessing import clean_text
 
 df = pd.read_csv('../datasets/imdb/labeledTrainData.tsv', sep='\t', header=0)
 
 text = df['review'].values
 y = df['sentiment'].values
 
-# print(text[:10])
-# print(y[:10])
+mode = 'ft'
 
-TABLE_TRANS = str.maketrans({key: ' ' for key in string.punctuation})
-TABLE_TRANS['.'] = ' . '
-TABLE_TRANS['?'] = ' . '
-TABLE_TRANS['!'] = ' . '
-TABLE_TRANS[':'] = ' . '
-TABLE_TRANS[';'] = ' . '
-TABLE_TRANS['('] = ' '
-TABLE_TRANS[')'] = ' '
-TABLE_TRANS['['] = ' '
-TABLE_TRANS[']'] = ' '
-TABLE_TRANS[','] = ' '
-TABLE_TRANS['{'] = ' '
-TABLE_TRANS['}'] = ' '
-
-
-def clean_text(s, first_words=0):
-    # transforms sentence for word processing into a list a words
-    words = s.lower().translate(TABLE_TRANS).split()
-    if first_words != 0:
-        words = words[:first_words]
-    return " ".join(words)
-
-
-def to_array(x):
-    if isinstance(x, list):
-        return np.reshape(x, (len(x), 1))
-    elif isinstance(x, np.ndarray):
-        if len(np.shape(x)) == 1:
-            return np.reshape(x, (len(x), 1))
-    return x
-
-
-def stack(x, y):
-    if x == []:
-        return to_array(y)
-    else:
-        return np.concatenate([x, to_array(y)], axis=1)
-
-
-mode = 'w2v'
 if mode == 'bow':
     # --------------------------------------------------------------------
     # Bag of words
@@ -84,14 +46,38 @@ elif mode == 'w2v':
     model = Word2Vec(size=dim, iter=50)
     model.build_vocab(text)
     model.train(text, total_examples=model.corpus_count, epochs=model.iter)
-    """
-    train_text = text.copy()
-    for i in range(10):
+    # then calculate word vector per paragraph
+    print('generating paragraph vectors')
+    v = []
+    for s in text:
+        ww = np.zeros((dim))
+        n = 0
+        for k, w in enumerate(s):
+            if w in model.wv:
+                ww += model.wv[w]
+                n += 1
+        if n > 0:
+            v.append(ww / n)
+        else:
+            v.append(ww)
 
-        print('epoch', i)
-        # shuffle(train_text)
-        model.train(train_text, total_examples=model.corpus_count, epochs=model.iter)
-    """
+    # create vector
+    v = np.array(v)
+
+    print(np.shape(v))
+    text_len = np.array([len(s) for s in text]).reshape(len(text), 1)
+    X = np.concatenate((text_len, v), axis=1)
+
+    print(np.shape(X))
+elif mode == 'ft':
+    # --------------------------------------------------------------------
+    # FastText
+    print('generating fasttext')
+    text = [clean_text(s).split() for s in text]
+    dim = 200
+    model = FastText(size=dim, iter=1)
+    #model.build_vocab(text)
+    model.train(text)
     # then calculate word vector per paragraph
     print('generating paragraph vectors')
     v = []
