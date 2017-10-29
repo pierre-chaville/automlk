@@ -1,5 +1,7 @@
 import os
 import sys
+import glob
+import zipfile
 import pandas as pd
 import numpy as np
 from .worker import get_importance
@@ -19,6 +21,7 @@ jinja_globals = {'print_list': print_list,
                  'print_duration': print_duration,
                  'print_params': print_params,
                  'print_other_metrics': print_other_metrics,
+                 'print_title': print_title,
                  }
 
 
@@ -61,22 +64,20 @@ def gener_doc(dataset):
     # dataset data and features
     search = get_search_rounds(dataset.dataset_id)
     if len(search) > 0:
-        best = get_best_models(search)
-        best_pp = get_best_pp(search.copy())
+        best = get_best_models(dataset.dataset_id)
+        best_pp = get_best_pp(dataset.dataset_id)
         # separate models (level 0) from ensembles (level 1)
-        best1 = best[best.level == 1]
-        best2 = best[best.level == 2]
-        graph_history_search(dataset, search, best1.copy(), 1)
-        graph_history_search(dataset, search, best2.copy(), 2)
-
-        render('dataset.rst', folder + '/dataset.rst', dataset=dataset, best1=best1.to_dict(orient='records'),
-               best2=best2.to_dict(orient='records'), best_pp=best_pp,
+        best1 = [b for b in best if b['level'] == 1]
+        best2 = [b for b in best if b['level'] == 2]
+        print(len(best1), len(best2))
+        print(best1[:2])
+        render('dataset.rst', folder + '/dataset.rst', dataset=dataset, best1=best1, best2=best2, best_pp=best_pp,
                n_searches1=len(search[search.level == 1]),
                n_searches2=len(search[search.level == 2]))
 
         # then for the best rounds
         N_ROUNDS = 5
-        for round_id in list(best1.round_id.values[:N_ROUNDS]) + list(best2.round_id.values[:N_ROUNDS]):
+        for round_id in list([b['round_id'] for b in best1[:N_ROUNDS]]) + list([b['round_id'] for b in best2[:N_ROUNDS]]):
             round = search[search.round_id == int(round_id)].to_dict(orient='records')[0]
             pipeline = [s for s in round['pipeline'] if s[0] not in ['NO-SCALE', 'PASS']]
             params = get_round_params(search, round_id)
@@ -92,3 +93,10 @@ def gener_doc(dataset):
         subprocess.call(['sh', '../scripts/gen_doc.sh', os.path.abspath(get_dataset_folder(dataset.dataset_id)+'/docs')])
     else:
         os.system('call ../scripts/gen_doc ' + os.path.abspath(get_dataset_folder(dataset.dataset_id)+'/docs'))
+
+    # generate zip file of the html site
+    with zipfile.ZipFile(get_dataset_folder(dataset.dataset_id) + '/doc.zip', 'w') as z:
+        root = get_dataset_folder(dataset.dataset_id) + '/docs/_build/html/'
+        for dir in ['', '_static/', '_images/', '_sources/']:
+            for f in glob.glob(root + dir + '*.*'):
+                z.write(f, dataset.dataset_id + '/' + dir + os.path.basename(f))

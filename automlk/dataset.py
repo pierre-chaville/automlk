@@ -70,7 +70,16 @@ def create_dataset(name, domain, description, problem_type, y_col, source, mode,
     dt.save(dataset_id)
     dt.create_folders()
     dt.finalize_creation(df_train, df_test, df_submit)
+    return dt
 
+
+def create_dataset_sets(dt):
+    """
+    creates the train & test set, and the evaluation set per folds
+
+    :param dt: dataset
+    :return:
+    """
     # create train & test set
     X_train, X_test, y_train, y_test, X_submit, id_submit = __create_train_test(dt)
 
@@ -86,8 +95,6 @@ def create_dataset(name, domain, description, problem_type, y_col, source, mode,
     # then store all these results in a pickle store
     pickle.dump([X_train, X_test, y_train, y_test, X_submit, id_submit, cv_folds, y_eval_list, y_eval, idx_eval],
                 open(get_dataset_folder(dt.dataset_id) + '/data/eval_set.pkl', 'wb'))
-
-    return dt
 
 
 def get_dataset(dataset_id):
@@ -121,6 +128,12 @@ def get_dataset(dataset_id):
     # then load dataset object
     dt = DataSet(**d['init_data'])
     dt.load(d['load_data'], d['features'])
+
+    # add counters
+    dt.status = get_key_store('dataset:%s:status' % dt.dataset_id)
+    dt.level = get_key_store('dataset:%s:level' % dt.dataset_id)
+    dt.round_counter = get_counter_store('dataset:%s:round_counter' % dt.dataset_id)
+
     return dt
 
 
@@ -128,12 +141,12 @@ def update_dataset(dataset_id, name, domain, description, is_uploaded, source, u
     """
     update specific fields of the dataset
 
-    :param dataset_id:
-    :param name:
-    :param description:
-    :param is_uploaded:
-    :param source:
-    :param url:
+    :param dataset_id: id of the dataset
+    :param name: new name of the dataset
+    :param description: new description of the dataset
+    :param is_uploaded: info on uploaded
+    :param source: source of the dataset
+    :param url: url of the dataset
     :return:
     """
     dt = get_dataset(dataset_id)
@@ -143,6 +156,40 @@ def update_dataset(dataset_id, name, domain, description, is_uploaded, source, u
     dt.is_uploaded = is_uploaded
     dt.source = source
     dt.url = url
+    dt.save(dataset_id)
+
+
+def update_feature_dataset(dataset_id, name, description, to_keep, col_type):
+    """
+    update specifically some attributes of one column
+
+    :param dataset_id: id of the dataset
+    :param name: name of the column
+    :param description: new description of the column
+    :param to_keep: keep this column
+    :param col_type: type of the column
+    :return:
+    """
+    dt = get_dataset(dataset_id)
+
+    # retrieves the feature
+    for f in dt.features:
+        if f.name == name:
+            # update data
+            f.description = description
+            if to_keep == 'True':
+                f.to_keep = True
+            else:
+                f.to_keep = False
+            f.col_type = col_type
+
+    # regenerate list of X columns, categoricals and text columns
+    dt.x_cols = [col.name for col in dt.features if col.to_keep and (col.name not in [dt.y_col, dt.val_col])]
+    dt.cat_cols = [col.name for col in dt.features if (col.name in dt.x_cols) and (col.col_type == 'categorical')]
+    dt.text_cols = [col.name for col in dt.features if (col.name in dt.x_cols) and (col.col_type == 'text')]
+    dt.n_cat_cols = len(dt.cat_cols)
+
+    # then save dataset data
     dt.save(dataset_id)
 
 
@@ -156,7 +203,6 @@ def reset_dataset(dataset_id):
     root = get_dataset_folder(dataset_id)
     for folder in ['predict', 'submit', 'features', 'models', 'graphs']:
         for f in glob.glob(root + '/' + folder + '/*.*'):
-            print(f)
             os.remove(f)
 
     # reset entries

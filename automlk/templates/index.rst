@@ -1,11 +1,10 @@
-Model documentation
-===================
+{{dataset.name}} Model documentation
+====================================
 
-Name:
-    {{dataset.name}}
+:Name: {{dataset.name}}
 
-Description:
-    {{dataset.name}}
+:Description: {{dataset.description}}
+
 
 .. toctree::
    :maxdepth: 3
@@ -13,9 +12,3 @@ Description:
 
    dataset
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

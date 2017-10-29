@@ -69,3 +69,7 @@ def print_params(p):
     else:
         return None
 
+
+def print_title(t, s):
+    # prints a title t in rst format, using the symbole s
+    return t + '\n' #+ s*len(s) + '\n'

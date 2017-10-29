@@ -211,6 +211,9 @@
         </table>
     </div>
     <div id="features" class="tab-pane">
+        {% if dataset.round_counter > 1 %}
+        <p><i>NB: edit features is deactivated because the search has started</i></p>
+        {% endif %}
         <table class="table table-bordered table-hover">
             <thead>
             <th>name</th>
@@ -221,6 +224,9 @@
             <th>missing</th>
             <th>unique</th>
             <th>values</th>
+            {% if dataset.round_counter < 1 %}
+            <th>edit</th>
+            {% endif %}
             </thead>
             {% for col in dataset.features %}
             <tr>
@@ -238,6 +244,22 @@
                 <td>{% if col.n_missing!= 0 %}{{col.n_missing}}{% endif %}</td>
                 <td>{{col.n_unique_values}}</td>
                 <td>{{col.first_unique_values[:200]}}{% if col.first_unique_values|count > 200 %}...{% endif %}</td>
+                {% if dataset.round_counter < 1 %}
+                <td>
+                    <span data-toggle="tooltip" data-placement="left" title="edit feature"><a href="#EditModal"
+                                                                                              class="open_EditModal"
+                                                                                              style="color:inherit; text-decoration: none;"
+                                                                                              data-toggle="modal"
+                                                                                              data-target="#EditModal"
+                                                                                              data-name="{{col.name}}"
+                                                                                              data-to_keep="{{col.to_keep}}"
+                                                                                              data-raw_type="{{col.raw_type}}"
+                                                                                              data-col_type="{{col.col_type}}"
+                                                                                              data-description="{{col.description}}"
+                                                                                              style="color:inherit; text-decoration: none;">
+                        <i class="fa fa-pencil-square-o"></i></a></span>
+                </td>
+                {% endif %}
             </tr>
             {% endfor %}
         </table>
@@ -251,18 +273,74 @@
     <div id="doc" class="tab-pane">
         <h3>Documentation</h3>
         <br>
-        <br>
         {% if doc_path != '' %}
-        <a href="file://{{doc_path}}">Html documentation</a>
+        <a href="/get_doc_html/{{dataset.dataset_id}}">Download Html documentation</a>
         <br>
         <br>
+        {% endif %}
+        <br>
+        {% if doc_pdf != '' %}
         <a href="/get_doc_pdf/{{dataset.dataset_id}}">Download PDF documentation</a>
         <br>
         <br>
         {% endif %}
+        <br>
         <form action="/gendoc/{{dataset.dataset_id}}">
             <input type="submit" class="btn btn-default" value="Generate documentation"/>
         </form>
+    </div>
+</div>
+
+<script type="text/javascript">
+$(document).on("click", ".open_EditModal", function() {
+$(".modal-body #name").val($(this).data('name'));
+$(".modal-body #to_keep").val($(this).data('to_keep'));
+$(".modal-body #raw_type").val($(this).data('raw_type'));
+$(".modal-body #col_type").val($(this).data('col_type'));
+$(".modal-body #description").val($(this).data('description'));
+});
+
+
+</script>
+
+<div class="modal fade" id="EditModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="myModalLabel">Edit feature</h4>
+            </div>
+            <form role="form" action="/edit_feature/{{dataset.dataset_id}}" method="POST" name="request"
+                  enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input class="form-control" type="text" name="name" id="name" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea class="form-control" name="description" id="description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>To Keep ?</label>
+                        {{ form.to_keep(class="form-control") }}
+                    </div>
+                    <div class="form-group">
+                        <label>Raw type</label>
+                        <input class="form-control" type="text" name="name" id="raw_type" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Type</label>
+                        {{ form.col_type(class="form-control") }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn_default" data-dismiss="modal">Cancel</button>
+                    {{ form.submit }}
+                    <input type="submit" class="btn btn_primary" value="Submit">
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -272,10 +350,18 @@
       window.location.reload();
     }, 300000);
 
-
-
 </script>
 {% endif %}
+
+<script>
+    $(document).ready(function(){
+    if(window.location.hash != "") {
+        $('a[href="' + window.location.hash + '"]').click()
+    }
+
+});
+
+</script>
 
 {% endblock %}
 

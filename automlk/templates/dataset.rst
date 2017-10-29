@@ -23,40 +23,37 @@ The test set is used for test.
 The training set has been splited with a holdout out ratio of {{dataset.holdout_ratio * 100}}% into eval set ({{100 - dataset.holdout_ratio * 100}}%) and test set ({{dataset.holdout_ratio * 100}}%).
 {% endif %}
 
-Train set: {{dataset.filename_train}}
-
+:Train set: {{dataset.filename_train}}
 {% if dataset.filename_test != '' %}
-Test set: {{dataset.filename_test}}
+:Test set: {{dataset.filename_test}}
 {% endif %}
 {% if dataset.filename_submit != '' %}
-Submit set: {{dataset.filename_submit}}
-Column submit: {{dataset.col_submit}}
+:Submit set: {{dataset.filename_submit}}
+:Column submit: {{dataset.col_submit}}
 {% endif %}
 
 
 Features
 --------
 
-X columns:
-    {{ print_list(dataset.x_cols) }}
-
-
+:X columns: {{ print_list(dataset.x_cols) }}
 {% if dataset.cat_cols|count > 0 %}
-Categorical columns
-    {{ print_list(dataset.cat_cols) }}
+:Categorical columns: {{ print_list(dataset.cat_cols) }}
 {% endif %}
-
 {% if dataset.text_cols|count > 0 %}
-Text columns
-    {{ print_list(dataset.text_cols) }}
+:Text columns: {{ print_list(dataset.text_cols) }}
 {% endif %}
 
 .. csv-table:: List of features
-   :header: "name", "description", "keep", "raw type", "type", "missing", "unique", "values"
-   :widths: 10, 20, 10, 10, 10, 10, 10, 20
+   :header: "name", "description", "type", "values"
+   :stub-columns: 1
+   :widths: 20, 30, 20, 30
 
-    {% for col in dataset.features %}
-    "{{col.name}}", "{{col.description}}", "{{col.to_keep}}", "{{col.raw_type}}", "{{col.col_type}}", {{col.n_missing}}, {{col.n_unique_values}}, "{{col.first_unique_values[:200]}}" {% endfor %}
+    {% for col in dataset.features %}{% if col.to_keep %}
+    "{{col.name}}", "{{col.description}}", "{{col.raw_type}} -> {{col.col_type}}", "{{col.n_missing}} missing values, {{col.n_unique_values}} unique values: {{col.first_unique_values[:200]}}" {% endif %}{% endfor %}
+    "**excluded columns**"
+    {% for col in dataset.features %}{% if not col.to_keep %}
+    "{{col.name}}", "{{col.description}}", "{{col.raw_type}} -> {{col.col_type}}", "{{col.n_missing}} missing values, {{col.n_unique_values}} unique values: {{col.first_unique_values[:200]}}" {% endif %}{% endfor %}
 
 
 Data distribution
@@ -69,7 +66,6 @@ Data distribution
 
     distribution of the training set
 
-
 Feature correlation
 -------------------
 
@@ -79,8 +75,6 @@ Feature correlation
     :figclass: align-center
 
     correlation of the features in the training set
-
-
 
 {% if n_searches1 > 0 %}
 Results of the search of best models
@@ -96,7 +90,6 @@ Search history with models level 1
 
     graph of the best result over time
 
-
 .. figure:: ../graphs/_models_1.png
     :align: center
     :alt: alternate text
@@ -105,7 +98,6 @@ Search history with models level 1
     graph of the best result over time from the 5 best models
 
 {% if best2|count > 0 %}
-
 Search history with ensemble models
 -----------------------------------
 
@@ -115,7 +107,6 @@ Search history with ensemble models
     :figclass: align-center
 
     graph of the best result over time
-
 
 .. figure:: ../graphs/_models_2.png
     :align: center
@@ -132,21 +123,20 @@ Best models level 1
 {% set n_searches = n_searches1 %}
 {% include 'models.rst' %}
 
-
 Best pre-processing steps
 -------------------------
 
 .. csv-table:: Best pre-processing
-   :header: "process", "cv max", "eval", "test", "cv", "other", "#", "duration", "params"
-   :widths: 10, 10, 10, 10, 10, 10, 10, 10, 20
+   :header: "process", "metrics", "other", "params"
+   :stub-columns: 1
+   :widths: 20, 30, 20, 30
 
     {% for cat, best_cat_pp in best_pp %}
     **{{ cat }}**{% for r in best_cat_pp %}
-    "{{ r.cat_name}}", {{ print_score(r.cv_max) }}, {{ print_score(r.score_eval) }}, {{ print_score(r.score_test) }}, "{{print_score(r.cv_mean) }} +/- {{ print_score_std(r.cv_std) }}", "{{ print_other_metrics(r.eval_other_metrics) }}", {{ r.searches}}, "{{print_duration(r.duration_process) }}, {{print_duration(r.duration_model) }}", "{{ print_params(r.cat_params) }}" {% endfor %}{% endfor %}
+    "{{ r.cat_name}}", "cv max: {{ print_score(r.cv_max) }}, cv: {{print_score(r.cv_mean) }} +/- {{ print_score_std(r.cv_std) }}, test: {{ print_score(r.score_test) }}", "{{ print_other_metrics(r.eval_other_metrics) }}", "{{ print_params(r.cat_params) }}" {% endfor %}{% endfor %}
 
 
 {% if best2|count > 0 %}
-
 Best ensemble models
 --------------------
 
@@ -158,7 +148,4 @@ Best ensemble models
 {% for round in best1[:5] %}
 .. include:: round_{{round.round_id}}.rst
 {% endfor %}
-
 {% endif %}
-
-

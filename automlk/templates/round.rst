@@ -1,56 +1,25 @@
-**{{ round.round_id }}**
+{{round.model_name}}
+____________________
 
-Round info
-__________
+**Round info**
 
-
-cv max
-    {{ print_score(round.cv_max) }}
-
-score eval
-    {{ print_score(round.score_eval) }}
-
-score test
-    {{ print_score(round.score_test) }}
-
-cv
-    {{ print_score(round.cv_mean) }} +/- {{ print_score(round.cv_std) }}
-
-eval metrics
-    {{ print_other_metrics(round.eval_other_metrics) }}
-
-test metrics
-    {{ print_other_metrics(round.test_other_metrics) }}
-
-model
-    {{ round.solution_name }}
-
-time
-    {{ round.start_time }}
-
-pre-processing duration
-    {{ print_duration(round.duration_process ) }}
-
-modeling duration
-    {{ print_duration(round.duration_model) }}
-
-rounds
-    {{ round.num_rounds }}
-
-host
-    {{ round.host_name }}
-
-round_id
-    {{ round.round_id }}
-
-model level
-    {{ round.level }}
-
-pre-processing
-    {{ round.process_steps }}
-
-params
-    {{ round.model_params }}
+:round_id: {{ round.round_id }}
+:model level: {{ round.level }}
+:cv max: {{ print_score(round.cv_max) }}
+:score eval: {{ print_score(round.score_eval) }}
+:score test: {{ print_score(round.score_test) }}
+:cv: {{ print_score(round.cv_mean) }} +/- {{ print_score(round.cv_std) }}
+:eval metrics: {{ print_other_metrics(round.eval_other_metrics) }}
+:test metrics: {{ print_other_metrics(round.test_other_metrics) }}
+:model: {{ round.solution_name }}
+:time: {{ round.start_time }}
+:pre-processing: {{ print_duration(round.duration_process ) }}
+:modeling: {{ print_duration(round.duration_model) }}
+:rounds: {{ round.num_rounds }}
+:host: {{ round.host_name }}
+:pre-processing: {{ round.process_steps }}
+:params: {{ round.model_params }}
+:pipeline: {{ round.pipeline }}
 
 .. csv-table:: Parameters
    :header: "param", "value"
@@ -59,8 +28,7 @@ params
    "{{ col }}", "{{params[col]}}" {% endfor %}
 
 
-Pre-processing steps
-____________________
+**Pre-processing steps**
 
 {% for step in pipeline %}
 {{ step[1] }} {{ step[2] }}
@@ -68,8 +36,7 @@ ____________________
 
 {% endfor %}
 
-Feature importance
-__________________
+**Feature importance**
 
 {% if features|count > 0 %}
 
@@ -82,8 +49,7 @@ __________________
 This model has no feature importance.
 {% endif %}
 
-Prediction
-__________
+**Prediction**
 
 .. figure:: ../graphs/predict_eval_{{round.round_id}}.png
     :align: center
@@ -101,8 +67,7 @@ __________
     prediction on test set
 
 
-Prediction
-__________
+**Prediction**
 
 .. figure:: ../graphs/hist_eval_{{round.round_id}}.png
     :align: center

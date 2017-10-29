@@ -1,10 +1,11 @@
 from .config import *
 from .store import *
-from .dataset import get_dataset_ids, get_dataset
+from .dataset import get_dataset_ids, get_dataset, create_dataset_sets
 from .solutions import *
 from .solutions_pp import *
 from .worker import get_search_rounds
 from .monitor import heart_beep
+from .graphs import graph_history_search
 
 PATIENCE_RANDOM = 100
 PATIENCE_ENSEMBLE = 100
@@ -27,16 +28,16 @@ def launch_controller():
             time.sleep(1)
             continue
 
-        # get next dataset to search
-        i_dataset += 1
-        if i_dataset > len(active) - 1:
-            i_dataset = 0
-
-        # retrieves dataset and status of search
-        dataset_id = active[i_dataset]
-
         # sends work to the workers when their queue is empty
         if llen_key_store(SEARCH_QUEUE) == 0:
+            # get next dataset to search
+            i_dataset += 1
+            if i_dataset > len(active) - 1:
+                i_dataset = 0
+
+            # retrieves dataset and status of search
+            dataset_id = active[i_dataset]
+
             # find search job
             msg_search = __create_search_round(dataset_id)
 
@@ -62,6 +63,9 @@ def __create_search_round(dataset_id):
 
     # generate round id
     round_id = incr_key_store('dataset:%s:round_counter' % dataset_id) - 1
+    if round_id == 0:
+        # first launch: create train & eval & test set
+        create_dataset_sets(dataset)
 
     # generate model and model params
     i_round = round_id % len(search['choices'])
@@ -209,12 +213,21 @@ def __process_result(msg_result):
             n = int(len(search['choices']) / 2)
             print('focusing list of models to %d models' % n)
             search['start'] = len_search
-            search['choices'] = __get_best_models(df, search['level'])[:n]
+            search['choices'] = __get_list_best_models(df, search['level'])[:n]
+
+    # generate graphs
+    best = __get_best_models(df)
+    best1 = best[best.level == 1]
+    best2 = best[best.level == 2]
+    graph_history_search(dataset, df, best1, 1)
+    graph_history_search(dataset, df, best2, 2)
 
     # then update search
     set_key_store('dataset:%s:search' % dataset.dataset_id, search)
     set_key_store('dataset:%s:results' % dataset_id, len(df))
     set_key_store('dataset:%s:level' % dataset_id, search['level'])
+    set_key_store('dataset:%s:best' % dataset_id, best.to_dict(orient='records'))
+    set_key_store('dataset:%s:best_pp' % dataset_id, __get_best_pp(df))
 
 
 def __get_outlier_threshold(df):
@@ -238,13 +251,67 @@ def __get_last_best(df, level):
     return best, i_best
 
 
-def __get_best_models(df, level):
+def __get_list_best_models(df, level):
     # returns best models
     if len(df) < 1:
         return []
-
-    best = df[df.level == level].sort_values(by=['solution', 'cv_max']).groupby('solution',
-                                                                                as_index=False).first().sort_values(
-        by='cv_max')
+    best = df[df.level == level].sort_values(by=['solution', 'cv_max']).groupby('solution',as_index=False).first().sort_values(by='cv_max')
 
     return list(best.solution.values)
+
+
+def __get_best_models(df):
+    # get the best results per model
+    if len(df) < 1:
+        return pd.DataFrame()
+    best = df.sort_values(by=['model_name', 'cv_max']).groupby('model_name', as_index=False).first().sort_values(
+        by='cv_max').fillna('')
+    counts = df[['model_name', 'round_id']].groupby('model_name', as_index=False).count()
+    counts.columns = ['model_name', 'searches']
+    # relative performance
+    best['rel_score'] = abs(100 * (best.cv_max - best.cv_max.max()) / (best.cv_max.max() - best.cv_max.min()))
+    return pd.merge(best, counts, on='model_name')
+
+
+def __get_best_pp(df):
+    # get the best results per pre-processing
+
+    df = df[df.level == 1].copy()
+    if len(df) < 1:
+        return []
+
+    # find categories used for this model
+    cat = []
+    for p in df.pipeline.values:
+        cat += [s[1] for s in p if not isinstance(s, dict)]
+    cat = set(cat)
+
+    # for each category, we will want to find the best model
+    all_cat = []
+    for c in ['text', 'categorical', 'missing', 'scaling', 'feature']:
+        if c in cat:
+            df['cat_ref'] = df['pipeline'].map(lambda x: __select_cat(c, x)[0])
+            df['cat_name'] = df['pipeline'].map(lambda x: __select_cat(c, x)[1])
+            df['cat_process'] = df['pipeline'].map(lambda x: __select_cat(c, x)[2])
+            df['cat_params'] = df['pipeline'].map(lambda x: __select_cat(c, x)[3])
+
+            best = df.sort_values(by=['cat_ref', 'cv_max']).groupby('cat_ref', as_index=False).first().sort_values(
+                by='cv_max').fillna('')
+
+            counts = df[['cat_ref', 'round_id']].groupby('cat_ref', as_index=False).count()
+            counts.columns = ['cat_ref', 'searches']
+
+            # relative performance
+            best['rel_score'] = abs(100 * (best.cv_max - best.cv_max.max()) / (best.cv_max.max() - best.cv_max.min()))
+
+            all_cat.append((c, pd.merge(best, counts, on='cat_ref').to_dict(orient='records')))
+
+    return all_cat
+
+
+def __select_cat(c, pipeline):
+    # select the element in the pipeline with category c
+    for p in pipeline:
+        if p[1] == c:
+            return p
+    return '', '', '', ''

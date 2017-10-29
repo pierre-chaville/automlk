@@ -21,7 +21,7 @@ text encoding:
     *size, iter, window, min_count, sg, workers*
 
 **Doc2Vec**
-    *size, iter, window, min_count, sg, dm, workers*
+    *size, iter, window, min_count, dm, workers*
 
 
 imputing missing values:

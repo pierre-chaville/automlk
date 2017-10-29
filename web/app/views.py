@@ -5,9 +5,9 @@ import uuid
 from flask import render_template, send_file, redirect, request, abort, flash, send_from_directory
 from automlk.results import *
 from automlk.doc import gener_doc
-from .form import CreateDatasetForm, UpdateDatasetForm, ResetDatasetForm, DeleteDatasetForm, ConfigForm, ImportForm, DomainForm
+from .form import *
 from automlk.context import get_uploads_folder, get_dataset_folder, get_config, set_config
-from automlk.dataset import get_dataset_list, get_dataset, delete_dataset, update_dataset, reset_dataset
+from automlk.dataset import get_dataset_list, get_dataset, delete_dataset, update_dataset, reset_dataset, update_feature_dataset
 from automlk.worker import get_search_rounds
 from automlk.graphs import graph_history_search
 from automlk.store import set_key_store
@@ -42,40 +42,38 @@ def pause(dataset_id):
     return redirect('/index')
 
 
-@app.route('/gendoc/<string:dataset_id>', methods=['GET', 'POST'])
+@app.route('/gendoc/<string:dataset_id>', methods=['GET'])
 def gendoc(dataset_id):
     dataset = get_dataset(dataset_id)
     gener_doc(dataset)
     return redirect('/dataset/%s#doc' % dataset_id)
 
 
-@app.route('/dataset/<string:dataset_id>', methods=['GET', 'POST'])
+@app.route('/dataset/<string:dataset_id>', methods=['GET'])
 def dataset(dataset_id):
     # zoom on a specific dataset
     dataset = get_dataset(dataset_id)
     search = get_search_rounds(dataset.dataset_id)
     doc_path = os.path.abspath(get_dataset_folder(dataset_id) + '/docs/_build/html/index.html')
+    doc_pdf = os.path.abspath(get_dataset_folder(dataset_id) + '/docs/_build/latex/dataset.pdf')
+    form = EditFeatureForm()
     if not os.path.exists(doc_path):
         doc_path = ''
+    if not os.path.exists(doc_pdf):
+        doc_pdf = ''
     if len(search) > 0:
-        best = get_best_models(search)
-        best_pp = get_best_pp(search.copy())
+        best = get_best_models(dataset_id)
+        best_pp = get_best_pp(dataset_id)
         # separate models (level 0) from ensembles (level 1)
-        best1 = best[best.level == 1]
-        best2 = best[best.level == 2]
-        graph_history_search(dataset, search, best1, 1)
-        graph_history_search(dataset, search, best2, 2)
-        return render_template('dataset.html', dataset=dataset, best1=best1.to_dict(orient='records'),
-                               best2=best2.to_dict(orient='records'), best_pp=best_pp,
-                               n_searches1=len(search[search.level == 1]),
-                               n_searches2=len(search[search.level == 2]),
-                               doc_path=doc_path, refresher=int(time.time()), config=get_config())
-    else:
-        return render_template('dataset.html', dataset=dataset, n_searches1=0, doc_path=doc_path,
+        best1 = [b for b in best if b['level'] == 1]
+        best2 = [b for b in best if b['level'] == 2]
+        return render_template('dataset.html', dataset=dataset, best1=best1, best2=best2, best_pp=best_pp,
+                               n_searches1=len(search[search.level == 1]), n_searches2=len(search[search.level == 2]),
+                               form=form, doc_path=doc_path, doc_pdf=doc_pdf,
                                refresher=int(time.time()), config=get_config())
-
-
-# TODO: graph per parameter
+    else:
+        return render_template('dataset.html', dataset=dataset, n_searches1=0, doc_path=doc_path, form=form,
+                               refresher=int(time.time()), config=get_config())
 
 
 @app.route('/details/<string:prm>', methods=['GET'])
@@ -144,11 +142,15 @@ def get_img_round(prm):
     return send_file(__path_data(dataset_id) + '/graphs/%s_%s.png' % (graph_type, round_id), mimetype='image/png')
 
 
+@app.route('/get_doc_html/<string:dataset_id>', methods=['GET'])
+def get_doc(dataset_id):
+    # return html doc as zip file
+    return send_file(__path_data(dataset_id) + '/doc.zip', as_attachment=True)
+
+
 @app.route('/get_doc_pdf/<string:dataset_id>', methods=['GET'])
 def get_doc_pdf(dataset_id):
     # retrieves the pdf document of the dataset
-    # return send_from_directory(directory=__path_data(dataset_id) + '/docs/_build/latex', filename='dataset.pdf')
-    print('send attachement')
     return send_file(__path_data(dataset_id) + '/docs/_build/latex/dataset.pdf', as_attachment=True)
 
 
@@ -204,25 +206,25 @@ def create_dataset_form(form):
                 else:
                     form.filename_submit.data = ''
 
-            dt = create_dataset(name=form.name.data,
-                                domain=form.domain.data,
-                                description=form.description.data,
-                                source=form.source.data,
-                                url=form.url.data,
-                                problem_type=form.problem_type.data,
-                                metric=form.metric.data,
-                                other_metrics=form.other_metrics.data,
-                                mode=form.mode.data,
-                                filename_train=form.filename_train.data,
-                                holdout_ratio=form.holdout_ratio.data / 100.,
-                                filename_cols=form.filename_cols.data,
-                                filename_test=form.filename_test.data,
-                                filename_submit=form.filename_submit.data,
-                                col_submit=form.col_submit.data,
-                                cv_folds=form.cv_folds.data,
-                                y_col=form.y_col.data,
-                                val_col=form.val_col.data,
-                                val_col_shuffle=form.val_col_shuffle.data)
+            create_dataset(name=form.name.data,
+                           domain=form.domain.data,
+                           description=form.description.data,
+                           source=form.source.data,
+                           url=form.url.data,
+                           problem_type=form.problem_type.data,
+                           metric=form.metric.data,
+                           other_metrics=form.other_metrics.data,
+                           mode=form.mode.data,
+                           filename_train=form.filename_train.data,
+                           holdout_ratio=form.holdout_ratio.data / 100.,
+                           filename_cols=form.filename_cols.data,
+                           filename_test=form.filename_test.data,
+                           filename_submit=form.filename_submit.data,
+                           col_submit=form.col_submit.data,
+                           cv_folds=form.cv_folds.data,
+                           y_col=form.y_col.data,
+                           val_col=form.val_col.data,
+                           val_col_shuffle=form.val_col_shuffle.data)
             return redirect('index')
         except Exception as e:
             flash(e)
@@ -272,7 +274,6 @@ def duplicate(dataset_id):
 def update(dataset_id):
     # form to update a dataset
     form = UpdateDatasetForm()
-
     if request.method == 'POST':
         if form.validate():
             update_dataset(dataset_id,
@@ -293,6 +294,19 @@ def update(dataset_id):
         form.source.data = dataset.source
         form.url.data = dataset.url
     return render_template('update.html', form=form, config=get_config())
+
+
+@app.route('/edit_feature/<string:dataset_id>', methods=['POST'])
+def edit_feature(dataset_id):
+    # edit the description of a column
+    form = EditFeatureForm()
+    if form.validate():
+        update_feature_dataset(dataset_id,
+                             name=form.name.data,
+                             description=form.description.data,
+                             to_keep=form.to_keep.data,
+                             col_type=form.col_type.data)
+        return redirect('/dataset/%s#features' % dataset_id)
 
 
 @app.route('/reset', methods=['POST'])
