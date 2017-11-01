@@ -158,6 +158,11 @@ def get_doc_pdf(dataset_id):
 def get_submit(prm):
     # download the submit file
     dataset_id, round_id = prm.split(';')
+    # TODO: remove - this is a temporary hack
+    csv = __path_data(dataset_id) + '/submit/submit_%s.csv' % round_id
+    df = pd.read_csv(csv)
+    df['id'] = df['id'].map(int)
+    df.to_csv(csv, index=False)
     return send_file(__path_data(dataset_id) + '/submit/submit_%s.csv' % round_id,
                      as_attachment=True, attachment_filename='submit_%s_%s.csv' % (dataset_id, round_id))
 

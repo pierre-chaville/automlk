@@ -34,7 +34,14 @@ def clean_text(s, first_words=0):
 
 
 def model_word2vec(text, params):
-    # generate a word2vec model from a text (list of sentences)
+    """
+    generate a word2vec model from a text (list of sentences)
+
+    :param text: text, as a list of sentences (strings)
+    :param params: dictionary of parameter space for word2vec
+    :return: trained encoder model for word2vec
+    """
+    #
     print('generating word2vec')
     train_text = [clean_text(s).split() for s in text]
     model = Word2Vec(**params)
@@ -44,12 +51,20 @@ def model_word2vec(text, params):
 
 
 def vector_word2vec(model, text, params):
-    # generate an aggregate vector with words of the text
+    """
+    generate an aggregate vector with words of the text
+
+    :param model: trained word2vec model
+    :param text: text, as a list of sentences (strings)
+    :param params: parameters of the word2vec model
+    :return: array of vectors (dim text x size of word2vec)
+    """
+    #
     print('generating paragraph vectors')
     v = []
     vector_text = [clean_text(s).split() for s in text]
     for s in vector_text:
-        ww = np.zeros((params['size']))
+        ww = model.size #np.zeros((params['size']))
         n = 0
         for k, w in enumerate(s):
             if w in model.wv:

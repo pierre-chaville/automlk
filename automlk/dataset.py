@@ -8,7 +8,7 @@ import shutil
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 from .config import METRIC_NULL
-from .context import get_dataset_folder, get_data_folder
+from .context import get_dataset_folder, get_data_folder, XySet
 from .metrics import metric_map
 from .graphs import graph_correl_features, graph_histogram
 from .store import *
@@ -81,7 +81,7 @@ def create_dataset_sets(dt):
     :return:
     """
     # create train & test set
-    X_train, X_test, y_train, y_test, X_submit, id_submit = __create_train_test(dt)
+    X, y, X_train, X_test, y_train, y_test, X_submit, id_submit = __create_train_test(dt)
 
     # prepare y values
     y_train, y_test = __prepare_y(dt, y_train, y_test)
@@ -93,11 +93,11 @@ def create_dataset_sets(dt):
     y_eval_list, y_eval, idx_eval = __store_eval_set(dt, y_train, y_test, cv_folds)
 
     # then store all these results in a pickle store
-    pickle.dump([X_train, X_test, y_train, y_test, X_submit, id_submit, cv_folds, y_eval_list, y_eval, idx_eval],
-                open(get_dataset_folder(dt.dataset_id) + '/data/eval_set.pkl', 'wb'))
+    ds = XySet(X, y, X_train, y_train, X_test, y_test, X_submit, id_submit, cv_folds, y_eval_list, y_eval, idx_eval)
+    pickle.dump(ds, open(get_dataset_folder(dt.dataset_id) + '/data/eval_set.pkl', 'wb'))
 
 
-def get_dataset(dataset_id):
+def get_dataset(dataset_id: object) -> object:
     """
     get the descriptive data of a dataset
 
@@ -213,6 +213,8 @@ def reset_dataset(dataset_id):
         del_key_store('dataset:%s:round_counter' % dataset_id)
     if exists_key_store('dataset:%s:rounds' % dataset_id):
         del_key_store('dataset:%s:rounds' % dataset_id)
+    if exists_key_store('dataset:%s:search' % dataset_id):
+        del_key_store('dataset:%s:search' % dataset_id)
 
     # create graphs
     dt = get_dataset(dataset_id)
@@ -241,6 +243,8 @@ def delete_dataset(dataset_id):
         del_key_store('dataset:%s:round_counter' % dataset_id)
     if exists_key_store('dataset:%s:rounds' % dataset_id):
         del_key_store('dataset:%s:rounds' % dataset_id)
+    if exists_key_store('dataset:%s:search' % dataset_id):
+        del_key_store('dataset:%s:search' % dataset_id)
 
 
 def get_dataset_list(include_status=False):
@@ -449,7 +453,7 @@ class DataSet(object):
                                'n_cat_cols': self.n_cat_cols, 'n_missing': self.n_missing,
                                'with_test_set': self.with_test_set, 'x_cols': self.x_cols, 'text_cols': self.text_cols,
                                'cat_cols': self.cat_cols, 'missing_cols': self.missing_cols,
-                               'self.best_is_min': self.best_is_min, 'is_y_categorical': self.is_y_categorical,
+                               'best_is_min': self.best_is_min, 'is_y_categorical': self.is_y_categorical,
                                'y_n_classes': self.y_n_classes, 'y_class_names': self.y_class_names},
                  'features': [{'name': f.name, 'raw_type': str(f.raw_type), 'n_missing': int(f.n_missing),
                                'n_unique_values': int(f.n_unique_values), 'first_unique_values': f.first_unique_values,
@@ -650,6 +654,9 @@ def __create_train_test(dataset):
 
         X_test = data_test[dataset.x_cols]
         y_test = data_test[dataset.y_col].values
+
+        X = X_train.copy()
+        y = y_train.copy()
     else:
         X = data_train[dataset.x_cols]
         y = data_train[dataset.y_col].values
@@ -672,7 +679,7 @@ def __create_train_test(dataset):
         X_submit = []
         id_submit = []
 
-    return X_train, X_test, y_train, y_test, X_submit, id_submit
+    return X, y, X_train, X_test, y_train, y_test, X_submit, id_submit
 
 
 def __create_cv(dataset, X_train, y_train):

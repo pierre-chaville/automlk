@@ -25,8 +25,8 @@
                 <td width="50%">
                     <table class="table table-bordered table-striped table-hover">
                         <tr>
-                            <td>cv max</td>
-                            <td>{{ print_score(round.cv_max) }}</td>
+                            <td>cv</td>
+                            <td>{{ print_score(round.cv_mean) }} +/- {{ print_score(round.cv_std) }}, {{ print_score(round.cv_max) }}</td>
                         </tr>
                         <tr>
                             <td>score eval</td>
@@ -35,10 +35,6 @@
                         <tr>
                             <td>score test</td>
                             <td>{{ print_score(round.score_test) }}</td>
-                        </tr>
-                        <tr>
-                            <td>cv</td>
-                            <td>{{ print_score(round.cv_mean) }} +/- {{ print_score(round.cv_std) }}</td>
                         </tr>
                         <tr>
                             <td>eval metrics</td>
@@ -50,7 +46,7 @@
                         </tr>
                         <tr>
                             <td>model</td>
-                            <td>{{ round.solution_name }}</td>
+                            <td>{{ round.model_name }}</td>
                         </tr>
                         <tr>
                             <td>time</td>
@@ -63,10 +59,6 @@
                         <tr>
                             <td>modeling duration</td>
                             <td>{{ print_duration(round.duration_model) }}</td>
-                        </tr>
-                        <tr>
-                            <td>rounds</td>
-                            <td>{{ round.num_rounds }}</td>
                         </tr>
                         <tr>
                             <td>host</td>
@@ -82,7 +74,7 @@
                         </tr>
                         <tr>
                             <td>pre-processing</td>
-                            <td>{{ round.process_steps }}</td>
+                            <td width="70%">{{ round.pipeline }}</td>
                         </tr>
                         <tr>
                             <td>params</td>

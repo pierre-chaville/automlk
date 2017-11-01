@@ -3,50 +3,49 @@
 <h3><a href="/">Home</a> > <a href="/dataset/{{dataset.dataset_id}}#models">{{dataset.name}}</a> > {{ process }}</h3>
 
 <div class="table-responsive">
-<table class="table table-bordered">
-    <thead>
-    <th style="vertical-align:top; text-align:center">cv max</th>
-    <th style="vertical-align:top; text-align:center">eval</th>
-    <th style="vertical-align:top; text-align:center">test</th>
-    <th style="vertical-align:top; text-align:center">cv</th>
-    <th style="vertical-align:top; text-align:center">metrics</th>
-    <th style="vertical-align:top; text-align:center">duration</th>
-    {% for col in cols %}
-    <th style="vertical-align:top; text-align:center">{{ col }}</th>
-    {% endfor %}
-    </thead>
-    {% for r in best %}
-    <tr>
-        <td style="text-align:center"><a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{print_score(r.cv_max)}}</a>
-            <div class="progress" style="height:5px">
-                <div class="progress-bar progress-bar-success" role="progressbar" style="width:{{ r.rel_score }}%">
-                </div>
-            </div>
-        </td>
-        <td style="text-align:center">
-            <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{print_score(r.score_eval)}}</a>
-        </td>
-        <td style="text-align:center">
-            <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{print_score(r.score_test)}}</a>
-        </td>
-        <td style="text-align:center">
-            <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{print_score(r.cv_mean)}} +/-{{print_score(r.cv_std)}}</a>
-        </td>
-        <td>
-            <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{ print_other_metrics(r.eval_other_metrics) }}</a>
-        </td>
-        <td style="text-align:center">
-            <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{print_duration(r.duration_process)}}
-                <br>{{print_duration(r.duration_model)}}</a>
-        </td>
+    <table class="table table-bordered">
+        <thead>
+        <th style="vertical-align:top; text-align:center">cv</th>
+        <th style="vertical-align:top; text-align:center">eval</th>
+        <th style="vertical-align:top; text-align:center">test</th>
+        <th style="vertical-align:top; text-align:center">metrics</th>
+        <th style="vertical-align:top; text-align:center">duration</th>
         {% for col in cols %}
-        <td style="text-align:center">
-            <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{r[col]}}</a>
-        </td>
+        <th style="vertical-align:top; text-align:center">{{ col }}</th>
         {% endfor %}
-    </tr>
-    {% endfor %}
-</table>
+        </thead>
+        {% for r in best %}
+        <tr>
+            <td  width="15%" style="text-align:center"><a href="/round/{{dataset.dataset_id}};{{r.round_id}}"
+                                             style="color:inherit; text-decoration: none;">
+                {{print_score(r.cv_mean)}} +/-{{print_score(r.cv_std)}}<br>{{print_score(r.cv_max)}}</a>
+                <div class="progress" style="height:8px">
+                    <div class="progress-bar progress-bar-success" role="progressbar" style="width:{{ r.rel_score }}%">
+                    </div>
+                </div>
+            </td>
+            <td style="text-align:center">
+                <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{print_score(r.score_eval)}}</a>
+            </td>
+            <td style="text-align:center">
+                <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{print_score(r.score_test)}}</a>
+            </td>
+            <td width="15%" >
+                <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{
+                    print_other_metrics(r.eval_other_metrics) }}</a>
+            </td>
+            <td style="text-align:center">
+                <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{print_duration(r.duration_process)}}
+                    <br>{{print_duration(r.duration_model)}}</a>
+            </td>
+            {% for col in cols %}
+            <td style="text-align:center">
+                <a href="/round/{{dataset.dataset_id}};{{r.round_id}}" style="color:inherit; text-decoration: none;">{{r[col]}}</a>
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </table>
 </div>
 {% endblock %}
 

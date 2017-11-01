@@ -4,7 +4,7 @@ from .dataset import get_dataset_ids, get_dataset, create_dataset_sets
 from .solutions import *
 from .solutions_pp import *
 from .worker import get_search_rounds
-from .monitor import heart_beep
+from .monitor import heart_beep, set_installed_version
 from .graphs import graph_history_search
 
 PATIENCE_RANDOM = 100
@@ -16,6 +16,8 @@ def launch_controller():
     controller process: manages the search strategy and send instruction to workers
     :return:
     """
+    # update installed version on disk to synchronize automatically the version of the controllers
+    set_installed_version()
 
     i_dataset = -1
     # controls the optimization rounds and sends instructions to the workers

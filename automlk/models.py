@@ -79,19 +79,20 @@ class Model(object):
         self.importance = None
 
     @abstractmethod
-    def cv(self, X, y, X_test, y_test, X_submit, cv_folds, threshold):
+    def cv(self, ds, threshold):
         # performs a cross validation on cv_folds, and predict also on X_test
         y_pred_eval, y_pred_test, y_pred_submit = [], [], []
-        for i, (train_index, eval_index) in enumerate(cv_folds):
+        for i, (train_index, eval_index) in enumerate(ds.cv_folds):
             if i == 0 and self.early_stopping:
                 print('early stopping round')
                 # with early stopping, we perform an initial round to get number of rounds
-                self.fit_early_stopping(X[train_index], y[train_index], X[eval_index], y[eval_index])
+                self.fit_early_stopping(ds.X_train[train_index], ds.y_train[train_index],
+                                        ds.X_train[eval_index], ds.y_train[eval_index])
 
                 if threshold != 0:
                     # test outlier (i.e. exceeds threshold)
-                    y_pred = self.predict(X[eval_index])
-                    score = self.dataset.evaluate_metric(y[eval_index], y_pred)
+                    y_pred = self.predict(ds.X[eval_index])
+                    score = self.dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
                     print('early stopping score: %.5f' % score)
                     if score > threshold:
                         print('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
@@ -99,12 +100,12 @@ class Model(object):
                         return True, 0, 0, 0
 
             # then train on train set and predict on eval set
-            self.fit(X[train_index], y[train_index])
-            y_pred = self.predict(X[eval_index])
+            self.fit(ds.X_train[train_index], ds.y_train[train_index])
+            y_pred = self.predict(ds.X_train[eval_index])
 
             if threshold != 0:
                 # test outlier:
-                score = self.dataset.evaluate_metric(y[eval_index], y_pred)
+                score = self.dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
                 print('fold %d score: %.5f' % (i, score))
                 if score > threshold:
                     print('%dth round found outlier: %.5f with threshold %.5f' % (i, score, threshold))
@@ -114,10 +115,21 @@ class Model(object):
             y_pred_eval.append(y_pred)
 
             # we also predict on test & submit set (to be averaged later)
-            y_pred_test.append(self.predict(X_test))
+            y_pred_test.append(self.predict(ds.X_test))
 
-            if self.dataset.filename_submit != '':
-                y_pred_submit.append(self.predict(X_submit))
+        if self.dataset.mode == 'standard':
+            # train on complete train set
+            self.fit(ds.X_train, ds.y_train)
+            y_pred_test = self.predict(ds.X_test)
+        else:
+            # train on complete X y set
+            self.fit(ds.X, ds.y)
+            if self.dataset.mode == 'competition':
+                y_pred_submit = self.predict(ds.X_submit)
+                # test = mean of y_pred_test on multiple folds
+                y_pred_test = np.mean(y_pred_test, axis=0)
+            else:
+                y_pred_test = self.predict(ds.X_test)
 
         return False, y_pred_eval, y_pred_test, y_pred_submit
 

@@ -2,8 +2,9 @@ import datetime
 import gc
 import os
 import socket
+from copy import deepcopy
 from .config import *
-from .context import HyperContext
+from .context import HyperContext, XySet
 from .dataset import get_dataset
 from .graphs import graph_pred_histogram, graph_predict
 from .solutions import *
@@ -33,22 +34,18 @@ def job_search(msg_search):
     dataset = get_dataset(msg_search['dataset_id'])
 
     # load train/eval/test data
-    X_train_ini, X_test_ini, y_train_ini, y_test_ini, X_submit_ini, id_submit, cv_folds, y_eval_list, y_eval, i_eval = pickle.load(
-        open(get_dataset_folder(msg_search['dataset_id']) + '/data/eval_set.pkl', 'rb'))
-
+    ds_ini = pickle.load(open(get_dataset_folder(msg_search['dataset_id']) + '/data/eval_set.pkl', 'rb'))
     context = HyperContext(dataset.problem_type, dataset.x_cols, dataset.cat_cols, dataset.text_cols,
                            dataset.missing_cols)
     if msg_search['level'] == 1:
         # pre-processing on level 1 only
         t_start = time.time()
-        context, X_train, y_train, X_test, y_test, X_submit = __pre_processing(context, msg_search['pipeline'],
-                                                                               X_train_ini, y_train_ini,
-                                                                               X_test_ini, y_test_ini, X_submit_ini)
+        context, ds = __pre_processing(context, msg_search['pipeline'], deepcopy(ds_ini))
         t_end = time.time()
         msg_search['duration_process'] = int(t_end - t_start)
     else:
         msg_search['duration_process'] = 0
-        X_train, y_train, X_test, y_test, X_submit = X_train_ini, y_train_ini, X_test_ini, y_test_ini, X_submit_ini
+        ds = ds_ini
 
     solution = model_solutions_map[msg_search['solution']]
     model = solution.model(dataset, context, msg_search['model_params'], msg_search['round_id'])
@@ -57,11 +54,10 @@ def job_search(msg_search):
         pool = __get_pool_models(dataset, msg_search['ensemble_depth'])
     else:
         pool = None
-    __search(dataset, solution, model, msg_search, X_train, y_train, X_test, y_test, X_submit, id_submit,
-             y_eval_list, i_eval, cv_folds, pool)
+    __search(dataset, solution, model, msg_search, ds, pool)
 
 
-def __pre_processing(context, pipeline, X_train, y_train, X_test, y_test, X_submit):
+def __pre_processing(context, pipeline, ds):
     # performs the different pre-processing steps
     context.pipeline = pipeline
     for ref, category, name, params in pipeline:
@@ -69,29 +65,26 @@ def __pre_processing(context, pipeline, X_train, y_train, X_test, y_test, X_subm
         p_class = solution.process
         process = p_class(context, params)
         print('executing process', category, name, process.params)
-        X_train = process.fit_transform(X_train, y_train)
-        X_test = process.transform(X_test)
-        if len(X_submit) > 0:
-            X_submit = process.transform(X_submit)
+        ds.X_train = process.fit_transform(ds.X_train, ds.y_train)
+        ds.X_test = process.transform(ds.X_test)
+        ds.X = process.transform(ds.X)
+        if len(ds.X_submit) > 0:
+            ds.X_submit = process.transform(ds.X_submit)
         print('-> %d features' % len(context.feature_names))
 
-    return context, X_train, y_train, X_test, y_test, X_submit
+    return context, ds
 
 
-def __search(dataset, solution, model, msg_search, X_train, y_train, X_test, y_test, X_submit, id_submit, y_eval_list,
-             i_eval, cv_folds, pool):
+def __search(dataset, solution, model, msg_search, ds, pool):
     print('optimizing with %s, params: %s' % (solution.name, model.params))
     # fit, test & score
     t_start = time.time()
     if msg_search['level'] == 2:
-        outlier, y_pred_eval_list, y_pred_test_list, y_pred_submit_list = model.cv_pool(pool, y_train, y_test, cv_folds,
+        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = model.cv_pool(pool, ds,
                                                                                         msg_search['threshold'],
                                                                                         msg_search['ensemble_depth'])
     else:
-        outlier, y_pred_eval_list, y_pred_test_list, y_pred_submit_list = model.cv(X_train, y_train,
-                                                                                   X_test, y_test,
-                                                                                   X_submit, cv_folds,
-                                                                                   msg_search['threshold'])
+        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = model.cv(ds, msg_search['threshold'])
     msg_search['num_rounds'] = model.num_rounds
 
     # check outlier
@@ -103,21 +96,19 @@ def __search(dataset, solution, model, msg_search, X_train, y_train, X_test, y_t
     y_pred_eval = np.concatenate(y_pred_eval_list)
 
     # reindex eval to be aligned with y
-    y_pred_eval[i_eval] = y_pred_eval.copy()
-
-    # mean of y_pred_test on multiple folds
-    y_pred_test = np.mean(y_pred_test_list, axis=0)
+    y_pred_eval[ds.i_eval] = y_pred_eval.copy()
 
     # generate submit file
     if dataset.filename_submit != '':
-        y_pred_submit = np.mean(y_pred_submit_list, axis=0)
         if dataset.problem_type == 'regression':
-            submit = np.concatenate((id_submit, y_pred_submit), axis=1)
+            submit = np.concatenate((ds.id_submit, y_pred_submit), axis=1)
         else:
-            l = len(id_submit)
-            submit = np.concatenate((np.reshape(id_submit, (l, 1)), np.reshape(y_pred_submit[:, 1], (l, 1))), axis=1)
+            l = len(ds.id_submit)
+            submit = np.concatenate((np.reshape(ds.id_submit, (l, 1)), np.reshape(y_pred_submit[:, 1], (l, 1))), axis=1)
         df_submit = pd.DataFrame(submit)
         df_submit.columns = [dataset.col_submit, dataset.y_col]
+        # allocate id column to avoid type conversion (to float)
+        df_submit[dataset.col_submit] = np.reshape(ds.id_submit, (l, 1))
         df_submit.to_csv(get_dataset_folder(dataset.dataset_id) + '/submit/submit_%s.csv' % model.round_id, index=False)
 
     # save model importance, prediction and model
@@ -126,14 +117,14 @@ def __search(dataset, solution, model, msg_search, X_train, y_train, X_test, y_t
     # model.save_model()
 
     # generate graphs
-    graph_predict(dataset, msg_search['round_id'], y_train, y_pred_eval, 'eval')
-    graph_predict(dataset, msg_search['round_id'], y_test, y_pred_test, 'test')
+    graph_predict(dataset, msg_search['round_id'], ds.y_train, y_pred_eval, 'eval')
+    graph_predict(dataset, msg_search['round_id'], ds.y_test, y_pred_test, 'test')
     graph_pred_histogram(dataset.dataset_id, msg_search['round_id'], y_pred_eval, 'eval')
     graph_pred_histogram(dataset.dataset_id, msg_search['round_id'], y_pred_test, 'test')
 
     t_end = time.time()
     msg_search['duration_model'] = int(t_end - t_start)
-    __evaluate_round(dataset, msg_search, y_train, y_pred_eval, y_test, y_pred_test, y_eval_list, y_pred_eval_list)
+    __evaluate_round(dataset, msg_search, ds.y_train, y_pred_eval, ds.y_test, y_pred_test, ds.y_eval_list, y_pred_eval_list)
 
 
 def __evaluate_round(dataset, msg_search, y_train, y_pred_eval, y_test, y_pred_test, y_eval_list, y_pred_eval_list):
