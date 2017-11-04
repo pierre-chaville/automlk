@@ -8,6 +8,7 @@ The framework is designed with similar principles than auto-sklearn, with the fo
 - **web interface** (flask) to review the datasets, the search results and graphs
 - **distributed architecture** with multiple search workers on multiple machines
 - can also be run on a single machine
+- **automated data analysis**, feature per feature with graphs
 - include sklearn models, but also **Xgboost, LightGBM, CatBoost and keras Neural Networks***
 - 2nd level ensembling with model selection and **stacking**
 - can be used in competition mode (to generate a submit file from a test set), on public mode (separate train set and public set) and standard mode.
@@ -47,6 +48,8 @@ The search will continue automatically until the search is completed.
 
 Requirements
 ------------
+- sklearn (>0.19)
+- seaborn
 - category_encoders
 
 optional:
@@ -55,6 +58,7 @@ optional:
 - Catboost
 - Keras with Theano or Tensorflow (Neural Networks)
 - Gensim (word2vec, doc2vec)
+- wordcloud (text word clouds)
 
 - Redis (for in memory key/value storage and queues)
 

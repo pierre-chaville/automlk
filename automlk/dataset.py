@@ -318,13 +318,13 @@ def get_dataset_sample(dataset_id):
     retrieves a sample of the dataset
 
     :param dataset_id: dataset id
-    :return: dataframe
+    :return: list of records as dictionaries
     """
     filename = get_dataset_folder(dataset_id) + '/data/sample.pkl'
     if os.path.exists(filename):
-        return pickle.load(open(filename, 'rb'))
+        return pickle.load(open(filename, 'rb')).to_dict(orient='records')
     else:
-        return pd.DataFrame()
+        return [{}]
 
 
 def get_dataset_list(include_results=False):

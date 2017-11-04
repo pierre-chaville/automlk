@@ -4,21 +4,48 @@
 
 <ul class="nav nav-tabs">
     {% if n_searches1 > 0 %}
-    <li class="active"><a data-toggle="tab" href="#models">Models</a></li>
+    <li class="active"><a data-toggle="tab" href="#models">
+        <span data-toggle="tooltip" data-placement="left" title="best models level 1">
+            <i class="fa fa-sort-amount-desc" aria-hidden="true"></i>&nbsp;1</span></a></li>
     {% if best2|count > 0 %}
-    <li><a data-toggle="tab" href="#ensembles">Ensembles</a></li>
+    <li><a data-toggle="tab" href="#ensembles">
+        <span data-toggle="tooltip" data-placement="left" title="best ensemble models">
+            <i class="fa fa-sort-amount-desc" aria-hidden="true"></i>&nbsp;2</span></a></li>
     {% endif %}
-    <li><a data-toggle="tab" href="#pp">Process</a></li>
-    <li><a data-toggle="tab" href="#graph">Search</a></li>
-    <li><a data-toggle="tab" href="#dataset">Dataset</a></li>
+    <li><a data-toggle="tab" href="#pp">
+        <span data-toggle="tooltip" data-placement="left" title="best pre-processing">
+            <i class="fa fa-sort-amount-desc" aria-hidden="true"></i>&nbsp;P</span></a></li>
+    <li><a data-toggle="tab" href="#graph">
+        <span data-toggle="tooltip" data-placement="left" title="best performance graph">
+            <i class="fa fa-line-chart" aria-hidden="true"></i></span></a></li>
+    <li><a data-toggle="tab" href="#dataset">
+        <span data-toggle="tooltip" data-placement="left" title="dataset info">
+            <i class="fa fa-info-circle" aria-hidden="true"></i></span></a></li>
     {% else %}
-    <li class="active"><a data-toggle="tab" href="#dataset">Dataset</a></li>
+    <li class="active"><a data-toggle="tab" href="#dataset">
+        <span data-toggle="tooltip" data-placement="left" title="dataset info">
+            <i class="fa fa-info-circle" aria-hidden="true"></i></span></a>
+    </li>
     {% endif %}
+    <li><a data-toggle="tab" href="#features">
+        <span data-toggle="tooltip" data-placement="left" title="dataset features">
+            <i class="fa fa-list" aria-hidden="true"></i></span></a></li>
     {% if dataset.grapher %}
-    <li><a data-toggle="tab" href="#data_x">X</a></li>
-    <li><a data-toggle="tab" href="#data_y">Y</a></li>
-    <li><a data-toggle="tab" href="#correl">X/X</a></li>
-    <li><a data-toggle="tab" href="#doc">Doc</a></li>
+    <li><a data-toggle="tab" href="#data">
+        <span data-toggle="tooltip" data-placement="left" title="sample of the dataset">
+            <i class="fa fa-table" aria-hidden="true"></i></span></a></li>
+    <li><a data-toggle="tab" href="#data_x">
+        <span data-toggle="tooltip" data-placement="left" title="graphs X / Y">
+            <i class="fa fa-bar-chart" aria-hidden="true"></i>&nbsp;X</span></a></li>
+    <li><a data-toggle="tab" href="#data_y">
+        <span data-toggle="tooltip" data-placement="left" title="graphs Y">
+            <i class="fa fa-bar-chart" aria-hidden="true"></i>&nbsp;Y</span></a></li>
+    <li><a data-toggle="tab" href="#correl">
+        <span data-toggle="tooltip" data-placement="left" title="correlations between features">
+            <i class="fa fa-random" aria-hidden="true"></i></span></a></li>
+    <li><a data-toggle="tab" href="#doc">
+        <span data-toggle="tooltip" data-placement="left" title="dataset documentation">
+            <i class="fa fa-file-pdf-o" aria-hidden="true"></i></span></a></li>
     {% endif %}
 </ul>
 
@@ -262,6 +289,9 @@
             {% endfor %}
         </table>
     </div>
+    <div id="data" class="tab-pane">
+        {% include "sample.html" %}
+    </div>
     <div id="data_x" class="tab-pane">
         {% include "data.html" %}
     </div>
@@ -300,6 +330,7 @@ $(".modal-body #raw_type").val($(this).data('raw_type'));
 $(".modal-body #col_type").val($(this).data('col_type'));
 $(".modal-body #description").val($(this).data('description'));
 });
+
 
 
 </script>
@@ -351,6 +382,7 @@ $(".modal-body #description").val($(this).data('description'));
       window.location.reload();
     }, 300000);
 
+
 </script>
 {% endif %}
 
@@ -361,6 +393,7 @@ $(".modal-body #description").val($(this).data('description'));
     }
 
 });
+
 
 </script>
 

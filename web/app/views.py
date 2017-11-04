@@ -77,7 +77,7 @@ def dataset(dataset_id):
                                sample=sample, refresher=int(time.time()), config=get_config())
     else:
         return render_template('dataset.html', dataset=dataset, n_searches1=0, doc_path=doc_path, form=form,
-                               data_form=data_form, refresher=int(time.time()), config=get_config())
+                               data_form=data_form, sample=sample, refresher=int(time.time()), config=get_config())
 
 
 @app.route('/column/<string:dataset_id>/<string:col>', methods=['GET'])
