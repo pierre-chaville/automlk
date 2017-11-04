@@ -1,4 +1,4 @@
 import sys
-from automlk.worker import worker
+from automlk.worker import launch_worker
 
-worker()
+launch_worker()

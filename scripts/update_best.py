@@ -8,6 +8,7 @@ module specifically designed to update search graphs and best models and pp
 after new version (results are calculated by the controller)
 """
 
+
 def __get_best_models(df):
     # get the best results per model
     if len(df) < 1:
@@ -65,7 +66,7 @@ def __select_cat(c, pipeline):
     return '', '', '', ''
 
 
-for dt in get_dataset_list(include_status=True):
+for dt in get_dataset_list(include_results=True):
     if dt.status != 'created':
         print(dt.name)
         # get search history

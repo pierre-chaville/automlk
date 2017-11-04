@@ -2,12 +2,13 @@ from app import app
 import time
 import os
 import uuid
-from flask import render_template, send_file, redirect, request, abort, flash, send_from_directory
+from flask import render_template, send_file, redirect, request, abort, flash, send_from_directory, jsonify
 from automlk.results import *
 from automlk.doc import gener_doc
 from .form import *
 from automlk.context import get_uploads_folder, get_dataset_folder, get_config, set_config
-from automlk.dataset import get_dataset_list, get_dataset, delete_dataset, update_dataset, reset_dataset, update_feature_dataset
+from automlk.dataset import get_dataset_list, get_dataset, delete_dataset, update_dataset, reset_dataset, \
+    update_feature_dataset, get_dataset_sample
 from automlk.worker import get_search_rounds
 from automlk.graphs import graph_history_search
 from automlk.store import set_key_store
@@ -19,7 +20,7 @@ from automlk.monitor import get_heart_beeps
 @app.route('/index', methods=['GET', 'POST'])
 def index():
     # home page: list of models
-    datasets = get_dataset_list(include_status=True)[::-1]
+    datasets = get_dataset_list(include_results=True)[::-1]
     sel_form = DomainForm()
     sel_form.set_choices([d.domain for d in datasets])
     del_form = DeleteDatasetForm()
@@ -57,6 +58,9 @@ def dataset(dataset_id):
     doc_path = os.path.abspath(get_dataset_folder(dataset_id) + '/docs/_build/html/index.html')
     doc_pdf = os.path.abspath(get_dataset_folder(dataset_id) + '/docs/_build/latex/dataset.pdf')
     form = EditFeatureForm()
+    data_form = DataForm()
+    data_form.set_choices([f.name for f in dataset.features if f.to_keep and f.name != dataset.y_col])
+    sample = get_dataset_sample(dataset_id)
     if not os.path.exists(doc_path):
         doc_path = ''
     if not os.path.exists(doc_pdf):
@@ -69,11 +73,23 @@ def dataset(dataset_id):
         best2 = [b for b in best if b['level'] == 2]
         return render_template('dataset.html', dataset=dataset, best1=best1, best2=best2, best_pp=best_pp,
                                n_searches1=len(search[search.level == 1]), n_searches2=len(search[search.level == 2]),
-                               form=form, doc_path=doc_path, doc_pdf=doc_pdf,
-                               refresher=int(time.time()), config=get_config())
+                               form=form, data_form=data_form, doc_path=doc_path, doc_pdf=doc_pdf,
+                               sample=sample, refresher=int(time.time()), config=get_config())
     else:
         return render_template('dataset.html', dataset=dataset, n_searches1=0, doc_path=doc_path, form=form,
-                               refresher=int(time.time()), config=get_config())
+                               data_form=data_form, refresher=int(time.time()), config=get_config())
+
+
+@app.route('/column/<string:dataset_id>/<string:col>', methods=['GET'])
+def column(dataset_id, col):
+    # gets the features
+    dataset = get_dataset(dataset_id)
+    if col == "None":
+        return jsonify([f for f in dataset.features if f.to_keep and f.name != dataset.y_col][0].__dict__)
+    for f in dataset.features:
+        if f.name == col:
+            return jsonify(f.__dict__)
+    return jsonify()
 
 
 @app.route('/details/<string:prm>', methods=['GET'])
@@ -133,6 +149,12 @@ def get_img_dataset(prm):
     # retrieves the graph at dataset level from dataset_id;round_id, where dataset_id is dataset id and round_id is round id
     dataset_id, graph_type = prm.split(';')
     return send_file(__path_data(dataset_id) + '/graphs/_%s.png' % graph_type, mimetype='image/png')
+
+
+@app.route('/get_img_data/<string:dataset_id>/<string:col>', methods=['GET'])
+def get_img_data(dataset_id, col):
+    # retrieves the graph of col data
+    return send_file(__path_data(dataset_id) + '/graphs/_col_%s.png' % col, mimetype='image/png')
 
 
 @app.route('/get_img_round/<string:prm>', methods=['GET'])
@@ -307,10 +329,10 @@ def edit_feature(dataset_id):
     form = EditFeatureForm()
     if form.validate():
         update_feature_dataset(dataset_id,
-                             name=form.name.data,
-                             description=form.description.data,
-                             to_keep=form.to_keep.data,
-                             col_type=form.col_type.data)
+                               name=form.name.data,
+                               description=form.description.data,
+                               to_keep=form.to_keep.data,
+                               col_type=form.col_type.data)
         return redirect('/dataset/%s#features' % dataset_id)
 
 

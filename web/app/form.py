@@ -109,3 +109,11 @@ class DomainForm(FlaskForm):
 
     def set_choices(self, choices):
         self.domain.choices = [(x, x) for x in set([''] + choices)]
+
+
+class DataForm(FlaskForm):
+    # form to select domain
+    col = SelectField(choices=[])
+
+    def set_choices(self, choices):
+        self.col.choices = [(x, x) for x in choices]

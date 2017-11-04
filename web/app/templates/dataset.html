@@ -11,15 +11,13 @@
     <li><a data-toggle="tab" href="#pp">Process</a></li>
     <li><a data-toggle="tab" href="#graph">Search</a></li>
     <li><a data-toggle="tab" href="#dataset">Dataset</a></li>
-    <li><a data-toggle="tab" href="#features">Features</a></li>
-    <li><a data-toggle="tab" href="#data">Data</a></li>
-    <li><a data-toggle="tab" href="#correl">Correlations</a></li>
-    <li><a data-toggle="tab" href="#doc">Doc</a></li>
     {% else %}
     <li class="active"><a data-toggle="tab" href="#dataset">Dataset</a></li>
-    <li><a data-toggle="tab" href="#features">Features</a></li>
-    <li><a data-toggle="tab" href="#data">Data</a></li>
-    <li><a data-toggle="tab" href="#correl">Correlations</a></li>
+    {% endif %}
+    {% if dataset.grapher %}
+    <li><a data-toggle="tab" href="#data_x">X</a></li>
+    <li><a data-toggle="tab" href="#data_y">Y</a></li>
+    <li><a data-toggle="tab" href="#correl">X/X</a></li>
     <li><a data-toggle="tab" href="#doc">Doc</a></li>
     {% endif %}
 </ul>
@@ -71,67 +69,67 @@
                 <td width="50%">
                     <table class="table">
                         <tr>
-                            <td>Name</td>
+                            <td><label>Name</label></td>
                             <td>{{dataset.name}}</td>
                         </tr>
                         <tr>
-                            <td>Id</td>
+                            <td><label>Id</label><</td>
                             <td>{{dataset.dataset_id}}</td>
                         </tr>
                         <tr>
-                            <td>Description</td>
+                            <td><label>Description</label></td>
                             <td width="80%">{{dataset.description}}</td>
                         </tr>
                         <tr>
-                            <td>Url</td>
+                            <td><label>Url</label></td>
                             <td><a target="_blank" href="{{dataset.url}}">{{dataset.url}}</a></td>
                         </tr>
                         <tr>
-                            <td>Mode</td>
+                            <td><label>Mode</label></td>
                             <td>{{dataset.mode}}</td>
                         </tr>
                         <tr>
-                            <td>Train set</td>
+                            <td><label>Train set</label></td>
                             <td>{{dataset.filename_train}}</td>
                         </tr>
                         {% if dataset.filename_test != '' %}
                         <tr>
-                            <td>Test set</td>
+                            <td><label>Test set</label></td>
                             <td>{{dataset.filename_test}}</td>
                         </tr>
                         {% endif %}
                         {% if dataset.filename_submit != '' %}
                         <tr>
-                            <td>Submit set</td>
+                            <td><label>Submit set</label></td>
                             <td>{{dataset.filename_submit}}</td>
                         </tr>
                         <tr>
-                            <td>Column submit</td>
+                            <td><label>Column submit</label></td>
                             <td>{{dataset.col_submit}}</td>
                         </tr>
                         {% endif %}
                         <tr>
-                            <td>Size</td>
+                            <td><label>Size</label></td>
                             <td>{{dataset.size}} MB</td>
                         </tr>
                         <tr>
-                            <td>Rows</td>
+                            <td><label>Rows</label></td>
                             <td>{{dataset.n_rows}} K</td>
                         </tr>
                         <tr>
-                            <td>Columns</td>
+                            <td><label>Columns</label></td>
                             <td>{{dataset.n_cols}}</td>
                         </tr>
                         <tr>
-                            <td>Categorical</td>
+                            <td><label>Categorical</label></td>
                             <td>{{dataset.n_cat_cols}}</td>
                         </tr>
                         <tr>
-                            <td>Text</td>
+                            <td><label>Text</label></td>
                             <td>{{dataset.text_cols|count}}</td>
                         </tr>
                         <tr>
-                            <td>Missing</td>
+                            <td><label>Missing</label></td>
                             <td>{{dataset.n_missing}}</td>
                         </tr>
                     </table>
@@ -139,52 +137,52 @@
                 <td width="50%">
                     <table class="table">
                         <tr>
-                            <td>Problem</td>
+                            <td><label>Problem</label></td>
                             <td>{{dataset.problem_type}}</td>
                         </tr>
                         <tr>
-                            <td>Target column</td>
+                            <td><label>Target column</label></td>
                             <td>{{dataset.y_col}}</td>
                         </tr>
                         {% if dataset.problem_type == 'classification' %}
                         <tr>
-                            <td>Number classes</td>
+                            <td><label>Number classes</td>
                             <td>{{dataset.y_n_classes}}</td>
                         </tr>
                         <tr>
-                            <td>Classes</td>
+                            <td><label>Classes</label></td>
                             <td>{{ print_list(dataset.y_class_names[:10]) }}</td>
                         </tr>
                         <tr>
-                            <td>Is categorical</td>
+                            <td><label>Is categorical</label></td>
                             <td>{{dataset.is_y_categorical}}</td>
                         </tr>
                         {% endif %}
 
                         <tr>
-                            <td>Validation column</td>
+                            <td><label>Validation column</label></td>
                             <td>{{dataset.val_col}}</td>
                         </tr>
                         <tr>
-                            <td>Shuffle val col</td>
+                            <td><label>Shuffle val col</label></td>
                             <td>{{dataset.val_col_shuffle}}</td>
                         </tr>
                         <tr>
-                            <td>Metric</td>
+                            <td><label>Metric</label></td>
                             <td>{{dataset.metric}}</td>
                         </tr>
                         {% if dataset.other_metrics|count > 0 %}
                         <tr>
-                            <td>other metrics</td>
+                            <td><label>other metrics</label></td>
                             <td>{{ print_list(dataset.other_metrics) }}</td>
                         </tr>
                         {% endif %}
                         <tr>
-                            <td>Number of CV folds</td>
+                            <td><label>Number of CV folds</label></td>
                             <td>{{dataset.cv_folds}}</td>
                         </tr>
                         <tr>
-                            <td>Holdout ratio</td>
+                            <td><label>Holdout ratio</label></td>
                             <td>
                                 {% if dataset.with_test_set %}
                                 Use test set
@@ -194,15 +192,15 @@
                             </td>
                         </tr>
                         <tr>
-                            <td>X columns</td>
+                            <td><label>X columns</label></td>
                             <td width="70%">{{ print_list(dataset.x_cols) }}</td>
                         </tr>
                         <tr>
-                            <td>Categorical columns</td>
+                            <td><label>Categorical columns</label></td>
                             <td width="70%">{{ print_list(dataset.cat_cols) }}</td>
                         </tr>
                         <tr>
-                            <td>Text columns</td>
+                            <td><label>Text columns</label></td>
                             <td width="70%">{{ print_list(dataset.text_cols) }}</td>
                         </tr>
                     </table>
@@ -264,7 +262,10 @@
             {% endfor %}
         </table>
     </div>
-    <div id="data" class="tab-pane">
+    <div id="data_x" class="tab-pane">
+        {% include "data.html" %}
+    </div>
+    <div id="data_y" class="tab-pane">
         <img src="/get_img_dataset/{{dataset.dataset_id}};hist_train_{{dataset.y_col}}?{{refresher}}"></img>
     </div>
     <div id="correl" class="tab-pane">

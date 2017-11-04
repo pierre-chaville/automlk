@@ -10,7 +10,7 @@ from sklearn.preprocessing import LabelEncoder
 from .config import METRIC_NULL
 from .context import get_dataset_folder, get_data_folder, XySet
 from .metrics import metric_map
-from .graphs import graph_correl_features, graph_histogram
+from .graphs import *
 from .store import *
 
 
@@ -63,6 +63,7 @@ def create_dataset(name, domain, description, problem_type, y_col, source, mode,
     # save and create objects and graphs related to the dataset
     dataset_id = str(incr_key_store('dataset:counter'))
     set_key_store('dataset:%s:status' % dataset_id, 'created')
+    set_key_store('dataset:%s:grapher' % dataset_id, False)
     set_key_store('dataset:%s:results' % dataset_id, 0)
     set_key_store('dataset:%s:level' % dataset_id, 1)
     rpush_key_store('dataset:list', dataset_id)
@@ -70,6 +71,9 @@ def create_dataset(name, domain, description, problem_type, y_col, source, mode,
     dt.save(dataset_id)
     dt.create_folders()
     dt.finalize_creation(df_train, df_test, df_submit)
+
+    # create graphs
+    __send_grapher(dt.dataset_id)
     return dt
 
 
@@ -97,11 +101,12 @@ def create_dataset_sets(dt):
     pickle.dump(ds, open(get_dataset_folder(dt.dataset_id) + '/data/eval_set.pkl', 'wb'))
 
 
-def get_dataset(dataset_id: object) -> object:
+def get_dataset(dataset_id, include_results=False):
     """
     get the descriptive data of a dataset
 
     :param dataset_id: id of the dataset
+    :param include_results: if need to extract results also
     :return: dataset object
     """
     d = get_key_store('dataset:%s' % dataset_id)
@@ -129,10 +134,14 @@ def get_dataset(dataset_id: object) -> object:
     dt = DataSet(**d['init_data'])
     dt.load(d['load_data'], d['features'])
 
-    # add counters
-    dt.status = get_key_store('dataset:%s:status' % dt.dataset_id)
-    dt.level = get_key_store('dataset:%s:level' % dt.dataset_id)
-    dt.round_counter = get_counter_store('dataset:%s:round_counter' % dt.dataset_id)
+    # add counters and results
+    dt.status = get_key_store('dataset:%s:status' % dataset_id)
+    dt.grapher = get_key_store('dataset:%s:grapher' % dataset_id)
+    dt.level = get_key_store('dataset:%s:level' % dataset_id)
+    dt.round_counter = get_counter_store('dataset:%s:round_counter' % dataset_id)
+
+    if include_results:
+        dt.results = get_key_store('dataset:%s:results' % dataset_id)
 
     return dt
 
@@ -207,6 +216,7 @@ def reset_dataset(dataset_id):
 
     # reset entries
     set_key_store('dataset:%s:status' % dataset_id, 'created')
+    set_key_store('dataset:%s:grapher' % dataset_id, False)
     set_key_store('dataset:%s:results' % dataset_id, 0)
     set_key_store('dataset:%s:level' % dataset_id, 1)
     if exists_key_store('dataset:%s:round_counter' % dataset_id):
@@ -219,7 +229,7 @@ def reset_dataset(dataset_id):
     # create graphs
     dt = get_dataset(dataset_id)
     df_train = dt.get_data()
-    dt.create_graphs(df_train, 'train')
+    __send_grapher(dt.dataset_id)
 
 
 def delete_dataset(dataset_id):
@@ -238,6 +248,7 @@ def delete_dataset(dataset_id):
     del_key_store('dataset:%s:status' % dataset_id)
     del_key_store('dataset:%s:results' % dataset_id)
     del_key_store('dataset:%s:level' % dataset_id)
+    del_key_store('dataset:%s:grapher' % dataset_id)
     lrem_key_store('dataset:list', dataset_id)
     if exists_key_store('dataset:%s:round_counter' % dataset_id):
         del_key_store('dataset:%s:round_counter' % dataset_id)
@@ -247,21 +258,84 @@ def delete_dataset(dataset_id):
         del_key_store('dataset:%s:search' % dataset_id)
 
 
-def get_dataset_list(include_status=False):
+def __send_grapher(dataset_id):
+    """
+
+    :param dataset_id: dataset to request
+    :return:
+    """
+    # send queue the next graph job to do
+    msg_search = {'dataset_id': dataset_id}
+    print('sending %s' % msg_search)
+    lpush_key_store('grapher:queue', msg_search)
+
+
+def create_graph_data(dataset_id):
+    """
+    creates the graphs for each column feature of the dataset
+
+    :param dataset_id: dataset id
+    :return:
+    """
+    dataset = get_dataset(dataset_id)
+    df = dataset.get_data()
+
+    # create a sample set
+    pickle.dump(df.head(20), open(get_dataset_folder(dataset_id) + '/data/sample.pkl', 'wb'))
+
+    # fillna to avoid issues
+    for f in dataset.features:
+        if f.col_type == 'numerical':
+            df[f.name].fillna(0, inplace=True)
+        else:
+            df[f.name].fillna('', inplace=True)
+
+    # create graph of target distrubution and correlations
+    graph_histogram(dataset_id, dataset.y_col, dataset.is_y_categorical, df[dataset.y_col].values)
+    graph_correl_features(dataset, df.copy())
+
+    # create graphs for all features
+    for f in dataset.features:
+        if f.to_keep and f.name != dataset.y_col:
+            print(f.name)
+            if f.col_type == 'numerical' and dataset.problem_type == 'regression':
+                graph_regression_numerical(dataset_id, df, f.name, dataset.y_col)
+            elif f.col_type == 'categorical' and dataset.problem_type == 'regression':
+                graph_regression_categorical(dataset_id, df, f.name, dataset.y_col)
+            elif f.col_type == 'numerical' and dataset.problem_type == 'classification':
+                graph_classification_numerical(dataset_id, df, f.name, dataset.y_col)
+            elif f.col_type == 'categorical' and dataset.problem_type == 'classification':
+                graph_classification_categorical(dataset_id, df, f.name, dataset.y_col)
+            elif f.col_type == 'text':
+                graph_text(dataset_id, df, f.name)
+
+    # update status grapher
+    set_key_store('dataset:%s:grapher' % dataset_id, True)
+
+
+def get_dataset_sample(dataset_id):
+    """
+    retrieves a sample of the dataset
+
+    :param dataset_id: dataset id
+    :return: dataframe
+    """
+    filename = get_dataset_folder(dataset_id) + '/data/sample.pkl'
+    if os.path.exists(filename):
+        return pickle.load(open(filename, 'rb'))
+    else:
+        return pd.DataFrame()
+
+
+def get_dataset_list(include_results=False):
     """
     get the list of all datasets
 
+    :param include_status: flag to determine if the status are also retrieved (default = False)
     :return: list of datasets objects or empty list if error (eg. redis or environment not set)
     """
     try:
-        dl = [get_dataset(dataset_id) for dataset_id in get_dataset_ids()]
-        if include_status:
-            for d in dl:
-                d.status = get_key_store('dataset:%s:status' % d.dataset_id)
-                d.results = get_key_store('dataset:%s:results' % d.dataset_id)
-                d.level = get_key_store('dataset:%s:level' % d.dataset_id)
-                d.round_counter = get_counter_store('dataset:%s:round_counter' % d.dataset_id)
-        return dl
+        return [get_dataset(dataset_id, include_results) for dataset_id in get_dataset_ids()]
     except:
         return []
 
@@ -473,7 +547,6 @@ class DataSet(object):
         self.__import_data(self.filename_train, 'train')
         if self.filename_test != '':
             self.__import_data(self.filename_test, 'test')
-        self.create_graphs(df_train, 'train')
         if self.filename_submit != '':
             self.__import_data(self.filename_submit, 'submit')
 
@@ -528,14 +601,6 @@ class DataSet(object):
         os.makedirs(root + '/models')
         os.makedirs(root + '/graphs')
 
-    def create_graphs(self, df, part):
-        # creates the various graphs of the dataset
-        graph_histogram(self.dataset_id, self.y_col, self.is_y_categorical, df[self.y_col].values, part)
-
-        if part == 'train':
-            # histogram of the target columns
-            graph_correl_features(self, df)
-
     def __folder(self):
         # storage folder of the dataset
         return get_dataset_folder(self.dataset_id)
@@ -578,6 +643,7 @@ class DataSet(object):
             n_missing = df[col].isnull().sum()
             uniques = df[col].unique()
             n_unique = len(uniques)
+            n_unique_ratio = n_unique / len(df)
             raw_type = str(df[col].dtype)
             first_unique_values = ', '.join([str(x) for x in uniques[:5]])
             to_keep = True
@@ -591,10 +657,9 @@ class DataSet(object):
                 if k['col_type'] != '':
                     col_type = k['col_type']
 
-            feature = Feature(col, raw_type, n_missing, n_unique, first_unique_values, description, to_keep, col_type)
+            feature = Feature(col, raw_type, n_missing, n_unique, first_unique_values, description, to_keep, col_type, n_unique_ratio)
             features.append(feature)
 
-            # y_col : categorical if classification, numerical if regression
             if col == self.y_col:
                 if (self.problem_type == 'regression') and (feature.col_type == 'categorical'):
                     raise ValueError('target column %s must be numerical in regression' % col.name)
@@ -613,12 +678,18 @@ class DataSet(object):
 
 
 class Feature(object):
-    def __init__(self, name, raw_type, n_missing, n_unique_values, first_unique_values, description, to_keep, col_type):
+    def __init__(self, name, raw_type, n_missing, n_unique_values, first_unique_values, description, to_keep, col_type, n_unique_ratio=0):
         # descriptive data
         self.name = name
         self.description = description
         self.to_keep = to_keep
         self.raw_type = raw_type
+
+        self.n_missing = n_missing
+        self.n_unique_values = n_unique_values
+        self.n_unique_ratio = n_unique_ratio
+        self.first_unique_values = first_unique_values
+        self.print_values = ', '.join([str(x) for x in self.first_unique_values])
 
         # initialize type
         if col_type != '':
@@ -633,12 +704,14 @@ class Feature(object):
             else:
                 # raw_type in ['str', 'object']:
                 self.col_type = 'categorical'
-        # TODO : manage dates and text
 
-        self.n_missing = n_missing
-        self.n_unique_values = n_unique_values
-        self.first_unique_values = first_unique_values
-        self.print_values = ', '.join([str(x) for x in self.first_unique_values])
+            # additional rules
+            if self.col_type == 'numerical' and self.n_unique_values < 10:
+                self.col_type = 'categorical'
+            if self.col_type == 'categorical' and self.n_unique_ratio > 0.5:
+                self.col_type = 'categorical'
+
+            # TODO : manage dates
 
 
 def __create_train_test(dataset):

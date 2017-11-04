@@ -13,8 +13,12 @@ from .monitor import heart_beep, init_timer_worker, start_timer_worker, stop_tim
 from .solutions_pp import pp_solutions_map
 
 
-def worker():
-    # periodically pool the receiver queue for a search job 
+def launch_worker():
+    """
+    periodically pool the receiver queue for a search job
+
+    :return:
+    """
     init_timer_worker()
     while True:
         # poll queue
@@ -30,6 +34,12 @@ def worker():
 
 
 def job_search(msg_search):
+    """
+    execute the search on the scope defined in the messsage msg
+
+    :param msg_search: message with parameters of the searcg
+    :return:
+    """
     # load dataset
     dataset = get_dataset(msg_search['dataset_id'])
 

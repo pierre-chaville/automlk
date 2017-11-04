@@ -1,0 +1,147 @@
+<br>
+<table>
+    <tr>
+        <td width="30%" style="vertical-align:top">
+            <table class="table" style="table-layout:fixed; width:300px;">
+                <tr>
+                    <td>
+                        <form role="form" action="" method="POST" name="domain" enctype="multipart/form-data">
+                            {{ data_form.hidden_tag() }}
+                            <div class="form-group" style="height:70%;">
+                                {{ data_form.col(class="form-control", id="select_col_id", **{"onchange":"changeCol(this.value)"}) }}
+                            </div>
+                        </form>
+                    </td>
+                </tr>
+            </table>
+
+            <table class="table table-bordered" style="table-layout:fixed; width:300px;">
+                <tr>
+                    <td style="width:20px; text-align:center">
+                                    <span data-toggle="tooltip" data-placement="left" title="first feature">
+                                        <a href="#" onclick="moveStart();"><i class="fa fa-fast-backward fa-2x"
+                                                                             aria-hidden="true"></i></a></span></td>
+                    <td style="width:20px; text-align:center">
+                                    <span data-toggle="tooltip" data-placement="left" title="previous feature">
+                                        <a href="#" onclick="moveBackward();"><i class="fa fa-step-backward fa-2x"
+                                                                                aria-hidden="true"></i></a></span></td>
+                    <td style="width:20px; text-align:center">
+                                    <span data-toggle="tooltip" data-placement="left" title="next feature">
+                                        <a href="#" onclick="moveForward();"><i class="fa fa-step-forward fa-2x"
+                                                                               aria-hidden="true"></i></a></span></td>
+                    <td style="width:20px; text-align:center">
+                                    <span data-toggle="tooltip" data-placement="left" title="last feature">
+                                        <a href="#" onclick="moveEnd();"><i class="fa fa-fast-forward fa-2x"
+                                                                           aria-hidden="true"></i></a></span></td>
+                </tr>
+            </table>
+            <table class="table" style="table-layout:fixed; width:300px;">
+                <tr>
+                    <td><label>Description</label></td>
+                    <td>
+                        <div class="form-group">
+                            <p id="col_description"></p>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td><label>Raw type</label></td>
+                    <td>
+                        <div class="form-group">
+                            <p id="col_raw"></p>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td><label>Type</label></td>
+                    <td>
+                        <div class="form-group">
+                            <p id="col_type"></p>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td><label>Missing</label></td>
+                    <td>
+                        <div class="form-group">
+                            <p id="col_missing"></p>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td><label>Unique</label></td>
+                    <td>
+                        <div class="form-group">
+                            <p id="col_unique"></p>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td><label>Values</label></td>
+                    <td>
+                        <div class="form-group">
+                            <p id="col_unique_values"></p>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </td>
+        <td>&nbsp;</td>
+        <td style="vertical-align:top">
+            <img id="col_image"></img>
+        </td>
+    </tr>
+</table>
+
+
+<script type="text/javascript">
+
+    function changeCol(sel) {
+        var xhttp = new XMLHttpRequest();
+        xhttp.open("GET", "/column/{{dataset.dataset_id}}/" + sel, false);
+        xhttp.send(null);
+        var response = JSON.parse(xhttp.responseText);
+        $("#col_title").text(response.name);
+        $("#col_description").text(response.description);
+        $("#col_raw").text(response.raw_type);
+        $("#col_type").text(response.col_type);
+        $("#col_missing").text(String(response.n_missing));
+        $("#col_unique").text(String(response.n_unique_values));
+        $("#col_unique_values").text(response.first_unique_values);
+        // modify image
+        $("#col_image").attr("src", "/get_img_data/{{dataset.dataset_id}}/"+response.name+"?{{refresher}}");
+    }
+
+    window.onload = changeCol("{{data_form.col.data}}");
+
+    function moveStart() {
+        var sel = document.getElementById('select_col_id');
+        $("#select_col_id")[0].selectedIndex = 0;
+        changeCol($("#select_col_id option:selected" ).text());
+    }
+
+    function moveBackward() {
+        var sel = document.getElementById('select_col_id');
+        if (sel.selectedIndex > 0) {
+            $("#select_col_id")[0].selectedIndex = sel.selectedIndex - 1;
+        }
+        changeCol($("#select_col_id option:selected" ).text());
+    }
+
+    function moveForward() {
+        var sel = document.getElementById('select_col_id');
+        l = $("#select_col_id option").length;
+        if (sel.selectedIndex < l-1) {
+            $("#select_col_id")[0].selectedIndex = sel.selectedIndex + 1;
+        }
+        changeCol($("#select_col_id option:selected" ).text());
+    }
+
+    function moveEnd() {
+        var sel = document.getElementById('select_col_id');
+        l = $("#select_col_id option").length;
+        $("#select_col_id")[0].selectedIndex = l-1;
+        changeCol($("#select_col_id option:selected" ).text());
+    }
+
+</script>
