@@ -289,6 +289,7 @@ def create_graph_data(dataset_id):
             df[f.name].fillna(0, inplace=True)
         else:
             df[f.name].fillna('', inplace=True)
+            df[f.name] = df[f.name].map(str)
 
     # create graph of target distrubution and correlations
     graph_histogram(dataset_id, dataset.y_col, dataset.is_y_categorical, df[dataset.y_col].values)
@@ -600,6 +601,7 @@ class DataSet(object):
         os.makedirs(root + '/features')
         os.makedirs(root + '/models')
         os.makedirs(root + '/graphs')
+        os.makedirs(root + '/graphs_dark')
 
     def __folder(self):
         # storage folder of the dataset

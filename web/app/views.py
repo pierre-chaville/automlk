@@ -144,24 +144,31 @@ def __path_data(dataset_id):
         return folder
 
 
-@app.route('/get_img_dataset/<string:prm>', methods=['GET'])
-def get_img_dataset(prm):
+@app.route('/get_img_dataset/<string:dataset_id>/<string:graph_type>', methods=['GET'])
+def get_img_dataset(dataset_id, graph_type):
     # retrieves the graph at dataset level from dataset_id;round_id, where dataset_id is dataset id and round_id is round id
-    dataset_id, graph_type = prm.split(';')
-    return send_file(__path_data(dataset_id) + '/graphs/_%s.png' % graph_type, mimetype='image/png')
+    if get_config()['graph_theme'] == 'dark':
+        return send_file(__path_data(dataset_id) + '/graphs_dark/_%s.png' % graph_type, mimetype='image/png')
+    else:
+        return send_file(__path_data(dataset_id) + '/graphs/_%s.png' % graph_type, mimetype='image/png')
 
 
 @app.route('/get_img_data/<string:dataset_id>/<string:col>', methods=['GET'])
 def get_img_data(dataset_id, col):
     # retrieves the graph of col data
-    return send_file(__path_data(dataset_id) + '/graphs/_col_%s.png' % col, mimetype='image/png')
+    if get_config()['graph_theme'] == 'dark':
+        return send_file(__path_data(dataset_id) + '/graphs_dark/_col_%s.png' % col, mimetype='image/png')
+    else:
+        return send_file(__path_data(dataset_id) + '/graphs/_col_%s.png' % col, mimetype='image/png')
 
 
-@app.route('/get_img_round/<string:prm>', methods=['GET'])
-def get_img_round(prm):
+@app.route('/get_img_round/<string:dataset_id>/<string:round_id>/<string:graph_type>', methods=['GET'])
+def get_img_round(dataset_id, round_id, graph_type):
     # retrieves the graph at dataset level from dataset_id;round_id, where dataset_id is dataset id and round_id is round id
-    dataset_id, round_id, graph_type = prm.split(';')
-    return send_file(__path_data(dataset_id) + '/graphs/%s_%s.png' % (graph_type, round_id), mimetype='image/png')
+    if get_config()['graph_theme'] == 'dark':
+        return send_file(__path_data(dataset_id) + '/graphs_dark/%s_%s.png' % (graph_type, round_id), mimetype='image/png')
+    else:
+        return send_file(__path_data(dataset_id) + '/graphs/%s_%s.png' % (graph_type, round_id), mimetype='image/png')
 
 
 @app.route('/get_doc_html/<string:dataset_id>', methods=['GET'])
@@ -176,15 +183,9 @@ def get_doc_pdf(dataset_id):
     return send_file(__path_data(dataset_id) + '/docs/_build/latex/dataset.pdf', as_attachment=True)
 
 
-@app.route('/get_submit/<string:prm>', methods=['GET'])
-def get_submit(prm):
+@app.route('/get_submit//<string:dataset_id>/<string:round_id>', methods=['GET'])
+def get_submit(dataset_id, round_id):
     # download the submit file
-    dataset_id, round_id = prm.split(';')
-    # TODO: remove - this is a temporary hack
-    csv = __path_data(dataset_id) + '/submit/submit_%s.csv' % round_id
-    df = pd.read_csv(csv)
-    df['id'] = df['id'].map(int)
-    df.to_csv(csv, index=False)
     return send_file(__path_data(dataset_id) + '/submit/submit_%s.csv' % round_id,
                      as_attachment=True, attachment_filename='submit_%s_%s.csv' % (dataset_id, round_id))
 
@@ -403,7 +404,7 @@ def config():
                 set_config(data=form.data.data,
                            theme=form.theme.data,
                            bootstrap=form.bootstrap.data,
-                           graph_style=form.graph_style.data,
+                           graph_theme=form.graph_theme.data,
                            store=form.store.data,
                            store_url=form.store_url.data)
             except Exception as e:
@@ -415,7 +416,7 @@ def config():
         form.data.data = config['data']
         form.theme.data = config['theme']
         form.bootstrap.data = config['bootstrap']
-        form.graph_style.data = config['graph_style']
+        form.graph_theme.data = config['graph_theme']
         form.store.data = config['store']
         form.store_url.data = config['store_url']
 

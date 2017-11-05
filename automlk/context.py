@@ -79,22 +79,22 @@ def get_config():
             # upward compatibility
             if 'bootstrap' not in config.keys():
                 config['bootstrap'] = ''
-            if 'graph_style' not in config.keys():
-                config['graph_style'] = 'ggplot'
+            if 'graph_theme' not in config.keys():
+                config['graph_theme'] = 'dark'
             if 'doc_theme' not in config.keys():
                 config['doc_theme'] = 'default'
             return config
     raise EnvironmentError('configuration file %s not found' % '../config.json')
 
 
-def set_config(data, theme, bootstrap, graph_style, store, store_url):
+def set_config(data, theme, bootstrap, graph_theme, store, store_url):
     """
     set config data
 
     :param data: path to data storage
     :param theme: theme for user interface
     :param bootstrap: specific url for a bootstrap
-    :param graph_style: style for graphs (see matplotlib documentation)
+    :param graph_theme: style for graphs (dark / white)
     :param store: store mode (redis / file)
     :param store_url: url if redis mode
     :return:
@@ -119,7 +119,7 @@ def set_config(data, theme, bootstrap, graph_style, store, store_url):
         set_use_redis(False)
 
     # then save config
-    config = {'data': data, 'theme': theme, 'bootstrap': bootstrap, 'graph_style': graph_style, 'store': store,
+    config = {'data': data, 'theme': theme, 'bootstrap': bootstrap, 'graph_theme': graph_theme, 'store': store,
               'store_url': store_url}
     with open('../config.json', 'w') as f:
         f.write(json.dumps(config) + '\n')

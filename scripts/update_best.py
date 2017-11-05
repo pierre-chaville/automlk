@@ -1,8 +1,10 @@
+import os
 import pandas as pd
-from automlk.dataset import get_dataset_list
+from automlk.dataset import get_dataset_list, get_dataset_folder
 from automlk.worker import get_search_rounds
 from automlk.graphs import graph_history_search
 from automlk.store import set_key_store
+
 """
 module specifically designed to update search graphs and best models and pp
 after new version (results are calculated by the controller)
@@ -67,6 +69,10 @@ def __select_cat(c, pipeline):
 
 
 for dt in get_dataset_list(include_results=True):
+    # check graph folders
+    if not os.path.exists(get_dataset_folder(dt.dataset_id) + '/graphs_dark'):
+        os.makedirs(get_dataset_folder(dt.dataset_id) + '/graphs_dark')
+    # generate best rounds
     if dt.status != 'created':
         print(dt.name)
         # get search history

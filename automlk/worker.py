@@ -6,7 +6,7 @@ from copy import deepcopy
 from .config import *
 from .context import HyperContext, XySet
 from .dataset import get_dataset
-from .graphs import graph_pred_histogram, graph_predict
+from .graphs import graph_histogram_regression, graph_histogram_classification, graph_predict_regression, graph_predict_classification
 from .solutions import *
 from .store import *
 from .monitor import heart_beep, init_timer_worker, start_timer_worker, stop_timer_worker
@@ -127,10 +127,17 @@ def __search(dataset, solution, model, msg_search, ds, pool):
     # model.save_model()
 
     # generate graphs
-    graph_predict(dataset, msg_search['round_id'], ds.y_train, y_pred_eval, 'eval')
-    graph_predict(dataset, msg_search['round_id'], ds.y_test, y_pred_test, 'test')
-    graph_pred_histogram(dataset.dataset_id, msg_search['round_id'], y_pred_eval, 'eval')
-    graph_pred_histogram(dataset.dataset_id, msg_search['round_id'], y_pred_test, 'test')
+    if dataset.problem_type == 'regression':
+        graph_predict_regression(dataset, msg_search['round_id'], ds.y_train, y_pred_eval, 'eval')
+        graph_predict_regression(dataset, msg_search['round_id'], ds.y_test, y_pred_test, 'test')
+        graph_histogram_regression(dataset, msg_search['round_id'], y_pred_eval, 'eval')
+        graph_histogram_regression(dataset, msg_search['round_id'], y_pred_test, 'test')
+    else:
+        graph_predict_classification(dataset, msg_search['round_id'], ds.y_train, y_pred_eval, 'eval')
+        graph_predict_classification(dataset, msg_search['round_id'], ds.y_test, y_pred_test, 'test')
+        graph_histogram_classification(dataset, msg_search['round_id'], y_pred_eval, 'eval')
+        graph_histogram_classification(dataset, msg_search['round_id'], y_pred_test, 'test')
+
 
     t_end = time.time()
     msg_search['duration_model'] = int(t_end - t_start)

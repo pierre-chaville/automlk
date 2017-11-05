@@ -47,17 +47,29 @@ MAX_ROUNDS = 5000
 PATIENCE = 50
 
 
-def get_importance(uid, round_id):
-    # return stored features importance
+def get_importance(dataset_id, round_id):
+    """
+    features importance of the model
+
+    :param dataset_id: id of the dataset
+    :param round_id: id of the round
+    :return: feature importance as a dataframe
+    """
     try:
-        return pickle.load(open(get_dataset_folder(uid) + '/features/%s.pkl' % round_id, 'rb'))
+        return pickle.load(open(get_dataset_folder(dataset_id) + '/features/%s.pkl' % round_id, 'rb'))
     except:
         return None
 
 
-def get_pred_eval_test(uid, round_id):
-    # return stored prediction on eval set & test set
-    return pickle.load(open(get_dataset_folder(uid) + '/predict/%s.pkl' % round_id, 'rb'))
+def get_pred_eval_test(dataset_id, round_id):
+    """
+    prediction on eval set & test set
+
+    :param dataset_id: id of the dataset
+    :param round_id: id of the round
+    :return: list of eval set and pred set
+    """
+    return pickle.load(open(get_dataset_folder(dataset_id) + '/predict/%s.pkl' % round_id, 'rb'))
 
 
 class Model(object):

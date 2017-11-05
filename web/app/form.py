@@ -89,10 +89,8 @@ class ConfigForm(FlaskForm):
                                  ('bootswatch/3.3.7/solar', 'solar')
                                  ])
     bootstrap = StringField('bootstrap')
-    graph_style = SelectField(choices=[('default', 'default'),
-                                       ('bmh', 'bmh'),
-                                       ('ggplot', 'ggplot'),
-                                       ('seaborn', 'seaborn'),
+    graph_theme = SelectField(choices=[('dark', 'dark'),
+                                       ('white', 'white'),
                                        ])
     store = SelectField(choices=[('redis', 'redis'), ('file', 'file')])
     store_url = StringField('store_url')

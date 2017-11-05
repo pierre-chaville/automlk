@@ -6,11 +6,21 @@
 <h5>{{ round.uiid }}</h5>
 
 <ul class="nav nav-tabs">
-    <li class="active"><a data-toggle="tab" href="#data">Parameters</a></li>
-    <li><a data-toggle="tab" href="#process">Pre-processing</a></li>
-    <li><a data-toggle="tab" href="#features">Features</a></li>
-    <li><a data-toggle="tab" href="#pred_graph">Prediction Graph</a></li>
-    <li><a data-toggle="tab" href="#hist_graph">Histogram</a></li>
+    <li class="active"><a data-toggle="tab" href="#data">
+        <span data-toggle="tooltip" data-placement="left" title="round info">
+            <i class="fa fa-info-circle" aria-hidden="true"></i></span></a></li>
+    <li><a data-toggle="tab" href="#process">
+        <span data-toggle="tooltip" data-placement="left" title="pre-processing steps">
+            <i class="fa fa-tasks" aria-hidden="true"></i></span></a></li>
+    <li><a data-toggle="tab" href="#features">
+        <span data-toggle="tooltip" data-placement="left" title="feature importance">
+            <i class="fa fa-sort-amount-desc" aria-hidden="true"></i>&nbsp;Imp</span></a></li>
+    <li><a data-toggle="tab" href="#pred_graph">
+        <span data-toggle="tooltip" data-placement="left" title="prediction versus actuals">
+            <i class="fa fa-bar-chart" aria-hidden="true"></i>&nbsp;Pred</span></a></li>
+    <li><a data-toggle="tab" href="#hist_graph">
+        <span data-toggle="tooltip" data-placement="left" title="prediction histogram">
+            <i class="fa fa-bar-chart" aria-hidden="true"></i>&nbsp;Hist</span></a></li>
     {% if dataset.filename_submit != '' %}
     <li><a data-toggle="tab" href="#submit">Submit</a></li>
     {% endif %}
@@ -26,7 +36,9 @@
                     <table class="table table-bordered table-striped table-hover">
                         <tr>
                             <td>cv</td>
-                            <td>{{ print_score(round.cv_mean) }} +/- {{ print_score(round.cv_std) }}, {{ print_score(round.cv_max) }}</td>
+                            <td>{{ print_score(round.cv_mean) }} +/- {{ print_score(round.cv_std) }}, {{
+                                print_score(round.cv_max) }}
+                            </td>
                         </tr>
                         <tr>
                             <td>score eval</td>
@@ -138,8 +150,21 @@
 
     <!-- prediction graph !-->
     <div id="pred_graph" class="tab-pane">
-        <img src="/get_img_round/{{dataset.dataset_id}};{{round.round_id}};predict_eval?{{refresher}}"></img>
-        <img src="/get_img_round/{{dataset.dataset_id}};{{round.round_id}};predict_test?{{refresher}}"></img>
+        {% if dataset.problem_type == 'regression' %}
+        <table>
+            <tr>
+                <td>
+                    <img src="/get_img_round/{{dataset.dataset_id}}/{{round.round_id}}/predict_eval?{{refresher}}"></img>
+                </td>
+                <td>
+                    <img src="/get_img_round/{{dataset.dataset_id}}/{{round.round_id}}/predict_test?{{refresher}}"></img>
+                </td>
+            </tr>
+        </table>
+        {% else %}
+        <img src="/get_img_round/{{dataset.dataset_id}}/{{round.round_id}}/predict_eval?{{refresher}}"></img>
+        <img src="/get_img_round/{{dataset.dataset_id}}/{{round.round_id}}/predict_test?{{refresher}}"></img>
+        {% endif %}
     </div>
 
     <!-- histograms !-->
@@ -148,10 +173,10 @@
         <table>
             <tr>
                 <td>
-                    <img src="/get_img_round/{{dataset.dataset_id}};{{round.round_id}};hist_eval?{{refresher}}"></img>
+                    <img src="/get_img_round/{{dataset.dataset_id}}/{{round.round_id}}/hist_eval?{{refresher}}"></img>
                 </td>
                 <td>
-                    <img src="/get_img_round/{{dataset.dataset_id}};{{round.round_id}};hist_test?{{refresher}}"></img>
+                    <img src="/get_img_round/{{dataset.dataset_id}}/{{round.round_id}}/hist_test?{{refresher}}"></img>
                 </td>
             </tr>
         </table>
@@ -160,7 +185,7 @@
     <div id="submit" class="tab-pane">
         <h3>Submit file</h3>
         <br>
-        <a href="/get_submit/{{dataset.dataset_id}};{{round.round_id}}">Download submit file</a>
+        <a href="/get_submit/{{dataset.dataset_id}}/{{round.round_id}}">Download submit file</a>
     </div>
 </div>
 {% endblock %}

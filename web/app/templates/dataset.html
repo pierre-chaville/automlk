@@ -64,19 +64,19 @@
         <table>
             <tr>
                 <td>
-                    <img src="/get_img_dataset/{{dataset.dataset_id}};history_1?{{refresher}}"></img>
+                    <img src="/get_img_dataset/{{dataset.dataset_id}}/history_1?{{refresher}}"></img>
                 </td>
                 <td>
-                    <img src="/get_img_dataset/{{dataset.dataset_id}};models_1?{{refresher}}"></img>
+                    <img src="/get_img_dataset/{{dataset.dataset_id}}/models_1?{{refresher}}"></img>
                 </td>
             </tr>
             {% if best2|count > 0 %}
             <tr>
                 <td>
-                    <img src="/get_img_dataset/{{dataset.dataset_id}};history_2?{{refresher}}"></img>
+                    <img src="/get_img_dataset/{{dataset.dataset_id}}/history_2?{{refresher}}"></img>
                 </td>
                 <td>
-                    <img src="/get_img_dataset/{{dataset.dataset_id}};models_2?{{refresher}}"></img>
+                    <img src="/get_img_dataset/{{dataset.dataset_id}}/models_2?{{refresher}}"></img>
                 </td>
             </tr>
             {% endif %}
@@ -100,7 +100,7 @@
                             <td>{{dataset.name}}</td>
                         </tr>
                         <tr>
-                            <td><label>Id</label><</td>
+                            <td><label>Id</label></td>
                             <td>{{dataset.dataset_id}}</td>
                         </tr>
                         <tr>
@@ -296,10 +296,10 @@
         {% include "data.html" %}
     </div>
     <div id="data_y" class="tab-pane">
-        <img src="/get_img_dataset/{{dataset.dataset_id}};hist_train_{{dataset.y_col}}?{{refresher}}"></img>
+        <img src="/get_img_dataset/{{dataset.dataset_id}}/hist_train_{{dataset.y_col}}?{{refresher}}"></img>
     </div>
     <div id="correl" class="tab-pane">
-        <img src="/get_img_dataset/{{dataset.dataset_id}};correl?{{refresher}}"></img>
+        <img src="/get_img_dataset/{{dataset.dataset_id}}/correl?{{refresher}}"></img>
     </div>
     <div id="doc" class="tab-pane">
         <h3>Documentation</h3>
