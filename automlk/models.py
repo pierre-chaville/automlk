@@ -637,7 +637,10 @@ class ModelEnsembleSelection(Model):
         self.importance = self.selection[['name', 'weight']]
         self.importance.columns = ['feature', 'importance']
 
-        return False, y_pred_eval_list, y_pred_test_list, y_pred_submit_list
+        # average pred_test
+        y_pred_test = np.mean(y_pred_test_list)
+
+        return False, y_pred_eval_list, y_pred_test, y_pred_submit_list
 
     def save_importance(self):
         # saves feature importance (as a dataframe)
@@ -654,7 +657,7 @@ class ModelStacking(Model):
         super().__init__(dataset, context, params, round_id)
 
     @abstractmethod
-    def cv_pool(self, pool, y, y_test, cv_folds, threshold, depth):
+    def cv_pool(self, pool, ds, threshold, depth):
         # TODO: select a subset of the pool (best models)
         y_pred_eval, y_pred_test, y_pred_submit = [], [], []
         self.params = {**{'depth': depth}, **self.params}
@@ -669,36 +672,35 @@ class ModelStacking(Model):
                     self.feature_names.append(name + '_' + str(k) + '_' + str(round_id))
         self.model.feature_names = self.feature_names
 
-        for i, (train_index, eval_index) in enumerate(cv_folds):
+        # create X by stacking predictions
+        for j, (u, m, p_eval, p_test, p_submit) in enumerate(
+                zip(pool.pool_model_round_ids, pool.pool_model_names, pool.pool_eval_preds,
+                    pool.pool_test_preds, pool.pool_submit_preds)):
+            # check if array has 2 dimensions
+            shape = len(np.shape(p_eval))
+            if shape == 1:
+                p_eval = np.reshape(p_eval, (len(p_eval), 1))
+                p_test = np.reshape(p_test, (len(p_test), 1))
+                p_submit = np.reshape(p_test, (len(p_submit), 1))
+            if j == 0:
+                X_train = p_eval
+                X_test = p_test
+                X_submit = p_submit
+            else:
+                # stack vertically the predictions
+                X_train = np.concatenate((X_train, p_eval), axis=1)
+                X_test = np.concatenate((X_test, p_test), axis=1)
+                X_submit = np.concatenate((X_submit, p_submit), axis=1)
+
+        for i, (train_index, eval_index) in enumerate(ds.cv_folds):
             print('fold %d' % i)
-            # create X by stacking predictions
-            for j, (u, m, p_eval, p_test, p_submit) in enumerate(
-                    zip(pool.pool_model_round_ids, pool.pool_model_names, pool.pool_eval_preds,
-                        pool.pool_test_preds, pool.pool_submit_preds)):
-                # check if array has 2 dimensions
-                shape = len(np.shape(p_eval))
-                if shape == 1:
-                    p_eval = np.reshape(p_eval, (len(p_eval), 1))
-                    p_test = np.reshape(p_test, (len(p_test), 1))
-                    p_submit = np.reshape(p_test, (len(p_submit), 1))
-                if j == 0:
-                    X_train = p_eval[train_index]
-                    X_eval = p_eval[eval_index]
-                    X_test = p_test
-                    X_submit = p_submit
-                else:
-                    # stack vertically the predictions
-                    X_train = np.concatenate((X_train, p_eval[train_index]), axis=1)
-                    X_eval = np.concatenate((X_eval, p_eval[eval_index]), axis=1)
-                    X_test = np.concatenate((X_test, p_test), axis=1)
-                    X_submit = np.concatenate((X_submit, p_submit), axis=1)
 
             if i == 0 and self.model.early_stopping:
                 # with early stopping, we perform an initial round to get number of rounds
                 print('fit early stopping')
-                self.model.fit_early_stopping(X_train, y[train_index], X_eval, y[eval_index])
-                y_pred = self.model.predict(X_eval)
-                score = self.dataset.evaluate_metric(y[eval_index], y_pred)
+                self.model.fit_early_stopping(X_train[train_index], ds.y_train[train_index], X_train[eval_index], ds.y_train[eval_index])
+                y_pred = self.model.predict(X_train[eval_index])
+                score = self.dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
                 print('early stopping score: %.5f' % score)
                 if score > threshold:
                     print('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
@@ -706,16 +708,30 @@ class ModelStacking(Model):
                     return True, 0, 0, 0
 
             # train on X_train
-            self.model.fit(X_train, y[train_index])
-            y_pred = self.model.predict(X_eval)
+            self.model.fit(X_train[train_index], ds.y_train[train_index])
+            y_pred = self.model.predict(X_train[eval_index])
             y_pred_eval.append(y_pred)
             y_pred_test.append(self.model.predict(X_test))
-            y_pred_submit.append(self.model.predict(X_submit))
-            score = self.dataset.evaluate_metric(y[eval_index], y_pred)
+            score = self.dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
             if score > threshold:
                 print('found outlier: %.5f with threshold %.5f' % (score, threshold))
                 time.sleep(10)
                 return True, 0, 0, 0
+
+        if self.dataset.mode == 'standard':
+            # train on complete train set
+            self.fit(X_train, ds.y_train)
+            y_pred_test = self.predict(X_test)
+        else:
+            # train on complete X y set
+            X = np.concatenate((X_train, X_test), axis=0)
+            self.fit(X, ds.y)
+            if self.dataset.mode == 'competition':
+                y_pred_submit = self.predict(X_submit)
+                # test = mean of y_pred_test on multiple folds
+                y_pred_test = np.mean(y_pred_test, axis=0)
+            else:
+                y_pred_test = self.predict(X_test)
 
         return False, y_pred_eval, y_pred_test, y_pred_submit
 

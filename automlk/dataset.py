@@ -137,7 +137,6 @@ def get_dataset(dataset_id, include_results=False):
     # add counters and results
     dt.status = get_key_store('dataset:%s:status' % dataset_id)
     dt.grapher = get_key_store('dataset:%s:grapher' % dataset_id)
-    dt.level = get_key_store('dataset:%s:level' % dataset_id)
     dt.round_counter = get_counter_store('dataset:%s:round_counter' % dataset_id)
 
     if include_results:
@@ -218,7 +217,6 @@ def reset_dataset(dataset_id):
     set_key_store('dataset:%s:status' % dataset_id, 'created')
     set_key_store('dataset:%s:grapher' % dataset_id, False)
     set_key_store('dataset:%s:results' % dataset_id, 0)
-    set_key_store('dataset:%s:level' % dataset_id, 1)
     if exists_key_store('dataset:%s:round_counter' % dataset_id):
         del_key_store('dataset:%s:round_counter' % dataset_id)
     if exists_key_store('dataset:%s:rounds' % dataset_id):
@@ -247,7 +245,6 @@ def delete_dataset(dataset_id):
     # removes entries
     del_key_store('dataset:%s:status' % dataset_id)
     del_key_store('dataset:%s:results' % dataset_id)
-    del_key_store('dataset:%s:level' % dataset_id)
     del_key_store('dataset:%s:grapher' % dataset_id)
     lrem_key_store('dataset:list', dataset_id)
     if exists_key_store('dataset:%s:round_counter' % dataset_id):

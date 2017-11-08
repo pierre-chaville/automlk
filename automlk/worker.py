@@ -90,8 +90,7 @@ def __search(dataset, solution, model, msg_search, ds, pool):
     # fit, test & score
     t_start = time.time()
     if msg_search['level'] == 2:
-        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = model.cv_pool(pool, ds,
-                                                                                        msg_search['threshold'],
+        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = model.cv_pool(pool, ds, msg_search['threshold'],
                                                                                         msg_search['ensemble_depth'])
     else:
         outlier, y_pred_eval_list, y_pred_test, y_pred_submit = model.cv(ds, msg_search['threshold'])
@@ -162,7 +161,6 @@ def __evaluate_round(dataset, msg_search, y_train, y_pred_eval, y_test, y_pred_t
 
     rpush_key_store(RESULTS_QUEUE, msg_search)
     print('completed search:', msg_search)
-    print('' * 60)
 
 
 def __get_pool_models(dataset, depth):

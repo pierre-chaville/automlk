@@ -61,7 +61,6 @@ def __create_search_round(dataset_id):
     # create a search solution
 
     dataset = get_dataset(dataset_id)
-    search = __find_search_store(dataset)
 
     # generate round id
     round_id = incr_key_store('dataset:%s:round_counter' % dataset_id) - 1
@@ -69,43 +68,102 @@ def __create_search_round(dataset_id):
         # first launch: create train & eval & test set
         create_dataset_sets(dataset)
 
-    # generate model and model params
-    i_round = round_id % len(search['choices'])
-    ref = search['choices'][i_round]
-    solution = model_solutions_map[ref]
+    # initialize search parameters
+    level = 1
     default_mode = False
-    if search['level'] == 1:
-        if round_id < len(search['choices']) - 1:
-            # mode = default
-            params = solution.default_params
-            default_mode = True
-        else:
-            params = get_random_params(solution.space_params)
+    ensemble_depth = 0
+    threshold = 0
+
+    # generate model and model params
+    l1_choices = __get_model_class_list(dataset, 1)
+
+    if round_id < len(l1_choices):
+        # default mode, level 1
+        default_mode = True
+        i_choice = round_id % len(l1_choices)
+        ref = l1_choices[i_choice]
+        solution = model_solutions_map[ref]
+        params = solution.default_params
     else:
-        search['ensemble_depth'] = random.randint(1, 10)
+        # get search history
+        df = get_search_rounds(dataset_id)
+
+        # find threshold
+        threshold = __focus_threshold(df, round_id)
+
+        if round_id > 50 and round_id % 2 == 0:
+            # alternate with ensemble 1 out of 2
+            level = 2
+            l2_choices = __get_model_class_list(dataset, 2)
+            i_choice = (round_id // 2) % len(l2_choices)
+            ref = l2_choices[i_choice]
+            ensemble_depth = random.randint(1, 3)
+        else:
+            # focus progressively on best models
+            l1_choices = __focus_models(l1_choices, __get_list_best_models(df), round_id, len(df))
+            i_choice = (round_id // 2) % len(l1_choices)
+            ref = l1_choices[i_choice]
+
+        solution = model_solutions_map[ref]
         params = get_random_params(solution.space_params)
 
     # generate pre-processing pipeline and pre-processing params
     pipeline = __get_pipeline(dataset, default_mode, round_id)
 
     # generate search message
-    msg_search = {**search, **{'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': solution.ref,
-                               'model_name': solution.name, 'model_params': params, 'pipeline': pipeline,
-                               'time_limit': __time_limit(dataset)}}
-    msg_search.pop('choices')
-    msg_search.pop('start')
-    return msg_search
+    return {'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': solution.ref, 'level': level,
+            'ensemble_depth': ensemble_depth, 'model_name': solution.name, 'model_params': params, 'pipeline': pipeline,
+            'threshold': threshold, 'time_limit': __time_limit(dataset)}
 
 
-def __find_search_store(dataset):
-    # add data for this dataset from the store
-    if exists_key_store('dataset:%s:search' % dataset.dataset_id):
-        search = get_key_store('dataset:%s:search' % dataset.dataset_id)
-        return search
-    else:
-        return {'start': 0, 'level': 1, 'threshold': 0,
-                'choices': __get_model_class_list(dataset, 1),
-                }
+def __focus_threshold(df, round_id):
+    """
+    calculates the threshold for outliers from the score history
+
+    :param df:
+    :param round_id:
+    :return:
+    """
+    df0 = df[(df.cv_max != METRIC_NULL) & (df.level == 1)].groupby('model_name', as_index=False).min()
+    scores = np.sort(df0.cv_max.values)
+    if len(scores) < 5:
+        return 0
+    # we take into account the length of results, but also we cap the round_id (1/10):
+    base = max(len(df), round_id/10)
+
+    # we will decrease the threshold from 100% of the best scores to the 20% best scores
+    if len(df) < 40:
+        return 0
+
+    ratio = max(20, 100 - (base - 40)) / 100
+    n = max(1, int(len(scores) * ratio) - 1)
+    threshold = scores[n]
+    print('outlier threshold set at: %.5f (r=%.2f, n=%d, %d scores' % (threshold, ratio, n, len(scores)))
+    return threshold
+
+
+def __focus_models(l1, list_best, round_id, n_results):
+    """
+    focus the search on the best models, depending on the progress of the searcf
+    :param l1: complete list of choices
+    :param list_best: list of best solution references (sorted by best first)
+    :param round_id: id of the round
+    :param n_results: number of results received already
+    :return: list of solution references
+    """
+    # we will decrease the list of models from 100% of l1 to the 20% models with best scores
+
+    base = max(n_results, round_id/10)
+
+    if base < 40:
+        return l1
+
+    ratio = max(20, 100 - (base - 40)) / 100
+    n = max(1, int(len(list_best) * ratio))
+
+    print('focus on n (r: %3.f):', n, ratio)
+    print('focus on:', list_best[:n])
+    return list_best[:n]
 
 
 def __time_limit(dataset):
@@ -184,38 +242,6 @@ def __process_result(msg_result):
     df = get_search_rounds(dataset_id)
 
     dataset = get_dataset(dataset_id)
-    search = __find_search_store(dataset)
-
-    # get outlier threshold of metrics
-    if len(df) > 10:
-        search['threshold'] = __get_outlier_threshold(df)
-    else:
-        search['threshold'] = 0
-
-    # check patience
-    best, last_best = __get_last_best(df, search['level'])
-    len_search = len(df[df.level == search['level']])
-    if len_search - last_best > 100:
-        if search['level'] == 1:
-            # from level 1 move to level 2
-            print('patience reached on level 1. searching now on ensembles')
-            search['level'] = 2
-            search['start'] = len(df)
-            search['choices'] = __get_model_class_list(dataset, 2)
-        else:
-            # then we have finished: set status as completed
-            print('patience reached on level 2. search completed')
-            set_key_store('dataset:%s:status' % dataset_id, 'completed')
-            return
-
-    # restrict choice list
-    if len_search - search['start'] > 50:
-        if len(search['choices']) > 1:
-            # reduce list by 2
-            n = int(len(search['choices']) / 2)
-            print('focusing list of models to %d models' % n)
-            search['start'] = len_search
-            search['choices'] = __get_list_best_models(df, search['level'])[:n]
 
     # generate graphs
     best = __get_best_models(df)
@@ -225,21 +251,9 @@ def __process_result(msg_result):
     graph_history_search(dataset, df, best2, 2)
 
     # then update search
-    set_key_store('dataset:%s:search' % dataset.dataset_id, search)
     set_key_store('dataset:%s:results' % dataset_id, len(df))
-    set_key_store('dataset:%s:level' % dataset_id, search['level'])
     set_key_store('dataset:%s:best' % dataset_id, best.to_dict(orient='records'))
     set_key_store('dataset:%s:best_pp' % dataset_id, __get_best_pp(df))
-
-
-def __get_outlier_threshold(df):
-    # calculates the threshold for outliers from the score history
-    # TODO: adapt threshold with number of [successful] rounds
-    df0 = df[(df.cv_max != METRIC_NULL) & (df.level == 1)].groupby('model_name', as_index=False).min()
-    scores = np.sort(df0.cv_max.values)
-    outlier = scores[int(len(scores) / 2)]
-    print('outlier threshold set at: %.5f ' % outlier)
-    return outlier
 
 
 def __get_last_best(df, level):
@@ -253,12 +267,12 @@ def __get_last_best(df, level):
     return best, i_best
 
 
-def __get_list_best_models(df, level):
+def __get_list_best_models(df, level=1):
     # returns best models
-    if len(df) < 1:
+    if len(df[df.level == level]) < 1:
         return []
-    best = df[df.level == level].sort_values(by=['solution', 'cv_max']).groupby('solution',as_index=False).first().sort_values(by='cv_max')
-
+    best = df[df.level == level].sort_values(by=['solution', 'cv_max']).\
+        groupby('solution', as_index=False).first().sort_values(by='cv_max')
     return list(best.solution.values)
 
 
