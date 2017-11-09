@@ -658,7 +658,6 @@ class ModelStacking(Model):
 
     @abstractmethod
     def cv_pool(self, pool, ds, threshold, depth):
-        # TODO: select a subset of the pool (best models)
         y_pred_eval, y_pred_test, y_pred_submit = [], [], []
         self.params = {**{'depth': depth}, **self.params}
         # set feature names
@@ -720,18 +719,18 @@ class ModelStacking(Model):
 
         if self.dataset.mode == 'standard':
             # train on complete train set
-            self.fit(X_train, ds.y_train)
-            y_pred_test = self.predict(X_test)
+            self.model.fit(X_train, ds.y_train)
+            y_pred_test = self.model.predict(X_test)
         else:
             # train on complete X y set
             X = np.concatenate((X_train, X_test), axis=0)
-            self.fit(X, ds.y)
+            self.model.fit(X, ds.y)
             if self.dataset.mode == 'competition':
-                y_pred_submit = self.predict(X_submit)
+                y_pred_submit = self.model.predict(X_submit)
                 # test = mean of y_pred_test on multiple folds
                 y_pred_test = np.mean(y_pred_test, axis=0)
             else:
-                y_pred_test = self.predict(X_test)
+                y_pred_test = self.model.predict(X_test)
 
         return False, y_pred_eval, y_pred_test, y_pred_submit
 
