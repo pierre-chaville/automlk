@@ -25,7 +25,7 @@ def launch_worker():
         msg_search = brpop_key_store('controller:search_queue')
         heart_beep('worker', msg_search)
         if msg_search != None:
-            print('reveived %s' % msg_search)
+            print('received %s' % msg_search)
             msg_search = {**msg_search, **{'start_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                                            'host_name': socket.gethostname()}}
             start_timer_worker(msg_search['time_limit'])
@@ -113,6 +113,7 @@ def __search(dataset, solution, model, msg_search, ds, pool):
             submit = np.concatenate((ds.id_submit, y_pred_submit), axis=1)
         else:
             l = len(ds.id_submit)
+            print('len id', l, 'y_pred_submit', np.shape(y_pred_submit))
             submit = np.concatenate((np.reshape(ds.id_submit, (l, 1)), np.reshape(y_pred_submit[:, 1], (l, 1))), axis=1)
         df_submit = pd.DataFrame(submit)
         df_submit.columns = [dataset.col_submit, dataset.y_col]
@@ -122,7 +123,7 @@ def __search(dataset, solution, model, msg_search, ds, pool):
 
     # save model importance, prediction and model
     model.save_importance()
-    model.save_predict(y_pred_eval, y_pred_test)
+    model.save_predict(y_pred_eval, y_pred_test, y_pred_submit)
     # model.save_model()
 
     # generate graphs
@@ -187,9 +188,9 @@ def __get_pool_models(dataset, depth):
     preds = [get_pred_eval_test(dataset.dataset_id, round_id) for round_id in round_ids]
     preds_eval = [x[0] for x in preds]
     preds_test = [x[1] for x in preds]
+    preds_submit = [x[2] for x in preds]
 
-    # TODO replace submit
-    return EnsemblePool(round_ids, model_names, preds_eval, preds_test, preds_test)
+    return EnsemblePool(round_ids, model_names, preds_eval, preds_test, preds_submit)
 
 
 def __store_search_error(dataset, t, e, model):

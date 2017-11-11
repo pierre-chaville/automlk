@@ -16,7 +16,7 @@ for dataset in get_dataset_list():
     for msg_search in get_search_rounds(dataset.dataset_id).to_dict(orient='records'):
         try:
             print('round:', msg_search['round_id'])
-            y_pred_eval, y_pred_test = get_pred_eval_test(dataset.dataset_id, msg_search['round_id'])
+            y_pred_eval, y_pred_test, y_pred_submit = get_pred_eval_test(dataset.dataset_id, msg_search['round_id'])
 
             # generate graphs
             if dataset.problem_type == 'regression':

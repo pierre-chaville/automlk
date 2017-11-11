@@ -63,11 +63,11 @@ def get_importance(dataset_id, round_id):
 
 def get_pred_eval_test(dataset_id, round_id):
     """
-    prediction on eval set & test set
+    prediction on eval set & test & submit set
 
     :param dataset_id: id of the dataset
     :param round_id: id of the round
-    :return: list of eval set and pred set
+    :return: list of predictions for eval set, test and submit set
     """
     return pickle.load(open(get_dataset_folder(dataset_id) + '/predict/%s.pkl' % round_id, 'rb'))
 
@@ -184,10 +184,11 @@ class Model(object):
         return get_dataset_folder(self.dataset.dataset_id) + '/features/%s.pkl' % self.round_id
 
     @abstractmethod
-    def save_predict(self, y_pred_eval, y_pred_test):
+    def save_predict(self, y_pred_eval, y_pred_test, y_pred_submit):
         # save predictions (eval and test set)
-        pickle.dump([y_pred_eval, y_pred_test],
+        pickle.dump([y_pred_eval, y_pred_test, y_pred_submit],
                     open(get_dataset_folder(self.dataset.dataset_id) + '/predict/%s.pkl' % self.round_id, 'wb'))
+
 
 
 def binary_proba(y):
@@ -680,7 +681,7 @@ class ModelStacking(Model):
             if shape == 1:
                 p_eval = np.reshape(p_eval, (len(p_eval), 1))
                 p_test = np.reshape(p_test, (len(p_test), 1))
-                p_submit = np.reshape(p_test, (len(p_submit), 1))
+                p_submit = np.reshape(p_submit, (len(p_submit), 1))
             if j == 0:
                 X_train = p_eval
                 X_test = p_test
