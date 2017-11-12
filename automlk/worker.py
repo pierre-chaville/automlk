@@ -93,7 +93,8 @@ def __search(dataset, solution, model, msg_search, ds, pool):
         outlier, y_pred_eval_list, y_pred_test, y_pred_submit = model.cv_pool(pool, ds, msg_search['threshold'],
                                                                                         msg_search['ensemble_depth'])
     else:
-        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = model.cv(ds, msg_search['threshold'])
+        #outlier, y_pred_eval_list, y_pred_test, y_pred_submit = model.cv(ds, msg_search['threshold'])
+        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cv(model, dataset, ds, msg_search['threshold'])
     msg_search['num_rounds'] = model.num_rounds
 
     # check outlier
@@ -142,6 +143,61 @@ def __search(dataset, solution, model, msg_search, ds, pool):
     t_end = time.time()
     msg_search['duration_model'] = int(t_end - t_start)
     __evaluate_round(dataset, msg_search, ds.y_train, y_pred_eval, ds.y_test, y_pred_test, ds.y_eval_list, y_pred_eval_list)
+
+
+def __cv(model, dataset, ds, threshold):
+        # performs a cross validation on cv_folds, and predict also on X_test
+        y_pred_eval, y_pred_test, y_pred_submit = [], [], []
+        for i, (train_index, eval_index) in enumerate(ds.cv_folds):
+            if i == 0 and model.early_stopping:
+                print('early stopping round')
+                # with early stopping, we perform an initial round to get number of rounds
+                model.fit_early_stopping(ds.X_train[train_index], ds.y_train[train_index],
+                                        ds.X_train[eval_index], ds.y_train[eval_index])
+
+                if threshold != 0:
+                    # test outlier (i.e. exceeds threshold)
+                    y_pred = model.predict(ds.X[eval_index])
+                    score = dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
+                    print('early stopping score: %.5f' % score)
+                    if score > threshold:
+                        print('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
+                        time.sleep(10)
+                        return True, 0, 0, 0
+
+            # then train on train set and predict on eval set
+            model.fit(ds.X_train[train_index], ds.y_train[train_index])
+            y_pred = model.predict(ds.X_train[eval_index])
+
+            if threshold != 0:
+                # test outlier:
+                score = dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
+                print('fold %d score: %.5f' % (i, score))
+                if score > threshold:
+                    print('%dth round found outlier: %.5f with threshold %.5f' % (i, score, threshold))
+                    time.sleep(10)
+                    return True, 0, 0, 0
+
+            y_pred_eval.append(y_pred)
+
+            # we also predict on test & submit set (to be averaged later)
+            y_pred_test.append(model.predict(ds.X_test))
+
+        if dataset.mode == 'standard':
+            # train on complete train set
+            model.fit(ds.X_train, ds.y_train)
+            y_pred_test = model.predict(ds.X_test)
+        else:
+            # train on complete X y set
+            model.fit(ds.X, ds.y)
+            if dataset.mode == 'competition':
+                y_pred_submit = model.predict(ds.X_submit)
+                # test = mean of y_pred_test on multiple folds
+                y_pred_test = np.mean(y_pred_test, axis=0)
+            else:
+                y_pred_test = model.predict(ds.X_test)
+
+        return False, y_pred_eval, y_pred_test, y_pred_submit
 
 
 def __evaluate_round(dataset, msg_search, y_train, y_pred_eval, y_test, y_pred_test, y_eval_list, y_pred_eval_list):

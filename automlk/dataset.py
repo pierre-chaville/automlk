@@ -88,7 +88,7 @@ def create_dataset_sets(dt):
     X, y, X_train, X_test, y_train, y_test, X_submit, id_submit = __create_train_test(dt)
 
     # prepare y values
-    y_train, y_test = __prepare_y(dt, y_train, y_test)
+    y, y_train, y_test = __prepare_y(dt, y, y_train, y_test)
 
     # create cv folds
     cv_folds = __create_cv(dt, X_train, y_train)
@@ -788,15 +788,16 @@ def __store_eval_set(dataset, y_train, y_test, cv_folds):
     return y_eval_list, y_eval, np.concatenate(i_eval_list, axis=0)
 
 
-def __prepare_y(dataset, y_train, y_test):
+def __prepare_y(dataset, y, y_train, y_test):
     # pre-processing of y: categorical
     if dataset.problem_type == 'classification':
         # encode class values as integers
         encoder = LabelEncoder()
-        encoder.fit([str(x) for x in np.concatenate((y_train, y_test), axis=0)])
+        #encoder.fit([str(x) for x in np.concatenate((y_train, y_test), axis=0)])
+        y = encoder.fit_transform(y)
         y_train = encoder.transform([str(x) for x in y_train])
         y_test = encoder.transform([str(x) for x in y_test])
-    return y_train, y_test
+    return y, y_train, y_test
 
 
 def get_y_eval(dataset_id):
