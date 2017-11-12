@@ -73,3 +73,15 @@ def print_params(p):
 def print_title(t, s):
     # prints a title t in rst format, using the symbole s
     return t + '\n' #+ s*len(s) + '\n'
+
+
+def print_summary(dataset):
+    # print a summary of the dataset
+    s = '%d rows x %d cols' % (dataset.n_rows, dataset.n_cols)
+    if dataset.n_cat_cols > 0:
+        s += ', %d categ. cols' % (dataset.n_cat_cols)
+    if dataset.n_missing > 0:
+        s += ', %d missing cols' % (dataset.n_missing)
+    if len(dataset.text_cols) > 0:
+        s += ', %d text cols' % (len(dataset.text_cols))
+    return s

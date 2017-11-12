@@ -4,6 +4,7 @@ from automlk.print import *
 app = Flask(__name__)
 SESSION_TYPE = 'redis'
 app.config.from_object('config')
+app.jinja_env.globals.update(print_summary=print_summary)
 app.jinja_env.globals.update(print_list=print_list)
 app.jinja_env.globals.update(print_score=print_score)
 app.jinja_env.globals.update(print_score_std=print_score_std)

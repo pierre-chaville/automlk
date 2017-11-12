@@ -19,25 +19,36 @@
 
 <table class="table table-bordered table-hover">
     <thead>
-    <th>domain</th>
     <th>name</th>
-    <th colspan="2">status / level</th>
+    <th>status</th>
     <th><i class="fa fa-play" aria-hidden="true"></i></th>
     <th>#</th>
+    <th colspan="2">best result</th>
     <th>description</th>
-    <th>rows</th>
     <th colspan="4">actions</th>
     </thead>
-    {% for dataset in datasets %}
+    {% for domain in domains %}
     <tr>
-        <td width="15%">
-            <a href="/dataset/{{dataset.dataset_id}}"
-               style="color:inherit; text-decoration: none;">{{dataset.domain}}</a>
-        </td>
-        <td width="15%">
+        <td colspan="11"><h4><i class="fa fa-folder-open-o" aria-hidden="true"></i>&nbsp;&nbsp;{{domain}}</h4></td>
+    </tr>
+    {% for dataset in datasets %}
+    {% if dataset.domain == domain %}
+    <tr>
+        <td>
             <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{dataset.name}}</a><br>
         </td>
         <td>
+            <div class="progress" style="height:8px">
+                {% if dataset.status == 'completed' %}
+                <div class="progress-bar progress-bar-success" role="progressbar"
+                     style="width:100%">
+                </div>
+                {% else %}
+                <div class="progress-bar progress-bar-success" role="progressbar"
+                     style="width:{{dataset.results / 5 }}%">
+                </div>
+                {% endif %}
+            </div>
             <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">
                 {% if dataset.status == 'created' %}
                 <span class="label label-default">created</span>
@@ -51,15 +62,6 @@
             </a>
         </td>
         <td>
-            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">
-                {% if dataset.status in ['searching', 'pause'] %}
-                <div>
-                    <span class="label label-primary">{{ dataset.level }}</span>
-                </div>
-                {% endif %}
-            </a>
-        </td>
-        <td>
             {% if dataset.status in ['created', 'pause', 'completed'] %}
             <span data-toggle="tooltip" data-placement="left" title="start search">
                 <a href="/start/{{dataset.dataset_id}}"><i class="fa fa-play" aria-hidden="true"></i></a></span>
@@ -69,14 +71,22 @@
             {% endif %}
         </td>
         <td>
-            <span class="label label-info">{{ dataset.results }}</span><br><span class="label label-default">{{ dataset.round_counter }}</span>
-        </td>
-        <td width="30%">
-            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{dataset.description[:100]}}...</a>
+            <span class="label label-info" data-toggle="tooltip" data-placement="left" title="successful rounds">{{ dataset.results }}</span>
+            <br><span class="label label-default" data-toggle="tooltip" data-placement="left" title="total rounds">{{ dataset.round_counter }}</span>
         </td>
         <td>
-            <a href="/dataset/{{dataset.dataset_id}}"
-               style="color:inherit; text-decoration: none;">{{dataset.n_rows}} K</a>
+            {% if dataset.status != 'created' %}
+            <a href="/dataset/{{dataset.dataset_id}}" style="text-decoration: none;">{{ dataset.best_model_name }}</a>
+            {% endif %}
+        </td>
+        <td>
+            {% if dataset.status != 'created' %}
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{print_score(dataset.best_cv_mean) }}<br>+/-{{ print_score_std(dataset.best_cv_std) }}<br>
+                {{print_score(dataset.best_cv_max) }}</a></a>
+            {% endif %}
+        </td>
+        <td>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;"><span class="label label-info">{{ dataset.problem_type }}</span><br>{{ print_summary(dataset) }}</a>
         </td>
         <td>
             <span data-toggle="tooltip" data-placement="left" title="edit dataset">
@@ -111,6 +121,8 @@
                 <i class="fa fa-trash-o" aria-hidden="true"></i></a></span>
         </td>
     </tr>
+    {% endif %}
+    {% endfor %}
     {% endfor %}
 </table>
 
@@ -126,6 +138,7 @@ $(".modal-body #reset_id").val($(this).data('id'));
 $(".modal-body #reset_name").val($(this).data('name'));
 $(".modal-body #reset_description").val($(this).data('description'));
 });
+
 
 </script>
 
@@ -165,7 +178,8 @@ $(".modal-body #reset_description").val($(this).data('description'));
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h4 class="modal-title">Are you sure you want to reset ? This will erase all previous search results</h4>
+                <h4 class="modal-title">Are you sure you want to reset ? This will erase all previous search
+                    results</h4>
             </div>
             <form role="form" action="/reset" method="POST" name="request" enctype="multipart/form-data">
                 {{ reset_form.hidden_tag() }}
@@ -180,7 +194,8 @@ $(".modal-body #reset_description").val($(this).data('description'));
                     </div>
                     <div class="form-group">
                         <label>Description</label>
-                        <textarea class="form-control" name="reset_description" id="reset_description" rows="3" readonly></textarea>
+                        <textarea class="form-control" name="reset_description" id="reset_description" rows="3"
+                                  readonly></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -196,7 +211,7 @@ $(".modal-body #reset_description").val($(this).data('description'));
 <script type="text/javascript">
     setInterval(function() {
       window.location.reload();
-    }, 300000);
+    }, 30000);
 
 </script>
 {% endblock %}

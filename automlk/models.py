@@ -725,7 +725,8 @@ class ModelStacking(Model):
         else:
             # train on complete X y set
             X = np.concatenate((X_train, X_test), axis=0)
-            self.model.fit(X, ds.y)
+            y = np.concatenate((ds.y_train, ds.y_test), axis=0)
+            self.model.fit(X, y)
             if self.dataset.mode == 'competition':
                 y_pred_submit = self.model.predict(X_submit)
                 # test = mean of y_pred_test on multiple folds

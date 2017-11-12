@@ -2,11 +2,31 @@ import pandas as pd
 import numpy as np
 from .worker import get_importance
 from .store import exists_key_store, get_key_store
+from .dataset import get_dataset_list
 
 
 def print_value(x):
     # easy print function for dictionary value
     return ('%6.4f' % x).rstrip('0').rstrip('.') if isinstance(x, float) else str(x)
+
+
+def get_home_best():
+    # get the list of datasets with their best results
+    datasets = get_dataset_list(include_results=True)[::-1]
+    for dt in datasets:
+        if dt.status != 'created':
+            best = get_best_models(dt.dataset_id)
+            if len(best) > 0:
+                best = best[0]
+                dt.best_round_id = best['round_id']
+                dt.best_model_name = best['model_name']
+                dt.best_score_eval = best['score_eval']
+                dt.best_score_test = best['score_test']
+                dt.best_cv_mean = best['cv_mean']
+                dt.best_cv_std = best['cv_std']
+                dt.best_cv_max = best['cv_max']
+
+    return datasets
 
 
 def get_best_models(dataset_id):

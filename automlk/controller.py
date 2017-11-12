@@ -10,7 +10,7 @@ from .graphs import graph_history_search
 PATIENCE = 100               # number of equivalent results to wait before stop
 ROUNDS_MAX = 5000            # number max of rounds before stop
 
-RATIO_START_ENSEMBLE = 200   # number of rounds to start ensembling
+ROUND_START_ENSEMBLE = 200   # number of rounds to start ensembling
 RATIO_L1_L2 = 2              # number of L1 rounds compared to L2 rounds
 
 RATIO_ROUNDS = 10            # number rounds -> equivalent in number of results (only a fraction can pass threshold)
@@ -90,7 +90,8 @@ def __create_search_round(dataset_id):
     if round_id < len(l1_choices):
         # default mode, level 1
         default_mode = True
-        i_choice = round_id % len(l1_choices)
+        round_id_l1 = round_id
+        i_choice = round_id_l1 % len(l1_choices)
         ref = l1_choices[i_choice]
         solution = model_solutions_map[ref]
         params = solution.default_params
@@ -100,12 +101,12 @@ def __create_search_round(dataset_id):
 
         # find threshold
         threshold = __focus_threshold(df, round_id)
+        level, round_id_l1, round_id_l2 = __get_round_ids(round_id)
+        print('get_ids: round_id:%d, level=%d, l1=%d, l2=%d' % (round_id, level, round_id_l1, round_id_l2))
 
-        if round_id > RATIO_START_ENSEMBLE and round_id % 2 == 0:
-            # alternate with ensemble 1 out of 2
-            level = 2
+        if level == 2:
             l2_choices = __get_model_class_list(dataset, 2)
-            i_choice = (round_id // 2) % len(l2_choices)
+            i_choice = round_id_l2 % len(l2_choices)
             ref = l2_choices[i_choice]
             ensemble_depth = random.randint(1, 3)
         else:
@@ -114,7 +115,7 @@ def __create_search_round(dataset_id):
                 l1_choices = [x[0] for x in __get_list_best_models(df) if x[1] <= threshold]
                 print('focusing on ', l1_choices)
 
-            i_choice = (round_id // 2) % len(l1_choices)
+            i_choice = round_id_l1 % len(l1_choices)
             ref = l1_choices[i_choice]
 
         solution = model_solutions_map[ref]
@@ -122,7 +123,7 @@ def __create_search_round(dataset_id):
 
     # generate pre-processing pipeline and pre-processing params
     if level == 1:
-        pipeline = __get_pipeline(dataset, default_mode, round_id, df, threshold)
+        pipeline = __get_pipeline(dataset, default_mode, round_id_l1, df, threshold)
     else:
         pipeline = []
 
@@ -130,6 +131,24 @@ def __create_search_round(dataset_id):
     return {'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': solution.ref, 'level': level,
             'ensemble_depth': ensemble_depth, 'model_name': solution.name, 'model_params': params, 'pipeline': pipeline,
             'threshold': threshold, 'time_limit': __time_limit(dataset)}
+
+
+def __get_round_ids(round_id):
+    # find round ids for each level; return = level, round_id_l1, round_id_l2
+
+    if round_id < ROUND_START_ENSEMBLE:
+        return 1, round_id, -1
+    round_id_l1 = -1
+    round_id_l2 = -1
+    for i in range(round_id + 1):
+        if i >= ROUND_START_ENSEMBLE and i % RATIO_L1_L2 == 0:
+            round_id_l2 += 1
+        else:
+            round_id_l1 += 1
+    if round_id >= ROUND_START_ENSEMBLE and round_id % RATIO_L1_L2 == 0:
+        return 2, round_id_l1, round_id_l2
+    else:
+        return 1, round_id_l1, round_id_l2
 
 
 def __focus_threshold(df, round_id):
@@ -153,7 +172,7 @@ def __focus_threshold(df, round_id):
 
     # we will decrease the threshold from max % of the best scores to min%
     ratio = RATIO_THRESHOLD_MAX - base * RATIO_THRESHOLD_SLOPE / 50
-    n = max(RATIO_MIN, int(len(scores) * ratio/100))
+    n = max(RATIO_MIN, round(len(scores) * ratio/100))
     threshold = scores[n-1]
     print('outlier threshold set at: %.5f (ratio=%.2f%%, n=%d, %d scores)' % (threshold, ratio, n, len(scores)))
     return threshold
@@ -199,6 +218,7 @@ def __get_pp_choice(dataset, category, default_mode, i_round, best_pp, threshold
         choices = __get_pp_list(dataset, category, default_mode)
     else:
         choices = [x[0] for x in best_pp if x[1] == category and x[2] <= threshold]
+        print('focusing on pre-processing for', category, choices)
 
     i_pp = i_round % len(choices)
     ref = choices[i_pp]

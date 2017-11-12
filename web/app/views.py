@@ -20,14 +20,16 @@ from automlk.monitor import get_heart_beeps
 @app.route('/index', methods=['GET', 'POST'])
 def index():
     # home page: list of models
-    datasets = get_dataset_list(include_results=True)[::-1]
+    # datasets = get_dataset_list(include_results=True)[::-1]
+    datasets = get_home_best()
     sel_form = DomainForm()
-    sel_form.set_choices([d.domain for d in datasets])
+    domains = set([d.domain for d in datasets])
+    sel_form.set_choices(domains)
     del_form = DeleteDatasetForm()
     reset_form = ResetDatasetForm()
     if request.method == 'POST':
         datasets = [d for d in datasets if d.domain.startswith(sel_form.domain.data)]
-    return render_template('index.html', datasets=datasets, refresher=int(time.time()),
+    return render_template('index.html', datasets=datasets, domains=domains, refresher=int(time.time()),
                            sel_form=sel_form, reset_form=reset_form, del_form=del_form, config=get_config())
 
 
@@ -183,7 +185,7 @@ def get_doc_pdf(dataset_id):
     return send_file(__path_data(dataset_id) + '/docs/_build/latex/dataset.pdf', as_attachment=True)
 
 
-@app.route('/get_submit//<string:dataset_id>/<string:round_id>', methods=['GET'])
+@app.route('/get_submit/<string:dataset_id>/<string:round_id>', methods=['GET'])
 def get_submit(dataset_id, round_id):
     # download the submit file
     return send_file(__path_data(dataset_id) + '/submit/submit_%s.csv' % round_id,
