@@ -185,7 +185,7 @@ def __time_limit(dataset):
     elif dataset.n_rows < 100:
         return 1800
     else:
-        return 3600
+        return 3*3600
 
 
 def __get_pipeline(dataset, default_mode, i_round, df, threshold):
@@ -209,6 +209,10 @@ def __get_pipeline(dataset, default_mode, i_round, df, threshold):
     pipeline.append(__get_pp_choice(dataset, 'scaling', default_mode, i_round, best_pp, threshold))
     # feature selection
     pipeline.append(__get_pp_choice(dataset, 'feature', default_mode, i_round, best_pp, threshold))
+    # re-sampling
+    if dataset.problem_type == 'classification':
+        pipeline.append(__get_pp_choice(dataset, 'sampling', default_mode, i_round, best_pp, threshold))
+
     return pipeline
 
 
@@ -342,7 +346,7 @@ def __get_best_pp(df):
 
     # for each category, we will want to find the best model
     all_cat = []
-    for c in ['text', 'categorical', 'missing', 'scaling', 'feature']:
+    for c in PP_CATEGORIES:
         if c in cat:
             df['cat_ref'] = df['pipeline'].map(lambda x: __select_cat(c, x)[0])
             df['cat_name'] = df['pipeline'].map(lambda x: __select_cat(c, x)[1])

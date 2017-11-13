@@ -1,5 +1,8 @@
 from .preprocessing import *
+from imblearn.over_sampling import RandomOverSampler, SMOTE
+from imblearn.under_sampling import RandomUnderSampler
 
+PP_CATEGORIES = ['categorical', 'missing', 'text', 'scaling', 'feature', 'sampling']
 
 class PpSolution(object):
     # to define a pre-processing and the parameters / conditions of usage
@@ -49,6 +52,13 @@ pp_solutions = [
     PpSolution('ICA', 'Fast ICA', HyperProcessFastICA, default_fast_ica, space_fast_ica, 'feature', limit_size=50),
     PpSolution('PCA', 'PCA', HyperProcessPCA, default_pca, space_pca, 'feature', limit_size=50),
     PpSolution('FS-RF', 'Selection RF', HyperProcessSelectionRf, default_sel_rf, space_sel_rf, 'feature'),
+
+    # sampling solutions
+    PpSolution('SP_PASS', 'No re-sampling', NoSampling, {}, {}, 'sampling', default_solution=True),
+    PpSolution('SP-ROS', 'Random Over', RandomOverSampler, {}, {}, 'sampling'),
+    PpSolution('SP-SMOTE', 'SMOTE', SMOTE, {}, {}, 'sampling'),
+    PpSolution('SP-RUS', 'Random Under', RandomUnderSampler, {}, {}, 'sampling'),
+
 ]
 
 # mapping table

@@ -128,11 +128,6 @@ class Model(object):
         # filename for feature importance
         return get_dataset_folder(self.dataset.dataset_id) + '/features/%s.pkl' % self.round_id
 
-    @abstractmethod
-    def save_predict(self, y_pred_eval, y_pred_test, y_pred_submit):
-        # save predictions (eval and test set)
-        pickle.dump([y_pred_eval, y_pred_test, y_pred_submit],
-                    open(get_dataset_folder(self.dataset.dataset_id) + '/predict/%s.pkl' % self.round_id, 'wb'))
 
 
 def binary_proba(y):

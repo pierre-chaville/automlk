@@ -50,7 +50,7 @@ def job_search(msg_search):
     if msg_search['level'] == 1:
         # pre-processing on level 1 only
         t_start = time.time()
-        context, ds = __pre_processing(context, msg_search['pipeline'], deepcopy(ds_ini))
+        context, ds, final_pipeline = __pre_processing(context, msg_search['pipeline'], deepcopy(ds_ini))
         t_end = time.time()
         msg_search['duration_process'] = int(t_end - t_start)
     else:
@@ -64,28 +64,30 @@ def job_search(msg_search):
         pool = __get_pool_models(dataset, msg_search['ensemble_depth'])
     else:
         pool = None
-    __search(dataset, solution, model, msg_search, ds, pool)
+    __search(dataset, solution, model, msg_search, ds, pool, final_pipeline)
 
 
 def __pre_processing(context, pipeline, ds):
     # performs the different pre-processing steps
     context.pipeline = pipeline
     for ref, category, name, params in pipeline:
-        solution = pp_solutions_map[ref]
-        p_class = solution.process
-        process = p_class(context, params)
-        print('executing process', category, name, process.params)
-        ds.X_train = process.fit_transform(ds.X_train, ds.y_train)
-        ds.X_test = process.transform(ds.X_test)
-        ds.X = process.transform(ds.X)
-        if len(ds.X_submit) > 0:
-            ds.X_submit = process.transform(ds.X_submit)
-        print('-> %d features' % len(context.feature_names))
+        if category != 'sampling':
+            solution = pp_solutions_map[ref]
+            p_class = solution.process
+            process = p_class(context, params)
+            print('executing process', category, name, process.params)
+            ds.X_train = process.fit_transform(ds.X_train, ds.y_train)
+            ds.X_test = process.transform(ds.X_test)
+            ds.X = process.transform(ds.X)
+            if len(ds.X_submit) > 0:
+                ds.X_submit = process.transform(ds.X_submit)
+            print('-> %d features' % len(context.feature_names))
+    final_pipeline = [p for p in pipeline if p[1] == 'sampling']
+    print('final pipeline', final_pipeline)
+    return context, ds, final_pipeline
 
-    return context, ds
 
-
-def __search(dataset, solution, model, msg_search, ds, pool):
+def __search(dataset, solution, model, msg_search, ds, pool, pipeline):
     print('optimizing with %s, params: %s' % (solution.name, model.params))
     # fit, test & score
     t_start = time.time()
@@ -93,8 +95,7 @@ def __search(dataset, solution, model, msg_search, ds, pool):
         outlier, y_pred_eval_list, y_pred_test, y_pred_submit = model.cv_pool(pool, ds, msg_search['threshold'],
                                                                                         msg_search['ensemble_depth'])
     else:
-        #outlier, y_pred_eval_list, y_pred_test, y_pred_submit = model.cv(ds, msg_search['threshold'])
-        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cv(model, dataset, ds, msg_search['threshold'])
+        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cv(model, dataset, ds, pipeline, msg_search['threshold'])
     msg_search['num_rounds'] = model.num_rounds
 
     # check outlier
@@ -122,9 +123,13 @@ def __search(dataset, solution, model, msg_search, ds, pool):
         df_submit[dataset.col_submit] = np.reshape(ds.id_submit, (l, 1))
         df_submit.to_csv(get_dataset_folder(dataset.dataset_id) + '/submit/submit_%s.csv' % model.round_id, index=False)
 
-    # save model importance, prediction and model
+    # save model importance
     model.save_importance()
-    model.save_predict(y_pred_eval, y_pred_test, y_pred_submit)
+
+    # save predictions (eval and test set)
+    pickle.dump([y_pred_eval, y_pred_test, y_pred_submit],
+                open(get_dataset_folder(dataset.dataset_id) + '/predict/%s.pkl' % model.round_id, 'wb'))
+
     # model.save_model()
 
     # generate graphs
@@ -145,15 +150,15 @@ def __search(dataset, solution, model, msg_search, ds, pool):
     __evaluate_round(dataset, msg_search, ds.y_train, y_pred_eval, ds.y_test, y_pred_test, ds.y_eval_list, y_pred_eval_list)
 
 
-def __cv(model, dataset, ds, threshold):
+def __cv(model, dataset, ds, pipeline, threshold):
         # performs a cross validation on cv_folds, and predict also on X_test
         y_pred_eval, y_pred_test, y_pred_submit = [], [], []
         for i, (train_index, eval_index) in enumerate(ds.cv_folds):
             if i == 0 and model.early_stopping:
                 print('early stopping round')
                 # with early stopping, we perform an initial round to get number of rounds
-                model.fit_early_stopping(ds.X_train[train_index], ds.y_train[train_index],
-                                        ds.X_train[eval_index], ds.y_train[eval_index])
+                X1, y1 = __resample(pipeline, ds.X_train[train_index], ds.y_train[train_index])
+                model.fit_early_stopping(X1, y1, ds.X_train[eval_index], ds.y_train[eval_index])
 
                 if threshold != 0:
                     # test outlier (i.e. exceeds threshold)
@@ -166,7 +171,8 @@ def __cv(model, dataset, ds, threshold):
                         return True, 0, 0, 0
 
             # then train on train set and predict on eval set
-            model.fit(ds.X_train[train_index], ds.y_train[train_index])
+            X1, y1 = __resample(pipeline, ds.X_train[train_index], ds.y_train[train_index])
+            model.fit(X1, y1)
             y_pred = model.predict(ds.X_train[eval_index])
 
             if threshold != 0:
@@ -185,11 +191,13 @@ def __cv(model, dataset, ds, threshold):
 
         if dataset.mode == 'standard':
             # train on complete train set
-            model.fit(ds.X_train, ds.y_train)
+            X1, y1 = __resample(pipeline, ds.X_train, ds.y_train)
+            model.fit(X1, y1)
             y_pred_test = model.predict(ds.X_test)
         else:
             # train on complete X y set
-            model.fit(ds.X, ds.y)
+            X1, y1 = __resample(pipeline, ds.X, ds.y)
+            model.fit(X1, y1)
             if dataset.mode == 'competition':
                 y_pred_submit = model.predict(ds.X_submit)
                 # test = mean of y_pred_test on multiple folds
@@ -198,6 +206,19 @@ def __cv(model, dataset, ds, threshold):
                 y_pred_test = model.predict(ds.X_test)
 
         return False, y_pred_eval, y_pred_test, y_pred_submit
+
+
+def __resample(pipeline, X, y):
+    # apply resampling steps in pipeline
+    for ref, category, name, params in pipeline:
+        if category == 'sampling':
+            solution = pp_solutions_map[ref]
+            p_class = solution.process
+            process = p_class(params)
+            print('executing process', category, name, params)
+            return process.fit_sample(X, y)
+    print('Warning: resampling not found')
+    return X, y
 
 
 def __evaluate_round(dataset, msg_search, y_train, y_pred_eval, y_test, y_pred_test, y_eval_list, y_pred_eval_list):

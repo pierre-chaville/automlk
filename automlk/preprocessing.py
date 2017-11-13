@@ -366,3 +366,15 @@ class HyperProcessPassThrough(HyperProcess):
         return X
 
 
+
+class NoSampling(object):
+
+    # no re-sampling
+
+    def __init__(self, params):
+        self.params = params
+
+    def fit_sample(self, X, y):
+        return X, y
+
+
