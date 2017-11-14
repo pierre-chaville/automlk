@@ -56,6 +56,7 @@ def job_search(msg_search):
     else:
         msg_search['duration_process'] = 0
         ds = ds_ini
+        final_pipeline = []
 
     solution = model_solutions_map[msg_search['solution']]
     model = solution.model(dataset, context, msg_search['model_params'], msg_search['round_id'])
