@@ -25,11 +25,12 @@ to upgrade scikit-learn:
 
 **Warning: if you use conda, you must absolutely update sklearn with conda**
 
-Additionally, you must also install category_encoders:
+Additionally, you must also install category_encoders and imbalanced-learn:
 
 .. code-block:: python
 
     pip install category_encoders
+    pip install imbalanced-learn
 
 Optionally, you may install the following models:
 

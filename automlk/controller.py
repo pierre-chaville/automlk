@@ -181,9 +181,9 @@ def __focus_threshold(df, round_id):
 def __time_limit(dataset):
     # determine max delay to execute search
     if dataset.n_rows < 10:
-        return 120 * int(1 + dataset.n_rows)
+        return 300 * int(1 + dataset.n_rows)
     elif dataset.n_rows < 100:
-        return 1800
+        return 3600
     else:
         return 3*3600
 

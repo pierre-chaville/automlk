@@ -51,6 +51,7 @@ Requirements
 - sklearn (>0.19)
 - seaborn
 - category_encoders
+- imbalanced-learn
 
 optional:
 - lightGBM

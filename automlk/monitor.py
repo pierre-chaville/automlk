@@ -4,6 +4,7 @@ import signal
 import datetime
 import sys
 import subprocess
+import _thread
 from . import __version__
 from .store import *
 from threading import Timer
@@ -83,15 +84,18 @@ def __timer_control():
         __update_version()
         # then abort to launch new version
         print('aborting this program to launch with updated version..')
-        os.kill(os.getpid(), signal.SIGINT)
+        _thread.interrupt_main()
+        # os.kill(os.getpid(), signal.SIGINT)
+        return
 
     if __worker_timer_active:
         # check delay
         t = time.time()
         if t - __worker_timer_start > __worker_timer_limit:
             print('max delay %d seconds reached...' % __worker_timer_limit)
-            os.kill(os.getpid(), signal.SIGINT)
-            #_thread.interrupt_main()
+            _thread.interrupt_main()
+            # os.kill(os.getpid(), signal.SIGINT)
+            return            
     Timer(10.0, __timer_control, []).start()
 
 

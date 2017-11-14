@@ -64,7 +64,7 @@ def vector_word2vec(model, text, params):
     v = []
     vector_text = [clean_text(s).split() for s in text]
     for s in vector_text:
-        ww = model.size #np.zeros((params['size']))
+        ww = np.zeros(model.vector_size)
         n = 0
         for k, w in enumerate(s):
             if w in model.wv:

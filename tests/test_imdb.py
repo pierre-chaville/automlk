@@ -17,7 +17,7 @@ df = pd.read_csv('../datasets/imdb/labeledTrainData.tsv', sep='\t', header=0)
 text = df['review'].values
 y = df['sentiment'].values
 
-mode = 'ft'
+mode = 'w2v'
 
 if mode == 'bow':
     # --------------------------------------------------------------------

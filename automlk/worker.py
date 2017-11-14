@@ -21,16 +21,23 @@ def launch_worker():
     """
     init_timer_worker()
     while True:
-        # poll queue
-        msg_search = brpop_key_store('controller:search_queue')
-        heart_beep('worker', msg_search)
-        if msg_search != None:
-            print('received %s' % msg_search)
-            msg_search = {**msg_search, **{'start_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                           'host_name': socket.gethostname()}}
-            start_timer_worker(msg_search['time_limit'])
-            job_search(msg_search)
-            stop_timer_worker()
+        try:
+            # poll queue
+            msg_search = brpop_key_store('controller:search_queue')
+            heart_beep('worker', msg_search)
+            if msg_search != None:
+                print('received %s' % msg_search)
+                msg_search = {**msg_search, **{'start_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                               'host_name': socket.gethostname()}}
+                start_timer_worker(msg_search['time_limit'])
+                job_search(msg_search)
+                stop_timer_worker()
+        except KeyboardInterrupt:
+            print('Keyboard interrupt: exiting')
+            exit()
+        except Exception as e:
+            print("Error", e)
+            exit()
 
 
 def job_search(msg_search):
