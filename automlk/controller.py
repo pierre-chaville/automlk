@@ -313,12 +313,12 @@ def __get_best_models(df):
     # get the best results per model
     if len(df) < 1:
         return pd.DataFrame()
-    best = df.sort_values(by=['model_name', 'cv_max']).groupby('model_name', as_index=False).first().sort_values(
-        by='cv_max').fillna('')
+    best = df.sort_values(by=['model_name', 'cv_mean']).groupby('model_name', as_index=False).first().sort_values(
+        by='cv_mean').fillna('')
     counts = df[['model_name', 'round_id']].groupby('model_name', as_index=False).count()
     counts.columns = ['model_name', 'searches']
     # relative performance
-    best['rel_score'] = abs(100 * (best.cv_max - best.cv_max.max()) / (best.cv_max.max() - best.cv_max.min()))
+    best['rel_score'] = abs(100 * (best.cv_mean - best.cv_mean.max()) / (best.cv_mean.max() - best.cv_mean.min()))
     return pd.merge(best, counts, on='model_name')
 
 
@@ -353,14 +353,14 @@ def __get_best_pp(df):
             df['cat_process'] = df['pipeline'].map(lambda x: __select_cat(c, x)[2])
             df['cat_params'] = df['pipeline'].map(lambda x: __select_cat(c, x)[3])
 
-            best = df.sort_values(by=['cat_ref', 'cv_max']).groupby('cat_ref', as_index=False).first().sort_values(
-                by='cv_max').fillna('')
+            best = df.sort_values(by=['cat_ref', 'cv_mean']).groupby('cat_ref', as_index=False).first().sort_values(
+                by='cv_mean').fillna('')
 
             counts = df[['cat_ref', 'round_id']].groupby('cat_ref', as_index=False).count()
             counts.columns = ['cat_ref', 'searches']
 
             # relative performance
-            best['rel_score'] = abs(100 * (best.cv_max - best.cv_max.max()) / (best.cv_max.max() - best.cv_max.min()))
+            best['rel_score'] = abs(100 * (best.cv_mean - best.cv_mean.max()) / (best.cv_mean.max() - best.cv_mean.min()))
 
             all_cat.append((c, pd.merge(best, counts, on='cat_ref').to_dict(orient='records')))
 

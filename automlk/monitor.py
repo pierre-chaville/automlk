@@ -80,8 +80,8 @@ def __timer_control():
     # update cpu percentage in the machine
     __cpu_pct = psutil.cpu_percent(interval=0.1)
     # check if version need to be updated
-    if not __check_installed_version():
-        __update_version()
+    if not check_installed_version():
+        update_version()
         # then abort to launch new version
         print('aborting this program to launch with updated version..')
         _thread.interrupt_main()
@@ -137,7 +137,7 @@ def set_installed_version():
     set_key_store('__version__', __version__)
 
 
-def __check_installed_version():
+def check_installed_version():
     """
     check if installed version stored on disk is the same as the python module:
     this part needs to be called by the workers
@@ -153,7 +153,7 @@ def __check_installed_version():
     return True
 
 
-def __update_version():
+def update_version():
     """
     automatically update the version of automlk on the machine
 

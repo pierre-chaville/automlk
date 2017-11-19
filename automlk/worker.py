@@ -1,6 +1,4 @@
 import datetime
-import gc
-import os
 import socket
 from copy import deepcopy
 from .config import *
@@ -9,7 +7,7 @@ from .dataset import get_dataset
 from .graphs import graph_histogram_regression, graph_histogram_classification, graph_predict_regression, graph_predict_classification
 from .solutions import *
 from .store import *
-from .monitor import heart_beep, init_timer_worker, start_timer_worker, stop_timer_worker
+from .monitor import *
 from .solutions_pp import pp_solutions_map
 
 
@@ -19,6 +17,11 @@ def launch_worker():
 
     :return:
     """
+    # check version
+    if not check_installed_version():
+        update_version()
+        exit()
+
     init_timer_worker()
     while True:
         try:
@@ -66,13 +69,17 @@ def job_search(msg_search):
         final_pipeline = []
 
     solution = model_solutions_map[msg_search['solution']]
-    model = solution.model(dataset, context, msg_search['model_params'], msg_search['round_id'])
+    if solution.is_wrapper:
+        model = solution.model(dataset, context, msg_search['model_params'])
+    else:
+        model = solution.model(**msg_search['model_params'])
+
     msg_search['model_class'] = model.__class__.__name__
     if msg_search['level'] == 2:
         pool = __get_pool_models(dataset, msg_search['ensemble_depth'])
     else:
         pool = None
-    __search(dataset, solution, model, msg_search, ds, pool, final_pipeline)
+    __search(dataset, context, solution, model, msg_search, ds, pool, final_pipeline)
 
 
 def __pre_processing(context, pipeline, ds):
@@ -95,16 +102,23 @@ def __pre_processing(context, pipeline, ds):
     return context, ds, final_pipeline
 
 
-def __search(dataset, solution, model, msg_search, ds, pool, pipeline):
-    print('optimizing with %s, params: %s' % (solution.name, model.params))
+def __search(dataset, context, solution, model, msg_search, ds, pool, pipeline):
+    print('optimizing with %s, params: %s' % (solution.name, msg_search['model_params']))
     # fit, test & score
     t_start = time.time()
-    if msg_search['level'] == 2:
-        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = model.cv_pool(pool, ds, msg_search['threshold'],
+    round_id = msg_search['round_id']
+    level = msg_search['level']
+    if level == 2:
+        context.feature_names = __get_pool_features(dataset, pool)
+        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cv_pool(solution, model, dataset, pool, ds, msg_search['threshold'],
                                                                                         msg_search['ensemble_depth'])
     else:
-        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cv(model, dataset, ds, pipeline, msg_search['threshold'])
-    msg_search['num_rounds'] = model.num_rounds
+        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cv(solution, model, dataset, ds, pipeline,
+                                                                     msg_search['threshold'])
+    if hasattr(model, 'num_rounds'):
+        msg_search['num_rounds'] = model.num_rounds
+    else:
+        msg_search['num_rounds'] = None
 
     # check outlier
     if outlier:
@@ -129,14 +143,17 @@ def __search(dataset, solution, model, msg_search, ds, pool, pipeline):
         df_submit.columns = [dataset.col_submit, dataset.y_col]
         # allocate id column to avoid type conversion (to float)
         df_submit[dataset.col_submit] = np.reshape(ds.id_submit, (l, 1))
-        df_submit.to_csv(get_dataset_folder(dataset.dataset_id) + '/submit/submit_%s.csv' % model.round_id, index=False)
+        df_submit.to_csv(get_dataset_folder(dataset.dataset_id) + '/submit/submit_%s.csv' % round_id, index=False)
 
     # save model importance
-    model.save_importance()
+    if level == 1:
+        __save_importance(model, dataset, context, round_id)
+    else:
+        __save_importance(model.model, dataset, context, round_id)
 
     # save predictions (eval and test set)
     pickle.dump([y_pred_eval, y_pred_test, y_pred_submit],
-                open(get_dataset_folder(dataset.dataset_id) + '/predict/%s.pkl' % model.round_id, 'wb'))
+                open(get_dataset_folder(dataset.dataset_id) + '/predict/%s.pkl' % round_id, 'wb'))
 
     # model.save_model()
 
@@ -152,17 +169,16 @@ def __search(dataset, solution, model, msg_search, ds, pool, pipeline):
         graph_histogram_classification(dataset, msg_search['round_id'], y_pred_eval, 'eval')
         graph_histogram_classification(dataset, msg_search['round_id'], y_pred_test, 'test')
 
-
     t_end = time.time()
     msg_search['duration_model'] = int(t_end - t_start)
     __evaluate_round(dataset, msg_search, ds.y_train, y_pred_eval, ds.y_test, y_pred_test, ds.y_eval_list, y_pred_eval_list)
 
 
-def __cv(model, dataset, ds, pipeline, threshold):
+def __cv(solution, model, dataset, ds, pipeline, threshold):
         # performs a cross validation on cv_folds, and predict also on X_test
         y_pred_eval, y_pred_test, y_pred_submit = [], [], []
         for i, (train_index, eval_index) in enumerate(ds.cv_folds):
-            if i == 0 and model.early_stopping:
+            if i == 0 and solution.early_stopping:
                 print('early stopping round')
                 # with early stopping, we perform an initial round to get number of rounds
                 X1, y1 = __resample(pipeline, ds.X_train[train_index], ds.y_train[train_index])
@@ -170,7 +186,7 @@ def __cv(model, dataset, ds, pipeline, threshold):
 
                 if threshold != 0:
                     # test outlier (i.e. exceeds threshold)
-                    y_pred = model.predict(ds.X[eval_index])
+                    y_pred = __predict(solution, model, ds.X[eval_index])
                     score = dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
                     print('early stopping score: %.5f' % score)
                     if score > threshold:
@@ -181,7 +197,7 @@ def __cv(model, dataset, ds, pipeline, threshold):
             # then train on train set and predict on eval set
             X1, y1 = __resample(pipeline, ds.X_train[train_index], ds.y_train[train_index])
             model.fit(X1, y1)
-            y_pred = model.predict(ds.X_train[eval_index])
+            y_pred = __predict(solution, model, ds.X_train[eval_index])
 
             if threshold != 0:
                 # test outlier:
@@ -195,25 +211,103 @@ def __cv(model, dataset, ds, pipeline, threshold):
             y_pred_eval.append(y_pred)
 
             # we also predict on test & submit set (to be averaged later)
-            y_pred_test.append(model.predict(ds.X_test))
+            y_pred_test.append(__predict(solution, model, ds.X_test))
 
         if dataset.mode == 'standard':
             # train on complete train set
             X1, y1 = __resample(pipeline, ds.X_train, ds.y_train)
             model.fit(X1, y1)
-            y_pred_test = model.predict(ds.X_test)
+            y_pred_test = __predict(solution, model, ds.X_test)
         else:
             # train on complete X y set
             X1, y1 = __resample(pipeline, ds.X, ds.y)
             model.fit(X1, y1)
             if dataset.mode == 'competition':
-                y_pred_submit = model.predict(ds.X_submit)
+                y_pred_submit = __predict(solution, model, ds.X_submit)
                 # test = mean of y_pred_test on multiple folds
                 y_pred_test = np.mean(y_pred_test, axis=0)
             else:
-                y_pred_test = model.predict(ds.X_test)
+                y_pred_test = __predict(solution, model, ds.X_test)
 
         return False, y_pred_eval, y_pred_test, y_pred_submit
+
+
+def __cv_pool(solution, model, dataset, pool, ds, threshold, depth):
+    y_pred_eval, y_pred_test, y_pred_submit = [], [], []
+
+    # create X by stacking predictions
+    for j, (u, m, p_eval, p_test, p_submit) in enumerate(
+            zip(pool.pool_model_round_ids, pool.pool_model_names, pool.pool_eval_preds,
+                pool.pool_test_preds, pool.pool_submit_preds)):
+        # check if array has 2 dimensions
+        shape = len(np.shape(p_eval))
+        if shape == 1:
+            p_eval = np.reshape(p_eval, (len(p_eval), 1))
+            p_test = np.reshape(p_test, (len(p_test), 1))
+            if dataset.mode == 'competition':
+                p_submit = np.reshape(p_submit, (len(p_submit), 1))
+        if j == 0:
+            X_train = p_eval
+            X_test = p_test
+            if dataset.mode == 'competition':
+                X_submit = p_submit
+        else:
+            # stack vertically the predictions
+            X_train = np.concatenate((X_train, p_eval), axis=1)
+            X_test = np.concatenate((X_test, p_test), axis=1)
+            if dataset.mode == 'competition':
+                X_submit = np.concatenate((X_submit, p_submit), axis=1)
+
+    for i, (train_index, eval_index) in enumerate(ds.cv_folds):
+        print('fold %d' % i)
+
+        if i == 0 and solution.early_stopping:
+            # with early stopping, we perform an initial round to get number of rounds
+            print('fit early stopping')
+            model.fit_early_stopping(X_train[train_index], ds.y_train[train_index], X_train[eval_index], ds.y_train[eval_index])
+            y_pred = __predict(solution, model, X_train[eval_index])
+            score = dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
+            print('early stopping score: %.5f' % score)
+            if threshold != 0 and score > threshold:
+                print('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
+                time.sleep(10)
+                return True, 0, 0, 0
+
+        # train on X_train
+        model.fit(X_train[train_index], ds.y_train[train_index])
+        y_pred = __predict(solution, model, X_train[eval_index])
+        y_pred_eval.append(y_pred)
+        y_pred_test.append(__predict(solution, model, X_test))
+        score = dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
+        if threshold != 0 and score > threshold:
+            print('found outlier: %.5f with threshold %.5f' % (score, threshold))
+            time.sleep(10)
+            return True, 0, 0, 0
+
+    if dataset.mode == 'standard':
+        # train on complete train set
+        model.fit(X_train, ds.y_train)
+        y_pred_test = __predict(solution, model, X_test)
+    else:
+        # train on complete X y set
+        X = np.concatenate((X_train, X_test), axis=0)
+        y = np.concatenate((ds.y_train, ds.y_test), axis=0)
+        model.fit(X, y)
+        if dataset.mode == 'competition':
+            y_pred_submit = __predict(solution, model, X_submit)
+            # test = mean of y_pred_test on multiple folds
+            y_pred_test = np.mean(y_pred_test, axis=0)
+        else:
+            y_pred_test = __predict(solution, model, X_test)
+
+    return False, y_pred_eval, y_pred_test, y_pred_submit
+
+
+def __predict(solution, model, X):
+    if solution.use_predict_proba:
+        return model.predict_proba(X)
+    else:
+        return model.predict(X)
 
 
 def __resample(pipeline, X, y):
@@ -223,10 +317,22 @@ def __resample(pipeline, X, y):
             solution = pp_solutions_map[ref]
             p_class = solution.process
             process = p_class(params)
-            print('executing process', category, name, params)
             return process.fit_sample(X, y)
-    print('Warning: resampling not found')
     return X, y
+
+
+def __save_importance(model, dataset, context, round_id):
+    # saves feature importance (as a dataframe)
+    if hasattr(model, 'feature_importances_'):
+        importance = pd.DataFrame(context.feature_names)
+        importance['importance'] = model.feature_importances_
+        importance.columns = ['feature', 'importance']
+        pickle.dump(importance, open(get_dataset_folder(dataset.dataset_id) + '/features/%s.pkl' % round_id, 'wb'))
+    elif hasattr(model, 'dict_importance_'):
+        # xgboost type: feature importance is a dictionary
+        imp = model.dict_importance_
+        importance = pd.DataFrame([{'feature': key, 'importance': imp[key]} for key in imp.keys()])
+        pickle.dump(importance, open(get_dataset_folder(dataset.dataset_id) + '/features/%s.pkl' % round_id, 'wb'))
 
 
 def __evaluate_round(dataset, msg_search, y_train, y_pred_eval, y_test, y_pred_test, y_eval_list, y_pred_eval_list):
@@ -247,6 +353,19 @@ def __evaluate_round(dataset, msg_search, y_train, y_pred_eval, y_test, y_pred_t
 
     rpush_key_store(RESULTS_QUEUE, msg_search)
     print('completed search:', msg_search)
+
+
+def __get_pool_features(dataset, pool):
+    # return the lst of features in an ensemble model
+    if dataset.problem_type == 'regression':
+        feature_names = [name + '_' + str(round_id) for round_id, name in
+                              zip(pool.pool_model_round_ids, pool.pool_model_names)]
+    else:
+        feature_names = []
+        for round_id, name in zip(pool.pool_model_round_ids, pool.pool_model_names):
+            for k in range(dataset.y_n_classes):
+                feature_names.append(name + '_' + str(k) + '_' + str(round_id))
+    return feature_names
 
 
 def __get_pool_models(dataset, depth):

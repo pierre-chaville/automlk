@@ -78,17 +78,12 @@ class Model(object):
     # abstract class for model hyper optimization
 
     @abstractmethod
-    def __init__(self, dataset, context, params, round_id):
+    def __init__(self, dataset, context, params):
         self.dataset = dataset
         self.context = context
-        self.round_id = round_id
         self.params = params
         self.feature_names = context.feature_names
-        self.model = None
-        self.num_rounds = 0
-        self.y_pred_eval = None
-        self.early_stopping = False
-        self.importance = None
+
 
     @abstractmethod
     def fit(self, X_train, y_train):
@@ -108,26 +103,6 @@ class Model(object):
             # for classification, prediction is the proba
             return self.model.predict_proba(X)
 
-    @abstractmethod
-    def save_model(self):
-        # saves parameters of the model
-        pickle.dump([self.model],
-                    open(get_dataset_folder(self.dataset.dataset_id) + '/models/%s.pkl' % self.round_id, 'wb'))
-
-    @abstractmethod
-    def save_importance(self):
-        # saves feature importance (as a dataframe)
-        if hasattr(self.model, 'feature_importances_'):
-            self.importance = pd.DataFrame(self.feature_names)
-            self.importance['importance'] = self.model.feature_importances_
-            self.importance.columns = ['feature', 'importance']
-            pickle.dump(self.importance, open(self.feature_filename(), 'wb'))
-
-    @abstractmethod
-    def feature_filename(self):
-        # filename for feature importance
-        return get_dataset_folder(self.dataset.dataset_id) + '/features/%s.pkl' % self.round_id
-
 
 
 def binary_proba(y):
@@ -135,137 +110,12 @@ def binary_proba(y):
     return np.stack([1 - y, y], axis=1)
 
 
-class ModelLogisticRegression(Model):
-    # class for model Logistic regression
-
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        if self.params['solver'] in ['newton-cg', 'sag', 'lbfgs']:
-            self.params['penalty'] = 'l2'
-        if not (self.params['solver'] == 'liblinear' and self.params['penalty'] == 'l2'):
-            self.params['dual'] = False
-        self.model = linear.LogisticRegression(**self.params)
-
-
-class ModelLinearRegressor(Model):
-    # class for model Linear regression
-
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = linear.LinearRegression(**self.params)
-
-
-class ModelLassoRegressor(Model):
-    # class for model Lasso Linear regression
-
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = linear.Lasso(**self.params)
-
-
-class ModelRidgeRegressor(Model):
-    # class for model Ridge Linear regression
-
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = linear.Ridge(**self.params)
-
-
-class ModelHuberRegressor(Model):
-    # class for model Huber Linear regression
-
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = linear.HuberRegressor(**self.params)
-
-
-class ModelLinearSVC(Model):
-    # class for model SVM classification
-
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = svm.LinearSVC(**self.params)
-
-
-class ModelLinearSVR(Model):
-    # class for model SVM regression
-
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = svm.LinearSVR(**self.params)
-
-
-class ModelSVM(Model):
-    # class for model SVM kernel
-
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        if self.dataset.problem_type == 'regression':
-            self.model = svm.SVR(**self.params)
-        else:
-            self.model = svm.SVC(**self.params)
-
-
-class ModelKnn(Model):
-    # class for model KNN
-
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        if self.dataset.problem_type == 'regression':
-            self.model = knn.KNeighborsRegressor(**self.params)
-        else:
-            self.model = knn.KNeighborsClassifier(**self.params)
-
-
-class ModelAdaBoost(Model):
-    # class for model AdaBoost
-
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        if self.dataset.problem_type == 'regression':
-            self.model = ske.AdaBoostRegressor(**self.params)
-        else:
-            self.model = ske.AdaBoostClassifier(**self.params)
-
-
-class ModelGradientBoosting(Model):
-    # class for model AdaBoost
-
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        if self.dataset.problem_type == 'regression':
-            self.model = ske.GradientBoostingRegressor(**self.params)
-        else:
-            self.model = ske.GradientBoostingClassifier(**self.params)
-
-
-class ModelExtraTrees(Model):
-    # class for model Extra trees
-
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        if self.dataset.problem_type == 'regression':
-            self.model = ske.ExtraTreesRegressor(**self.params)
-        else:
-            self.model = ske.ExtraTreesClassifier(**self.params)
-
-
-class ModelRandomForest(Model):
-    # class for model Random Forest
-
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        if self.dataset.problem_type == 'regression':
-            self.model = ske.RandomForestRegressor(**self.params)
-        else:
-            self.model = ske.RandomForestClassifier(**self.params)
-
 
 class ModelLightGBM(Model):
     # class for model LightGBM
 
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
         self.early_stopping = True
 
         if self.dataset.problem_type == 'classification' and self.dataset.y_n_classes > 2:
@@ -286,6 +136,7 @@ class ModelLightGBM(Model):
         self.model = lgb.train(self.params,
                                lgb_train,
                                num_boost_round=self.num_rounds)
+        self.feature_importances_ = self.model.feature_importance()
 
     def fit_early_stopping(self, X_train, y_train, X_eval, y_eval):
         # specific early stopping for Light GBM
@@ -312,19 +163,12 @@ class ModelLightGBM(Model):
         else:
             return self.model.predict(X)
 
-    def save_importance(self):
-        # saves feature importance (as a dataframe)
-        self.importance = pd.DataFrame(self.feature_names)
-        self.importance['importance'] = self.model.feature_importance()
-        self.importance.columns = ['feature', 'importance']
-        pickle.dump(self.importance, open(self.feature_filename(), 'wb'))
-
 
 class ModelXgBoost(Model):
     # class for model XGBOOST
 
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
         self.early_stopping = True
 
         if self.dataset.problem_type == 'classification' and self.dataset.y_n_classes > 2:
@@ -338,6 +182,8 @@ class ModelXgBoost(Model):
         self.model = xgb.train(self.params,
                                xgb_train,
                                num_boost_round=self.num_rounds)
+
+        self.dict_importance_ = self.model.get_score()
 
     def fit_early_stopping(self, X_train, y_train, X_eval, y_eval):
         # specific early stopping for XxBoost
@@ -364,18 +210,12 @@ class ModelXgBoost(Model):
         else:
             return self.model.predict(xgb_X)
 
-    def save_importance(self):
-        # saves feature importance (as a dataframe)
-        imp = self.model.get_score()
-        importance = pd.DataFrame([{'feature': key, 'importance': imp[key]} for key in imp.keys()])
-        pickle.dump(importance, open(self.feature_filename(), 'wb'))
-
 
 class ModelCatboost(Model):
     # class for model Catboost
 
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
         self.early_stopping = True
         self.feature_importance = []
         self.set_model()
@@ -396,7 +236,7 @@ class ModelCatboost(Model):
         train_pool = Pool(X_train, label=y_train.astype(float))
         self.set_model()
         self.model.fit(train_pool, use_best_model=False)
-        self.feature_importance = self.model.get_feature_importance(train_pool)
+        self.feature_importances_ = self.model.get_feature_importance(train_pool)
 
     def fit_early_stopping(self, X_train, y_train, X_eval, y_eval):
         # specific early stopping for Catboost
@@ -422,19 +262,12 @@ class ModelCatboost(Model):
         else:
             return self.model.predict_proba(X)
 
-    def save_importance(self):
-        # saves feature importance (as a dataframe)
-        self.importance = pd.DataFrame(self.feature_names)
-        self.importance['importance'] = self.feature_importance
-        self.importance.columns = ['feature', 'importance']
-        pickle.dump(self.importance, open(self.feature_filename(), 'wb'))
-
 
 class ModelNN(Model):
     # class for model Neural Networks
 
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
         self.early_stopping = True
         self.model_created = False
 
@@ -488,10 +321,6 @@ class ModelNN(Model):
         else:
             return y
 
-    def save_model(self):
-        # TODO: implement save weights
-        pass
-
 
 class EnsemblePool(object):
     # class to manage data required for ensembling
@@ -507,8 +336,8 @@ class ModelEnsembleSelection(Model):
     # TODO : fix bug
     # class for model with ensemble selection
 
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
         self.selection = None
 
     def cv_pool(self, pool, y, y_test, cv_folds, threshold, depth):
@@ -587,163 +416,90 @@ class ModelEnsembleSelection(Model):
         pickle.dump(self.importance, open(self.feature_filename(), 'wb'))
 
 
-class ModelStacking(Model):
-    # class for model with ensemble stacking
 
-    __metaclass__ = ABCMeta
-
-    @abstractmethod
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-
-    @abstractmethod
-    def cv_pool(self, pool, ds, threshold, depth):
-        y_pred_eval, y_pred_test, y_pred_submit = [], [], []
-        self.params = {**{'depth': depth}, **self.params}
-        # set feature names
-        if self.dataset.problem_type == 'regression':
-            self.feature_names = [name + '_' + str(round_id) for round_id, name in
-                                  zip(pool.pool_model_round_ids, pool.pool_model_names)]
-        else:
-            self.feature_names = []
-            for round_id, name in zip(pool.pool_model_round_ids, pool.pool_model_names):
-                for k in range(self.dataset.y_n_classes):
-                    self.feature_names.append(name + '_' + str(k) + '_' + str(round_id))
-        self.model.feature_names = self.feature_names
-
-        # create X by stacking predictions
-        for j, (u, m, p_eval, p_test, p_submit) in enumerate(
-                zip(pool.pool_model_round_ids, pool.pool_model_names, pool.pool_eval_preds,
-                    pool.pool_test_preds, pool.pool_submit_preds)):
-            # check if array has 2 dimensions
-            shape = len(np.shape(p_eval))
-            if shape == 1:
-                p_eval = np.reshape(p_eval, (len(p_eval), 1))
-                p_test = np.reshape(p_test, (len(p_test), 1))
-                p_submit = np.reshape(p_submit, (len(p_submit), 1))
-            if j == 0:
-                X_train = p_eval
-                X_test = p_test
-                X_submit = p_submit
-            else:
-                # stack vertically the predictions
-                X_train = np.concatenate((X_train, p_eval), axis=1)
-                X_test = np.concatenate((X_test, p_test), axis=1)
-                X_submit = np.concatenate((X_submit, p_submit), axis=1)
-
-        for i, (train_index, eval_index) in enumerate(ds.cv_folds):
-            print('fold %d' % i)
-
-            if i == 0 and self.model.early_stopping:
-                # with early stopping, we perform an initial round to get number of rounds
-                print('fit early stopping')
-                self.model.fit_early_stopping(X_train[train_index], ds.y_train[train_index], X_train[eval_index], ds.y_train[eval_index])
-                y_pred = self.model.predict(X_train[eval_index])
-                score = self.dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
-                print('early stopping score: %.5f' % score)
-                if score > threshold:
-                    print('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
-                    time.sleep(10)
-                    return True, 0, 0, 0
-
-            # train on X_train
-            self.model.fit(X_train[train_index], ds.y_train[train_index])
-            y_pred = self.model.predict(X_train[eval_index])
-            y_pred_eval.append(y_pred)
-            y_pred_test.append(self.model.predict(X_test))
-            score = self.dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
-            if score > threshold:
-                print('found outlier: %.5f with threshold %.5f' % (score, threshold))
-                time.sleep(10)
-                return True, 0, 0, 0
-
-        if self.dataset.mode == 'standard':
-            # train on complete train set
-            self.model.fit(X_train, ds.y_train)
-            y_pred_test = self.model.predict(X_test)
-        else:
-            # train on complete X y set
-            X = np.concatenate((X_train, X_test), axis=0)
-            y = np.concatenate((ds.y_train, ds.y_test), axis=0)
-            self.model.fit(X, y)
-            if self.dataset.mode == 'competition':
-                y_pred_submit = self.model.predict(X_submit)
-                # test = mean of y_pred_test on multiple folds
-                y_pred_test = np.mean(y_pred_test, axis=0)
-            else:
-                y_pred_test = self.model.predict(X_test)
-
-        return False, y_pred_eval, y_pred_test, y_pred_submit
-
-    # TODO: implement predict
-    # TODO: implement load/save
-
-    def save_importance(self):
-        self.model.save_importance()
-        if isinstance(self.model.importance, pd.DataFrame):
-            self.importance = self.model.importance
-            pickle.dump(self.importance, open(self.feature_filename(), 'wb'))
-
-
-class ModelStackingExtraTrees(ModelStacking):
+class ModelStackingExtraClassifier(Model):
     # class for stacking with model Extra trees
 
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = ModelExtraTrees(dataset, context, params, round_id)
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
+        self.model = ske.ExtraTreesClassifier(**params)
 
 
-class ModelStackingRandomForest(ModelStacking):
+class ModelStackingExtraRegressor(Model):
     # class for stacking with model Extra trees
 
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = ModelRandomForest(dataset, context, params, round_id)
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
+        self.model = ske.ExtraTreesRegressor(**params)
 
 
-class ModelStackingGradientBoosting(ModelStacking):
+class ModelStackingRFClassifier(Model):
     # class for stacking with model Extra trees
 
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = ModelGradientBoosting(dataset, context, params, round_id)
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
+        self.model = ske.RandomForestClassifier(**params)
 
 
-class ModelStackingLinear(ModelStacking):
+class ModelStackingRFRegressor(Model):
     # class for stacking with model Extra trees
 
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = ModelLinearRegressor(dataset, context, params, round_id)
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
+        self.model = ske.RandomForestRegressor(**params)
 
 
-class ModelStackingLogistic(ModelStacking):
+class ModelStackingGBMClassifier(Model):
+    # class for stacking with model Extra trees
+
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
+        self.model = ske.GradientBoostingClassifier(**params)
+
+
+class ModelStackingGBMRegressor(Model):
+    # class for stacking with model Extra trees
+
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
+        self.model = ske.GradientBoostingRegressor(**params)
+
+
+class ModelStackingLinear(Model):
+    # class for stacking with model Extra trees
+
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
+        self.model = linear.LinearRegression(**params)
+
+
+class ModelStackingLogistic(Model):
     # class for stacking with model Logistic regression
 
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = ModelLogisticRegression(dataset, context, params, round_id)
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
+        self.model = linear.LogisticRegression(**params)
 
 
-class ModelStackingXgBoost(ModelStacking):
+class ModelStackingXgBoost(Model):
     # class for stacking with model XgBoost
 
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = ModelXgBoost(dataset, context, params, round_id)
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
+        self.model = ModelXgBoost(dataset, context, params)
 
 
-class ModelStackingLightGBM(ModelStacking):
+class ModelStackingLightGBM(Model):
     # class for stacking with model LightGBM
 
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = ModelLightGBM(dataset, context, params, round_id)
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
+        self.model = ModelLightGBM(dataset, context, params)
 
 
-class ModelStackingNN(ModelStacking):
+class ModelStackingNN(Model):
     # class for stacking with model NN
 
-    def __init__(self, dataset, context, params, round_id):
-        super().__init__(dataset, context, params, round_id)
-        self.model = ModelNN(dataset, context, params, round_id)
+    def __init__(self, dataset, context, params):
+        super().__init__(dataset, context, params)
+        self.model = ModelNN(dataset, context, params)

@@ -64,7 +64,6 @@ def print_duration(y):
 def print_params(p):
     # easy print function for dictionary of params
     excluded = ['verbose', 'task', 'n_jobs', 'random_state', 'silent', 'warm_start']
-    print(type(p), p)
     if isinstance(p, dict):
         return ", ".join([key.replace('_', ' ') + ': ' + print_value(p[key]) for key in p.keys() if key not in excluded])
     else:

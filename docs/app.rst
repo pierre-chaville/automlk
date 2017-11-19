@@ -76,7 +76,7 @@ You may afterwards update *some fields* of a dataset by using the edit icon in t
 We can access to a specific dataset in clicking on the row of the required dataset.
 When a dataset is created, there is only the features and analysis of the data available:
 
-.. figure:: img/dataset_set.png
+.. figure:: img/info.png
    :scale: 70 %
    :alt: dataset
 
@@ -110,15 +110,7 @@ Results and best models
 
 When the search is launched, 3 additional tabs are available:
 
-.. figure:: img/dataset.png
-   :scale: 70 %
-   :alt: models with the best scores
-
-   Best models by eval score
-
-And specifically on 1 model:
-
-.. figure:: img/model.png
+.. figure:: img/models.png
    :scale: 70 %
    :alt: models with the best scores
 
@@ -126,21 +118,30 @@ And specifically on 1 model:
 
 And per pre-processing steps:
 
-.. figure:: img/process.png
+.. figure:: img/processes.png
    :scale: 70 %
    :alt: pre-processing steps with the best scores
 
    pre-processing steps by eval score
 
-.. figure:: img/search.png
+The graph of the best results over time:
+
+.. figure:: img/best.png
    :scale: 70 %
    :alt: search history
 
    The evolution of the best scores in time
 
+And after a while, the best ensembles:
+
+.. figure:: img/ensembles.png
+   :scale: 70 %
+
+The best ensembles
+
 And then by clicking on a specific model access to the details
 
-.. figure:: img/model.png
+.. figure:: img/list_model.png
    :scale: 70 %
    :alt: details of the search by model
 
@@ -154,7 +155,7 @@ And then on a specific round:
 
    a round with a se of model parameters and pre-processing
 
-.. figure:: img/preprocess.png
+.. figure:: img/steps.png
    :scale: 70 %
    :alt: pre-processing steps
 
@@ -187,26 +188,6 @@ Where we can view the performance and the predictions:
    :alt: histogram of the predictions
 
    and the histogram of the predictions
-
-
-Ensembles
----------
-
-After launching the search in 'ensemble' mode, another tab 'Ensembles' is available at dataset level.
-We can view the performance of the various ensemble models, and the models used as a 1st level:
-
-.. figure:: img/ensembles.png
-   :scale: 70 %
-   :alt: ensembles models
-
-   performance of the ensemble models
-
-
-.. figure:: img/ensemble_importance.png
-   :scale: 70 %
-   :alt: feature importance for an ensemble model
-
-   feature importance for an ensemble model
 
 
 Admin

@@ -4,23 +4,24 @@ from automlk.dataset import get_dataset_list, get_dataset_folder
 from automlk.worker import get_search_rounds
 from automlk.graphs import graph_history_search
 from automlk.store import set_key_store
-
+from automlk.solutions_pp import PP_CATEGORIES
+from automlk.controller import __get_best_models, __get_best_pp
 """
 module specifically designed to update search graphs and best models and pp
 after new version (results are calculated by the controller)
 """
 
-
+"""
 def __get_best_models(df):
     # get the best results per model
     if len(df) < 1:
         return pd.DataFrame()
-    best = df.sort_values(by=['model_name', 'cv_max']).groupby('model_name', as_index=False).first().sort_values(
+    best = df.sort_values(by=['model_name', 'cv']).groupby('model_name', as_index=False).first().sort_values(
         by='cv_max').fillna('')
     counts = df[['model_name', 'round_id']].groupby('model_name', as_index=False).count()
     counts.columns = ['model_name', 'searches']
     # relative performance
-    best['rel_score'] = abs(100 * (best.cv_max - best.cv_max.max()) / (best.cv_max.max() - best.cv_max.min()))
+    best['rel_score'] = abs(100 * (best.cv - best.cv_max.max()) / (best.cv_max.max() - best.cv_max.min()))
     return pd.merge(best, counts, on='model_name')
 
 
@@ -39,7 +40,7 @@ def __get_best_pp(df):
 
     # for each category, we will want to find the best model
     all_cat = []
-    for c in ['text', 'categorical', 'missing', 'scaling', 'feature']:
+    for c in PP_CATEGORIES:
         if c in cat:
             df['cat_ref'] = df['pipeline'].map(lambda x: __select_cat(c, x)[0])
             df['cat_name'] = df['pipeline'].map(lambda x: __select_cat(c, x)[1])
@@ -59,6 +60,7 @@ def __get_best_pp(df):
 
     return all_cat
 
+"""
 
 def __select_cat(c, pipeline):
     # select the element in the pipeline with category c
