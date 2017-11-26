@@ -1,3 +1,7 @@
+import logging
+
+log = logging.getLogger(__name__)
+
 try:
     from keras.models import Sequential
     from keras.layers.core import Dense, Dropout, Activation
@@ -10,37 +14,24 @@ try:
     import_keras = True
 except:
     import_keras = False
-    print('could not import keras. Neural networks will not be used')
+    log.info('could not import keras. Neural networks will not be used')
+
 
 def keras_create_model(params, problem_type):
     # creates a neural net model with params definition
 
-    """
-    params['learning_rate'] = 0.1
-    params['number_layers'] = 2
-    params['units'] = 64
-    params['activation'] = 'relu'
-    params['batch_normalization'] = False
-    params['dropout_input'] = 0.5
-    params['dropout_hidden'] = 0.5
-    params['optimizer'] = 'rmsprop'
-    """
-
-    print('creating NN structure')
+    log.info('creating NN structure')
     model = Sequential()
-
     for l in range(int(params['number_layers'])):
         if l == 0:
             model.add(Dense(units=params['units'], input_dim=params['input_dim']))
         else:
             model.add(Dense(units=params['units']))
-        print('layer with %d units' % params['units'])
         model.add(Activation(params['activation']))
         if params['batch_normalization']:
             model.add(BatchNormalization())
         model.add(Dropout(params['dropout']))
 
-    print('layer with %d units' % params['output_dim'])
     model.add(Dense(params['output_dim']))
 
     if problem_type == 'classification':
@@ -52,7 +43,7 @@ def keras_create_model(params, problem_type):
 
 def keras_compile_model(model, params, problem_type):
     # compile the model (usefull to reset weights also)
-    print('compiling NN model')
+    log.info('compiling NN model')
     if params['optimizer'] == 'Adagrad':
         optimizer = Adagrad(lr=params['learning_rate'])
     elif params['optimizer'] == 'Adadelta':

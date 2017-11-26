@@ -10,7 +10,7 @@ from automlk.context import get_uploads_folder, get_dataset_folder, get_config, 
 from automlk.dataset import get_dataset_list, get_dataset, delete_dataset, update_dataset, reset_dataset, \
     update_feature_dataset, get_dataset_sample
 from automlk.worker import get_search_rounds
-from automlk.graphs import graph_history_search
+from automlk.graphs import get_cnf_matrix
 from automlk.store import set_key_store
 from automlk.dataset import create_dataset
 from automlk.monitor import get_heart_beeps
@@ -118,7 +118,7 @@ def details_pp(prm):
                            refresher=int(time.time()), config=get_config())
 
 
-@app.route('/round/<string:prm>', methods=['GET', 'POST'])
+@app.route('/round/<string:prm>', methods=['GET'])
 def round(prm):
     # details of a search round (1 pre-processing + 1 model configuration)
     dataset_id, round_id = prm.split(';')
@@ -133,9 +133,10 @@ def round(prm):
         pipeline = [s for s in pipeline if s[0] not in ['NO-SCALE', 'PASS']]
     params = get_round_params(search, round_id)
     features = get_feature_importance(dataset.dataset_id, round_id)
+    y_names, cnf_matrix = get_cnf_matrix(dataset_id, round_id, 'eval')
     return render_template('round.html', dataset=dataset, round=round, pipeline=pipeline,
                            features=features, params=params, cols=params.keys(), refresher=int(time.time()),
-                           config=get_config())
+                           y_names=y_names, cnf_matrix=cnf_matrix, config=get_config())
 
 
 def __path_data(dataset_id):
@@ -185,6 +186,14 @@ def get_doc_pdf(dataset_id):
     return send_file(__path_data(dataset_id) + '/docs/_build/latex/dataset.pdf', as_attachment=True)
 
 
+@app.route('/get_predict/<string:dataset_id>/<string:round_id>', methods=['GET'])
+def get_predict(dataset_id, round_id):
+    # download the prediction file
+    create_predict_file(dataset_id, round_id)
+    return send_file(__path_data(dataset_id) + '/submit/predict_%s.xlsx' % round_id,
+                     as_attachment=True, attachment_filename='predict_%s_%s.xlsx' % (dataset_id, round_id))
+
+
 @app.route('/get_submit/<string:dataset_id>/<string:round_id>', methods=['GET'])
 def get_submit(dataset_id, round_id):
     # download the submit file
@@ -223,41 +232,41 @@ def check_upload_file(f):
 def create_dataset_form(form):
     # performs creation of a dataset from a form
     if form.validate():
-        try:
-            if form.mode_file.data == 'upload':
-                form.filename_cols.data = check_upload_file(form.file_cols.data)
-                form.filename_train.data = check_upload_file(form.file_train.data)
-                if form.mode.data == 'benchmark':
-                    form.filename_test.data = check_upload_file(form.file_test.data)
-                else:
-                    form.filename_test.data = ''
-                if form.mode.data == 'competition':
-                    form.filename_submit.data = check_upload_file(form.file_submit.data)
-                else:
-                    form.filename_submit.data = ''
+        #try:
+        if form.mode_file.data == 'upload':
+            form.filename_cols.data = check_upload_file(form.file_cols.data)
+            form.filename_train.data = check_upload_file(form.file_train.data)
+            if form.mode.data == 'benchmark':
+                form.filename_test.data = check_upload_file(form.file_test.data)
+            else:
+                form.filename_test.data = ''
+            if form.mode.data == 'competition':
+                form.filename_submit.data = check_upload_file(form.file_submit.data)
+            else:
+                form.filename_submit.data = ''
 
-            create_dataset(name=form.name.data,
-                           domain=form.domain.data,
-                           description=form.description.data,
-                           source=form.source.data,
-                           url=form.url.data,
-                           problem_type=form.problem_type.data,
-                           metric=form.metric.data,
-                           other_metrics=form.other_metrics.data,
-                           mode=form.mode.data,
-                           filename_train=form.filename_train.data,
-                           holdout_ratio=form.holdout_ratio.data / 100.,
-                           filename_cols=form.filename_cols.data,
-                           filename_test=form.filename_test.data,
-                           filename_submit=form.filename_submit.data,
-                           col_submit=form.col_submit.data,
-                           cv_folds=form.cv_folds.data,
-                           y_col=form.y_col.data,
-                           val_col=form.val_col.data,
-                           val_col_shuffle=form.val_col_shuffle.data)
-            return redirect('index')
-        except Exception as e:
-            flash(e)
+        create_dataset(name=form.name.data,
+                       domain=form.domain.data,
+                       description=form.description.data,
+                       source=form.source.data,
+                       url=form.url.data,
+                       problem_type=form.problem_type.data,
+                       metric=form.metric.data,
+                       other_metrics=form.other_metrics.data,
+                       mode=form.mode.data,
+                       filename_train=form.filename_train.data,
+                       holdout_ratio=form.holdout_ratio.data / 100.,
+                       filename_cols=form.filename_cols.data,
+                       filename_test=form.filename_test.data,
+                       filename_submit=form.filename_submit.data,
+                       col_submit=form.col_submit.data,
+                       cv_folds=form.cv_folds.data,
+                       y_col=form.y_col.data,
+                       val_col=form.val_col.data,
+                       val_col_shuffle=form.val_col_shuffle.data)
+        return redirect('index')
+        #except Exception as e:
+        #    flash(e)
     else:
         flash(", ".join([key + ': ' + form.errors[key][0] for key in form.errors.keys()]))
     return None

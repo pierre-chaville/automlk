@@ -12,6 +12,9 @@ ___________
 **CatBoost**
     *learning_rate, depth, verbose*
 
+**Neural Networks**
+    *units, batch_size, batch_normalization, activation, optimizer, learning_rate, number_layers, dropout*
+
 **Extra Trees**
     *n_estimators, max_features, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, max_leaf_nodes, min_impurity_decrease, verbose, random_state, warm_start, criterion*
 
@@ -19,7 +22,7 @@ ___________
     *n_estimators, max_features, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, max_leaf_nodes, min_impurity_decrease, verbose, random_state, warm_start, n_jobs, criterion*
 
 **Gradient Boosting**
-    *n_estimators, max_features, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, max_leaf_nodes, min_impurity_decrease, verbose, random_state, warm_start, criterion*
+    *n_estimators, max_features, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, max_leaf_nodes, min_impurity_decrease, verbose, random_state, warm_start, learning_rate, loss*
 
 **AdaBoost**
     *n_estimators, learning_rate, random_state, loss*
@@ -31,7 +34,7 @@ ___________
     *C, epsilon, kernel, degree, gamma, coef0, shrinking, tol, max_iter, verbose*
 
 **Linear SVR**
-    *C, epsilon, dual, tol, fit_intercept, intercept_scaling, max_iter, verbose*
+    *C, loss, epsilon, dual, tol, fit_intercept, intercept_scaling, max_iter, verbose*
 
 **Linear Regression**
     *fit_intercept, normalize, copy_X, n_jobs*
@@ -44,9 +47,6 @@ ___________
 
 **Huber Regression**
     *epsilon, alpha, fit_intercept, tol*
-
-**Neural Networks**
-    *units, batch_size, batch_normalization, activation, optimizer, learning_rate, number_layers, dropout*
 
 
 classification:
@@ -67,7 +67,7 @@ _______________
     *n_estimators, max_features, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, max_leaf_nodes, min_impurity_decrease, verbose, random_state, warm_start, n_jobs, criterion, class_weight*
 
 **Gradient Boosting**
-    *n_estimators, max_features, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, max_leaf_nodes, min_impurity_decrease, verbose, random_state, warm_start, n_jobs, criterion, class_weight*
+    *n_estimators, max_features, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, max_leaf_nodes, min_impurity_decrease, verbose, random_state, warm_start, learning_rate, criterion, loss*
 
 **AdaBoost**
     *n_estimators, learning_rate, random_state, algorithm*
@@ -80,6 +80,12 @@ _______________
 
 **Logistic Regression**
     *penalty, dual, tol, C, fit_intercept, intercept_scaling, solver, max_iter, multi_class, n_jobs*
+
+**NB Gaussian**
+    **
+
+**NB Bernoulli**
+    *alpha, binarize, fit_prior*
 
 **Neural Networks**
     *units, batch_size, batch_normalization, activation, optimizer, learning_rate, number_layers, dropout*
@@ -117,6 +123,9 @@ _______________
 **Stacking XgBoost**
     *booster, eval_metric, eta, min_child_weight, max_depth, gamma, max_delta_step, sub_sample, colsample_bytree, colsample_byleval, lambda, alpha, tree_method, sketch_eps, scale_pos_weight, silent, objective*
 
+**Stacking Neural Networks**
+    *units, batch_size, batch_normalization, activation, optimizer, learning_rate, number_layers, dropout*
+
 **Stacking Extra Trees**
     *n_estimators, max_features, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, max_leaf_nodes, min_impurity_decrease, verbose, random_state, warm_start, n_jobs, criterion, class_weight*
 
@@ -128,4 +137,7 @@ _______________
 
 **Stacking Logistic Regression**
     *penalty, dual, tol, C, fit_intercept, intercept_scaling, solver, max_iter, multi_class, n_jobs*
+
+**Stacking Neural Networks**
+    *units, batch_size, batch_normalization, activation, optimizer, learning_rate, number_layers, dropout*
 

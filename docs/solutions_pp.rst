@@ -63,3 +63,19 @@ feature selection:
     *n_estimators*
 
 
+sampling:
+---------
+
+**No re-sampling**
+    **
+
+**Random Over**
+    **
+
+**SMOTE**
+    **
+
+**Random Under**
+    **
+
+

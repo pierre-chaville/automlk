@@ -1,14 +1,13 @@
-import datetime
-import socket
 from copy import deepcopy
 from .config import *
 from .context import HyperContext, XySet
 from .dataset import get_dataset
 from .graphs import graph_histogram_regression, graph_histogram_classification, graph_predict_regression, graph_predict_classification
 from .solutions import *
-from .store import *
 from .monitor import *
 from .solutions_pp import pp_solutions_map
+
+log = logging.getLogger(__name__)
 
 
 def launch_worker():
@@ -23,24 +22,29 @@ def launch_worker():
         exit()
 
     init_timer_worker()
+    msg_search = ''
     while True:
         try:
             # poll queue
             msg_search = brpop_key_store('controller:search_queue')
             heart_beep('worker', msg_search)
             if msg_search != None:
-                print('received %s' % msg_search)
+                log.info('received %s' % msg_search)
                 msg_search = {**msg_search, **{'start_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                                                'host_name': socket.gethostname()}}
                 start_timer_worker(msg_search['time_limit'])
                 job_search(msg_search)
                 stop_timer_worker()
         except KeyboardInterrupt:
-            print('Keyboard interrupt: exiting')
+            log.info('Keyboard interrupt: exiting')
+            abort_timer_worker()
             exit()
         except Exception as e:
-            print("Error", e)
-            exit()
+            log.error(e)
+            with open(get_data_folder() + '/errors.txt', 'a') as f:
+                f.write(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + str(msg_search) + '\n')
+                f.write(str(e) + '\n')
+                f.write('-'*80 + '\n')
 
 
 def job_search(msg_search):
@@ -63,10 +67,13 @@ def job_search(msg_search):
         context, ds, final_pipeline = __pre_processing(context, msg_search['pipeline'], deepcopy(ds_ini))
         t_end = time.time()
         msg_search['duration_process'] = int(t_end - t_start)
+        pool = None
     else:
         msg_search['duration_process'] = 0
         ds = ds_ini
         final_pipeline = []
+        pool = __get_pool_models(dataset, msg_search['ensemble_depth'])
+        context.feature_names = __get_pool_features(dataset, pool)
 
     solution = model_solutions_map[msg_search['solution']]
     if solution.is_wrapper:
@@ -75,10 +82,6 @@ def job_search(msg_search):
         model = solution.model(**msg_search['model_params'])
 
     msg_search['model_class'] = model.__class__.__name__
-    if msg_search['level'] == 2:
-        pool = __get_pool_models(dataset, msg_search['ensemble_depth'])
-    else:
-        pool = None
     __search(dataset, context, solution, model, msg_search, ds, pool, final_pipeline)
 
 
@@ -90,26 +93,25 @@ def __pre_processing(context, pipeline, ds):
             solution = pp_solutions_map[ref]
             p_class = solution.process
             process = p_class(context, params)
-            print('executing process', category, name, process.params)
+            log.info('executing process %s %s %s' % (category, name, process.params))
             ds.X_train = process.fit_transform(ds.X_train, ds.y_train)
             ds.X_test = process.transform(ds.X_test)
             ds.X = process.transform(ds.X)
             if len(ds.X_submit) > 0:
                 ds.X_submit = process.transform(ds.X_submit)
-            print('-> %d features' % len(context.feature_names))
+            log.info('-> %d features' % len(context.feature_names))
     final_pipeline = [p for p in pipeline if p[1] == 'sampling']
-    print('final pipeline', final_pipeline)
+    log.info('final pipeline %s' % final_pipeline)
     return context, ds, final_pipeline
 
 
 def __search(dataset, context, solution, model, msg_search, ds, pool, pipeline):
-    print('optimizing with %s, params: %s' % (solution.name, msg_search['model_params']))
+    log.info('optimizing with %s, params: %s' % (solution.name, msg_search['model_params']))
     # fit, test & score
     t_start = time.time()
     round_id = msg_search['round_id']
     level = msg_search['level']
     if level == 2:
-        context.feature_names = __get_pool_features(dataset, pool)
         outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cv_pool(solution, model, dataset, pool, ds, msg_search['threshold'],
                                                                                         msg_search['ensemble_depth'])
     else:
@@ -122,7 +124,7 @@ def __search(dataset, context, solution, model, msg_search, ds, pool, pipeline):
 
     # check outlier
     if outlier:
-        print('outlier, skipping this round')
+        log.info('outlier, skipping this round')
         return
 
     # y_pred_eval as concat of folds
@@ -137,7 +139,6 @@ def __search(dataset, context, solution, model, msg_search, ds, pool, pipeline):
             submit = np.concatenate((ds.id_submit, y_pred_submit), axis=1)
         else:
             l = len(ds.id_submit)
-            print('len id', l, 'y_pred_submit', np.shape(y_pred_submit))
             submit = np.concatenate((np.reshape(ds.id_submit, (l, 1)), np.reshape(y_pred_submit[:, 1], (l, 1))), axis=1)
         df_submit = pd.DataFrame(submit)
         df_submit.columns = [dataset.col_submit, dataset.y_col]
@@ -146,10 +147,10 @@ def __search(dataset, context, solution, model, msg_search, ds, pool, pipeline):
         df_submit.to_csv(get_dataset_folder(dataset.dataset_id) + '/submit/submit_%s.csv' % round_id, index=False)
 
     # save model importance
-    if level == 1:
-        __save_importance(model, dataset, context, round_id)
-    else:
+    if level == 2 and solution.is_wrapper:
         __save_importance(model.model, dataset, context, round_id)
+    else:
+        __save_importance(model, dataset, context, round_id)
 
     # save predictions (eval and test set)
     pickle.dump([y_pred_eval, y_pred_test, y_pred_submit],
@@ -179,7 +180,7 @@ def __cv(solution, model, dataset, ds, pipeline, threshold):
         y_pred_eval, y_pred_test, y_pred_submit = [], [], []
         for i, (train_index, eval_index) in enumerate(ds.cv_folds):
             if i == 0 and solution.early_stopping:
-                print('early stopping round')
+                log.info('early stopping round')
                 # with early stopping, we perform an initial round to get number of rounds
                 X1, y1 = __resample(pipeline, ds.X_train[train_index], ds.y_train[train_index])
                 model.fit_early_stopping(X1, y1, ds.X_train[eval_index], ds.y_train[eval_index])
@@ -188,9 +189,8 @@ def __cv(solution, model, dataset, ds, pipeline, threshold):
                     # test outlier (i.e. exceeds threshold)
                     y_pred = __predict(solution, model, ds.X[eval_index])
                     score = dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
-                    print('early stopping score: %.5f' % score)
                     if score > threshold:
-                        print('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
+                        log.info('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
                         time.sleep(10)
                         return True, 0, 0, 0
 
@@ -202,9 +202,8 @@ def __cv(solution, model, dataset, ds, pipeline, threshold):
             if threshold != 0:
                 # test outlier:
                 score = dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
-                print('fold %d score: %.5f' % (i, score))
                 if score > threshold:
-                    print('%dth round found outlier: %.5f with threshold %.5f' % (i, score, threshold))
+                    log.info('%dth round found outlier: %.5f with threshold %.5f' % (i, score, threshold))
                     time.sleep(10)
                     return True, 0, 0, 0
 
@@ -259,17 +258,16 @@ def __cv_pool(solution, model, dataset, pool, ds, threshold, depth):
                 X_submit = np.concatenate((X_submit, p_submit), axis=1)
 
     for i, (train_index, eval_index) in enumerate(ds.cv_folds):
-        print('fold %d' % i)
+        log.info('fold %d' % i)
 
         if i == 0 and solution.early_stopping:
             # with early stopping, we perform an initial round to get number of rounds
-            print('fit early stopping')
+            log.info('fit early stopping')
             model.fit_early_stopping(X_train[train_index], ds.y_train[train_index], X_train[eval_index], ds.y_train[eval_index])
             y_pred = __predict(solution, model, X_train[eval_index])
             score = dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
-            print('early stopping score: %.5f' % score)
             if threshold != 0 and score > threshold:
-                print('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
+                log.info('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
                 time.sleep(10)
                 return True, 0, 0, 0
 
@@ -280,7 +278,7 @@ def __cv_pool(solution, model, dataset, pool, ds, threshold, depth):
         y_pred_test.append(__predict(solution, model, X_test))
         score = dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
         if threshold != 0 and score > threshold:
-            print('found outlier: %.5f with threshold %.5f' % (score, threshold))
+            log.info('found outlier: %.5f with threshold %.5f' % (score, threshold))
             time.sleep(10)
             return True, 0, 0, 0
 
@@ -304,10 +302,10 @@ def __cv_pool(solution, model, dataset, pool, ds, threshold, depth):
 
 
 def __predict(solution, model, X):
-    if solution.use_predict_proba:
-        return model.predict_proba(X)
-    else:
+    if solution.problem_type == 'regression':
         return model.predict(X)
+    else:
+        return model.predict_proba(X)
 
 
 def __resample(pipeline, X, y):
@@ -352,7 +350,7 @@ def __evaluate_round(dataset, msg_search, y_train, y_pred_eval, y_test, y_pred_t
                                         dataset.other_metrics}
 
     rpush_key_store(RESULTS_QUEUE, msg_search)
-    print('completed search:', msg_search)
+    log.info('completed search')
 
 
 def __get_pool_features(dataset, pool):
@@ -387,9 +385,18 @@ def __get_pool_models(dataset, depth):
         round_ids.append(row['round_id'])
         count_model += 1
 
-    print('length of pool: %d for ensemble of depth %d' % (len(round_ids), depth))
+    log.info('length of pool: %d for ensemble of depth %d' % (len(round_ids), depth))
+
     # retrieves predictions
     preds = [get_pred_eval_test(dataset.dataset_id, round_id) for round_id in round_ids]
+
+    # exclude predictions with nan
+    excluded = [i for i, x in enumerate(preds) if not(np.max(x[0]) == np.max(x[0]))]
+
+    preds = [x for i, x in enumerate(preds) if i not in excluded]
+    round_ids = [x for i, x in enumerate(round_ids) if i not in excluded]
+    model_names = [x for i, x in enumerate(model_names) if i not in excluded]
+
     preds_eval = [x[0] for x in preds]
     preds_test = [x[1] for x in preds]
     preds_submit = [x[2] for x in preds]
@@ -398,11 +405,9 @@ def __get_pool_models(dataset, depth):
 
 
 def __store_search_error(dataset, t, e, model):
-    print('Error: ', e)
+    log.info('Error: %s' % e)
     # track error
-    with open(get_dataset_folder(dataset.dataset_id) + '/errors.txt', 'a') as f:
-        f.write("'time':'%s', 'model': %s, 'params': %s, '\n Error': %s \n" % (
-            t, model.model_name, model.params, str(e)))
+
 
 
 def get_search_rounds(dataset_id):

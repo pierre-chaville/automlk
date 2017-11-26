@@ -6,10 +6,11 @@ matplotlib.use('Agg')
 import matplotlib.pylab as plt
 import seaborn.apionly as sns
 import itertools
+import pickle
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import confusion_matrix
 from .config import METRIC_NULL
-from .context import get_dataset_folder, get_config
+from .context import get_dataset_folder
 
 try:
     from wordcloud import WordCloud
@@ -240,8 +241,12 @@ def graph_predict_classification(dataset, round_id, y, y_pred, part='eval'):
                     plt.ylabel('True label')
                     plt.xlabel('Predicted label')
                     plt.title('confusion matrix (%s set)' % part)
-                    name = "predict" if normalize else "predict_norm"
+                    name = "predict_norm" if normalize else "predict"
                     __save_fig(dataset.dataset_id, '%s_%s_%s' % (name, part, round_id), dark)
+
+                    # save confusion matrix
+                    __save_cnf_matrix(dataset.dataset_id, round_id, part, dataset.y_class_names, cnf_matrix)
+
     except:
         print('error in graph_predict_classification with dataset_id', dataset.dataset_id)
 
@@ -453,3 +458,32 @@ def __save_fig(dataset_id, graph_name, dark):
         # white opaque
         plt.savefig(get_dataset_folder(dataset_id) + '/graphs/%s.png' % graph_name, transparent=False)
     plt.close()
+
+
+def __save_cnf_matrix(dataset_id, round_id, part, y_names, cnf_matrix):
+    """
+    save confusion matrix
+
+    :param dataset_id: dataset id
+    :param round_id: round id
+    :param part: 'eval' or 'test'
+    :param y_names: y labels
+    :param cnf_matrix: confusion matrix (actual / predict)
+    :return: None
+    """
+    pickle.dump([y_names, cnf_matrix], open(get_dataset_folder(dataset_id) + '/predict/%s_%s_cnf.pkl' % (round_id, part), 'wb'))
+
+
+def get_cnf_matrix(dataset_id, round_id, part):
+    """
+    load confusion matrix
+
+    :param dataset_id: dataset id
+    :param round_id: round id
+    :param part: 'eval' or 'test'
+    :return: names, matrix
+    """
+    try:
+        return pickle.load(open(get_dataset_folder(dataset_id) + '/predict/%s_%s_cnf.pkl' % (round_id, part), 'rb'))
+    except:
+        return [], []

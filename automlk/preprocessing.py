@@ -104,8 +104,10 @@ class HyperProcessBOW(HyperProcess):
         for col in self.context.text_cols:
             text = [clean_text(s, self.first_words) for s in X[col].values]
             params = self.params
-            params.pop('tfidf')
-            params.pop('first_words')
+            if 'tfidf' in params:
+                params.pop('tfidf')
+            if 'first_words' in params:
+                params.pop('first_words')
             if self.tfidf:
                 encoder = TfidfVectorizer(**params)
             else:

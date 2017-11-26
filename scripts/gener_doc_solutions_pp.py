@@ -27,3 +27,5 @@ with open('../docs/solutions_pp.rst', 'w') as f:
     output('')
     print_solutions('feature', 'feature selection')
     output('')
+    print_solutions('sampling', 'sampling')
+    output('')

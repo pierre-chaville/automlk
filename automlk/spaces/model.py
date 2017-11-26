@@ -80,13 +80,13 @@ space_gradient_boosting_classifier = {**space_sklearn_trees,
 
 # parameters for Logistic regression
 default_logistic_regression = {'penalty': 'l2', 'dual': False, 'solver': 'liblinear', 'n_jobs': -1}
-space_logistic_regression = {'penalty': HyperWeights({'l1': 1, 'l2': 1}),
+space_logistic_regression = {'penalty': HyperWeights({'l2': 1, 'l1': 1}),
                              'dual': HyperWeights({False: 1, True: 1}),
                              'tol': HyperWeights({1e-4: 2, HyperRangeFloat(0.0001, 0.01): 1}),
                              'C': HyperWeights({1.: 1, HyperRangeFloat(0.001, 0.9): 1}),
                              'fit_intercept': HyperWeights({True: 1, False: 1}),
                              'intercept_scaling': HyperWeights({1: 1, HyperRangeFloat(0.001, 0.9): 1}),
-                             'solver': HyperWeights({'newton-cg': 1, 'liblinear': 1, 'sag': 1, 'saga': 1}),
+                             'solver': HyperWeights({'newton-cg': 1, 'liblinear': 1, 'lbfgs': 1, 'sag': 1, 'saga': 1}),
                              'max_iter': HyperWeights({1000: 1, HyperRangeInt(10, 1000): 1}),
                              'multi_class': HyperWeights({'ovr': 1, 'multinomial': 1}),
                              'n_jobs': -1
@@ -140,7 +140,7 @@ space_linear_svc = {'penalty': HyperWeights({'l1': 1, 'l2': 1}),
 
 default_linear_svr = {}
 space_linear_svr = {'C': HyperWeights({1.: 1, HyperRangeFloat(0.001, 0.9): 1}),
-                    #'loss': HyperWeights({'epsilon_insensitive': 2, 'squared_epsilon_insensitive': 1}),
+                    'loss': HyperWeights({'epsilon_insensitive': 2, 'squared_epsilon_insensitive': 1}),
                     'epsilon': HyperWeights({0.1: 1, HyperRangeFloat(0.001, 0.9): 1}),
                     'dual': HyperWeights({True: 1, False: 1}),
                     'tol': HyperWeights({1e-4: 1, HyperRangeFloat(0.001, 0.9): 1}),
@@ -176,6 +176,18 @@ space_svr = {'C': HyperWeights({1.: 1, HyperRangeFloat(0.001, 0.9): 1}),
              'verbose': False,
              }
 
+# parameters for Naive Bayes
+default_nb_multi = {'alpha': 1., 'fit_prior': True }
+space_nb_multi = {'alpha': HyperRangeFloat(0.001, 10.),
+                  'fit_prior': HyperWeights({True: 1, False: 1}),
+                 }
+
+default_nb_bernoulli = {'alpha': 1., 'binarize': True, 'fit_prior': True }
+space_nb_bernoulli = {'alpha': HyperRangeFloat(0.001, 10.),
+                      'binarize': HyperWeights({True: 1, False: 1}),
+                      'fit_prior': HyperWeights({True: 1, False: 1}),
+                     }
+
 # parameters for KNN
 default_knn = {'n_jobs': -1}
 space_knn = {'n_neighbors': HyperWeights({5: 1, HyperRangeInt(2, 50): 1}),
@@ -208,7 +220,7 @@ space_lightgbm = {'task': 'train',
                   'xgboost_dart_mode': HyperWeights({False: 1, True: 1}),
                   'top_rate': HyperWeights({0.2: 1, HyperRangeFloat(0.001, 0.5): 1}),
                   'other_rate': HyperWeights({0.1: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                  'verbose': 0
+                  'verbose': -1
                   }
 
 # space for regression with LightGBM

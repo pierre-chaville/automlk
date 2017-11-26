@@ -10,6 +10,7 @@ from .store import *
 from threading import Timer
 
 
+__worker_timer_abort = False
 __worker_timer_active = False
 __worker_timer_start = None
 __worker_timer_limit = 0
@@ -74,6 +75,7 @@ def heart_beep(module, msg):
 def __timer_control():
     # execute control of max delay
     global __worker_timer_active
+    global __worker_timer_abort
     global __worker_timer_start
     global __worker_timer_limit
     global __cpu_pct
@@ -84,6 +86,7 @@ def __timer_control():
         update_version()
         # then abort to launch new version
         print('aborting this program to launch with updated version..')
+        abort_timer_worker()
         _thread.interrupt_main()
         # os.kill(os.getpid(), signal.SIGINT)
         return
@@ -96,7 +99,8 @@ def __timer_control():
             _thread.interrupt_main()
             # os.kill(os.getpid(), signal.SIGINT)
             return            
-    Timer(10.0, __timer_control, []).start()
+    if not __worker_timer_abort:
+        Timer(10.0, __timer_control, []).start()
 
 
 def init_timer_worker():
@@ -121,6 +125,13 @@ def stop_timer_worker():
     global __worker_timer_active
     __worker_timer_active = False
 
+
+def abort_timer_worker():
+    # set the timer for the worker to monitor max delays, ...
+    global __worker_timer_active
+    global __worker_timer_abort
+    __worker_timer_active = False
+    __worker_timer_abort = True
 
 """
 manage automatic updates of version by the workers (to be synchronized with the controller)

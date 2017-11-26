@@ -1,8 +1,10 @@
+import pickle
 import pandas as pd
 import numpy as np
 from .worker import get_importance
 from .store import exists_key_store, get_key_store
-from .dataset import get_dataset_list
+from .dataset import get_dataset_list, get_dataset_folder, get_dataset
+from .models import get_pred_eval_test
 
 
 def print_value(x):
@@ -182,4 +184,39 @@ def get_feature_importance(dataset_id, round_id):
     df['rel_importance'] = np.round(100 * df.importance / df.importance.max(), 1)
 
     return df.sort_values('importance', ascending=False).to_dict(orient='records')
+
+
+def create_predict_file(dataset_id, round_id):
+    """
+    generate a prediction file in excel format on eval set, with original data and prediction
+
+    :param dataset_id: dataset id
+    :param round_id: round id
+    :return: None
+    """
+    dataset = get_dataset(dataset_id)
+
+    # load train/eval/test data
+    ds = pickle.load(open(get_dataset_folder(dataset_id) + '/data/eval_set.pkl', 'rb'))
+
+    # load prediction results
+    y_pred_eval, y_pred_test, y_pred_submit = get_pred_eval_test(dataset_id, round_id)
+
+    df = pd.DataFrame(ds.X_train)
+    cols = dataset.x_cols
+    if dataset.problem_type == 'regression':
+        df['_predict'] = y_pred_eval
+        df['_actual'] = ds.y_train
+        df['_delta'] = df['_actual'] - df['_predict']
+        df = df[['_predict', '_actual', '_delta'] + cols]
+    else:
+        df['_predict'] = np.argmax(y_pred_eval, axis=1)
+        df['_p_class'] = df['_predict'].map(lambda x: dataset.y_class_names[x])
+        df['_actual'] = ds.y_train
+        df['_a_class'] = df['_actual'].map(lambda x: dataset.y_class_names[x])
+        df['_delta'] = df['_actual'] != df['_predict']
+        df = df[['_predict', '_actual', '_delta', '_p_class', '_a_class'] + cols]
+
+    # save as excel file
+    df.to_excel(get_dataset_folder(dataset_id) + '/submit/predict_%s.xlsx' % round_id, index=False)
 

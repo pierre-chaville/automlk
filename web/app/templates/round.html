@@ -28,6 +28,7 @@
 
 <div class="tab-content">
     <div id="data" class="tab-pane active">
+        <h4>Round info</h4>
         <table class="table table-bordered">
             <th>round data</th>
             <th>parameters</th>
@@ -126,6 +127,7 @@
 
     <!-- feature importance with progress bars !-->
     <div id="features" class="tab-pane">
+        <h4>Feature importance</h4>
         <table class="table table-bordered">
             <thead>
             <th>feature</th>
@@ -150,6 +152,9 @@
 
     <!-- prediction graph !-->
     <div id="pred_graph" class="tab-pane">
+        <h4>Predictions</h4>
+        <a href="/get_predict/{{dataset.dataset_id}}/{{round.round_id}}">Download predict file</a>
+        <br>
         {% if dataset.problem_type == 'regression' %}
         <table>
             <tr>
@@ -162,8 +167,42 @@
             </tr>
         </table>
         {% else %}
+        {% if dataset.y_n_classes < 5 %}
         <img src="/get_img_round/{{dataset.dataset_id}}/{{round.round_id}}/predict_eval?{{refresher}}"></img>
+        <br>
         <img src="/get_img_round/{{dataset.dataset_id}}/{{round.round_id}}/predict_test?{{refresher}}"></img>
+        {% else %}
+        <!-- confusion matrix as table !-->
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead>
+                <th></th>
+                <th colspan="{{ y_names|count }}" style="vertical-align:top; text-align:center;">Predicted</th>
+                </thead>
+                <thead>
+                <th style="vertical-align:top; text-align:center">Actual</th>
+                {% for name in y_names %}
+                <th style="vertical-align:top; text-align:center; text-orientation:upright; writing-mode:vertical-rl;">
+                    {{ name }}
+                </th>
+                {% endfor %}
+                </thead>
+
+                {% for x in range(y_names|count) %}
+                <tr>
+                    <td style="vertical-align:top; text-align:center">{{ y_names[x] }}</td>
+                    {% for y in range(y_names|count) %}
+                    <td style="vertical-align:top; text-align:center">
+                        {% if cnf_matrix[x, y] != 0 %}
+                        <span class="label {% if x == y %}label-success{% else %}label-warning{% endif %}">{{ cnf_matrix[x, y] }}</span>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        {% endif %}
         {% endif %}
     </div>
 
@@ -183,7 +222,7 @@
     </div>
     <!-- submit file -->
     <div id="submit" class="tab-pane">
-        <h3>Submit file</h3>
+        <h4>Submit file</h4>
         <br>
         <a href="/get_submit/{{dataset.dataset_id}}/{{round.round_id}}">Download submit file</a>
     </div>

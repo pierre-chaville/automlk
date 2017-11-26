@@ -1,18 +1,14 @@
 from abc import ABCMeta, abstractmethod
 import pickle
-import time
-import sklearn.ensemble as ske
-import sklearn.linear_model as linear
-import sklearn.svm as svm
-import sklearn.neighbors as knn
+import logging
 import numpy as np
 import pandas as pd
-
 from .spaces.model import *
 from .config import METRIC_NULL
 from .dataset import get_dataset_folder
 
-# TODO: add naives bayes and decision trees
+log = logging.getLogger(__name__)
+
 
 try:
     import lightgbm as lgb
@@ -20,7 +16,7 @@ try:
     import_lgbm = True
 except:
     import_lgbm = False
-    print('could not import LightGBM. This model will not be used')
+    log.info('could not import LightGBM. This model will not be used')
 
 try:
     import xgboost as xgb
@@ -28,7 +24,7 @@ try:
     import_xgb = True
 except:
     import_xgb = False
-    print('could not import Xgboost. This model will not be used')
+    log.info('could not import Xgboost. This model will not be used')
 
 try:
     from catboost import Pool, CatBoostClassifier, CatBoostRegressor
@@ -36,12 +32,12 @@ try:
     import_catboost = True
 except:
     import_catboost = False
-    print('could not import Catboost. This model will not be used')
+    log.info('could not import Catboost. This model will not be used')
 
 try:
     from .utils.keras_wrapper import keras_create_model, keras_compile_model, import_keras, to_categorical
 except:
-    print('could not import keras. Neural networks will not be used')
+    log.info('could not import keras. Neural networks will not be used')
 
 MAX_ROUNDS = 5000
 PATIENCE = 50
@@ -97,12 +93,12 @@ class Model(object):
     @abstractmethod
     def predict(self, X):
         # predict with the previously trained model
-        if self.dataset.problem_type == 'regression':
-            return self.model.predict(X)
-        else:
-            # for classification, prediction is the proba
-            return self.model.predict_proba(X)
+        return self.model.predict(X)
 
+    @abstractmethod
+    def predict_proba(self, X):
+        # predict with the previously trained model
+        return self.model.predict_proba(X)
 
 
 def binary_proba(y):
@@ -116,19 +112,6 @@ class ModelLightGBM(Model):
 
     def __init__(self, dataset, context, params):
         super().__init__(dataset, context, params)
-        self.early_stopping = True
-
-        if self.dataset.problem_type == 'classification' and self.dataset.y_n_classes > 2:
-            self.params['objective'] = 'multiclass'
-            self.params['metric'] = 'multi_logloss'
-            self.params['num_class'] = self.dataset.y_n_classes
-
-        # updates params according to Light GBM rules
-        if 'bagging_freq' in self.params and self.params['bagging_freq'] == 0:
-            self.params.pop('bagging_freq', None)
-        if 'boosting' in self.params and self.params['boosting'] == 'goss':
-            self.params.pop('bagging_freq', None)
-            self.params.pop('bagging_fraction', None)
 
     def fit(self, X_train, y_train):
         # train with num_rounds
@@ -146,19 +129,17 @@ class ModelLightGBM(Model):
                                lgb_train,
                                num_boost_round=MAX_ROUNDS,
                                valid_sets=lgb_eval,
-                               early_stopping_rounds=PATIENCE)
+                               early_stopping_rounds=PATIENCE, verbose_eval=False)
         # check early stopping
         if self.model.best_iteration == 0:
             self.num_rounds = MAX_ROUNDS
         else:
             self.num_rounds = self.model.best_iteration
-            print('best iteration at', self.model.best_iteration)
+            log.info('best iteration at %d' % self.model.best_iteration)
 
-    def predict(self, X):
+    def predict_proba(self, X):
         # prediction with specific case of binary
-        if self.dataset.problem_type == 'regression':
-            return self.model.predict(X)
-        elif self.dataset.y_n_classes == 2:
+        if self.dataset.y_n_classes == 2:
             return binary_proba(self.model.predict(X))
         else:
             return self.model.predict(X)
@@ -169,12 +150,6 @@ class ModelXgBoost(Model):
 
     def __init__(self, dataset, context, params):
         super().__init__(dataset, context, params)
-        self.early_stopping = True
-
-        if self.dataset.problem_type == 'classification' and self.dataset.y_n_classes > 2:
-            self.params['objective'] = 'multi:softprob'
-            self.params['metric'] = 'mlogloss'
-            self.params['num_class'] = self.dataset.y_n_classes
 
     def fit(self, X_train, y_train):
         # train with num_rounds
@@ -193,7 +168,7 @@ class ModelXgBoost(Model):
                                xgb_train,
                                MAX_ROUNDS,
                                evals=[(xgb_train, 'train'), (xgb_eval, 'eval')],
-                               early_stopping_rounds=PATIENCE)
+                               early_stopping_rounds=PATIENCE, verbose_eval=False)
 
         if self.model.best_iteration > 0:
             self.num_rounds = self.model.best_iteration
@@ -201,11 +176,13 @@ class ModelXgBoost(Model):
             self.num_rounds = PATIENCE
 
     def predict(self, X):
+        xgb_X = xgb.DMatrix(X, feature_names=self.feature_names)
+        return self.model.predict(xgb_X)
+
+    def predict_proba(self, X):
         # prediction with specific case of binary
         xgb_X = xgb.DMatrix(X, feature_names=self.feature_names)
-        if self.dataset.problem_type == 'regression':
-            return self.model.predict(xgb_X)
-        elif self.dataset.y_n_classes == 2:
+        if self.dataset.y_n_classes == 2:
             return binary_proba(self.model.predict(xgb_X))
         else:
             return self.model.predict(xgb_X)
@@ -225,10 +202,6 @@ class ModelCatboost(Model):
         if self.dataset.problem_type == 'regression':
             self.model = CatBoostRegressor(**self.params)
         else:
-            if self.dataset.y_n_classes == 2:
-                self.params['loss_function'] = 'Logloss'
-            else:
-                self.params['loss_function'] = 'MultiClass'
             self.model = CatBoostClassifier(**self.params)
 
     def fit(self, X_train, y_train):
@@ -255,12 +228,6 @@ class ModelCatboost(Model):
         self.params.pop('od_type')
         self.params.pop('od_wait')
 
-    def predict(self, X):
-        # prediction with specific case of binary
-        if self.dataset.problem_type == 'regression':
-            return self.model.predict(X)
-        else:
-            return self.model.predict_proba(X)
 
 
 class ModelNN(Model):
@@ -273,10 +240,6 @@ class ModelNN(Model):
 
         # create the modem
         self.params['input_dim'] = len(self.feature_names)
-        if self.dataset.problem_type == 'regression':
-            self.params['output_dim'] = 1
-        else:
-            self.params['output_dim'] = self.dataset.y_n_classes
         self.model = keras_create_model(self.params, self.dataset.problem_type)
 
     def fit(self, X_train, y_train):
@@ -291,25 +254,27 @@ class ModelNN(Model):
         keras_compile_model(self.model, self.params, self.dataset.problem_type)
         best_score = METRIC_NULL
         i_best_score = 0
+        self.num_rounds = 0
         for i in range(MAX_ROUNDS):
             self.model.fit(X_train, self.prepare_y(y_train), epochs=1, batch_size=self.params['batch_size'],
                            validation_split=0.,
                            verbose=0)
-            y_pred = self.model.predict(X_eval)
+            if self.dataset.problem_type == 'regression':
+                y_pred = self.model.predict(X_eval)
+            else:
+                y_pred = self.model.predict_proba(X_eval)
             score = self.dataset.evaluate_metric(y_eval, y_pred)
             if score < best_score:
                 self.num_rounds = i
                 best_score = score
                 i_best_score = i
             elif (i - i_best_score) > 50:
-                print('early stopping at', i_best_score)
+                log.info('early stopping at %d' % i_best_score)
                 break
 
-    def predict(self, X):
+    def predict_proba(self, X):
         # prediction with specific case of binary and classification
-        if self.dataset.problem_type == 'regression':
-            return self.model.predict(X)
-        elif self.dataset.y_n_classes == 2:
+        if self.dataset.y_n_classes == 2:
             return binary_proba(self.model.predict(X))
         else:
             return self.model.predict_proba(X)
@@ -344,13 +309,13 @@ class ModelEnsembleSelection(Model):
         y_pred_eval_list, y_pred_test_list, y_pred_submit_list = [], [], []
         self.params = {**{'depth': depth}, **self.params}
         for i, (train_index, eval_index) in enumerate(cv_folds):
-            print('fold %d' % i)
+            log.info('fold %d' % i)
             # we will select a list of models in order to get the best score
             selection_round_ids, selection_names = [], []
             pred_select_eval, pred_select_test, pred_select_submit = [], [], []
             best_score = METRIC_NULL
             for i in range(self.params['rounds']):
-                # print('round %d' % i)
+                # log.info('round %d' % i)
                 # find the best model to be added in the selection
                 best_score_round = METRIC_NULL
                 l_selection = len(selection_round_ids)
@@ -375,14 +340,14 @@ class ModelEnsembleSelection(Model):
                     #    score = METRIC_NULL
 
                     if score < best_score_round:
-                        # print('best score round', m, score)
+                        # log.info('best score round', m, score)
                         best_score_round = score
                         m_round, u_round = m, u
                         pred_round_eval, pred_round_test, pred_round_submit = y_pred_eval, y_pred_test, y_pred_submit
 
                 # at the end of the search for the round, check if the overall score is better
                 if best_score_round < best_score:
-                    print('best score:', best_score_round)
+                    log.info('best score:', best_score_round)
                     best_score = best_score_round
                     pred_select_eval, pred_select_test, pred_select_submit = pred_round_eval, pred_round_test, pred_round_submit
                     selection_names += [m_round]
@@ -391,8 +356,8 @@ class ModelEnsembleSelection(Model):
                     # didn't improve = early stopping
                     break
 
-            print(np.shape(pred_select_eval))
-            print(np.shape(eval_index))
+            log.info(np.shape(pred_select_eval))
+            log.info(np.shape(eval_index))
             y_pred_eval_list.append(pred_select_eval[eval_index])
             y_pred_test_list.append(pred_select_test)
             y_pred_submit_list.append(pred_select_submit)
@@ -410,96 +375,3 @@ class ModelEnsembleSelection(Model):
         y_pred_test = np.mean(y_pred_test_list)
 
         return False, y_pred_eval_list, y_pred_test, y_pred_submit_list
-
-    def save_importance(self):
-        # saves feature importance (as a dataframe)
-        pickle.dump(self.importance, open(self.feature_filename(), 'wb'))
-
-
-
-class ModelStackingExtraClassifier(Model):
-    # class for stacking with model Extra trees
-
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
-        self.model = ske.ExtraTreesClassifier(**params)
-
-
-class ModelStackingExtraRegressor(Model):
-    # class for stacking with model Extra trees
-
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
-        self.model = ske.ExtraTreesRegressor(**params)
-
-
-class ModelStackingRFClassifier(Model):
-    # class for stacking with model Extra trees
-
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
-        self.model = ske.RandomForestClassifier(**params)
-
-
-class ModelStackingRFRegressor(Model):
-    # class for stacking with model Extra trees
-
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
-        self.model = ske.RandomForestRegressor(**params)
-
-
-class ModelStackingGBMClassifier(Model):
-    # class for stacking with model Extra trees
-
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
-        self.model = ske.GradientBoostingClassifier(**params)
-
-
-class ModelStackingGBMRegressor(Model):
-    # class for stacking with model Extra trees
-
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
-        self.model = ske.GradientBoostingRegressor(**params)
-
-
-class ModelStackingLinear(Model):
-    # class for stacking with model Extra trees
-
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
-        self.model = linear.LinearRegression(**params)
-
-
-class ModelStackingLogistic(Model):
-    # class for stacking with model Logistic regression
-
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
-        self.model = linear.LogisticRegression(**params)
-
-
-class ModelStackingXgBoost(Model):
-    # class for stacking with model XgBoost
-
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
-        self.model = ModelXgBoost(dataset, context, params)
-
-
-class ModelStackingLightGBM(Model):
-    # class for stacking with model LightGBM
-
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
-        self.model = ModelLightGBM(dataset, context, params)
-
-
-class ModelStackingNN(Model):
-    # class for stacking with model NN
-
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
-        self.model = ModelNN(dataset, context, params)

@@ -1,3 +1,4 @@
+import logging
 from .config import *
 from .store import *
 from .dataset import get_dataset_ids, get_dataset, create_dataset_sets
@@ -7,7 +8,7 @@ from .worker import get_search_rounds
 from .monitor import heart_beep, set_installed_version
 from .graphs import graph_history_search
 
-PATIENCE = 100               # number of equivalent results to wait before stop
+PATIENCE = 500               # number of equivalent results to wait before stop
 ROUNDS_MAX = 5000            # number max of rounds before stop
 
 ROUND_START_ENSEMBLE = 200   # number of rounds to start ensembling
@@ -18,6 +19,8 @@ RATIO_START_THRESHOLD = 100  # number of rounds to start applying a threshold
 RATIO_MIN = 2                # minimum models to include in threshold (should be > 1)
 RATIO_THRESHOLD_MAX = 50     # maximum % of models to include in threshold (should be > 1)
 RATIO_THRESHOLD_SLOPE = 10   # % of models decrease per 50 results to include in threshold (should be > 1)
+
+log = logging.getLogger(__name__)
 
 
 def launch_controller():
@@ -53,7 +56,7 @@ def launch_controller():
             msg_search = __create_search_round(dataset_id)
 
             # send queue the next job to do
-            print('sending %s' % msg_search)
+            log.info('sending %s' % msg_search)
             lpush_key_store(SEARCH_QUEUE, msg_search)
             heart_beep('controller', msg_search)
 
@@ -88,7 +91,9 @@ def __create_search_round(dataset_id):
     l1_choices = __get_model_class_list(dataset, 1)
 
     if round_id < len(l1_choices):
+
         # default mode, level 1
+
         default_mode = True
         round_id_l1 = round_id
         i_choice = round_id_l1 % len(l1_choices)
@@ -96,13 +101,14 @@ def __create_search_round(dataset_id):
         solution = model_solutions_map[ref]
         params = solution.default_params
     else:
+
         # get search history
         df = get_search_rounds(dataset_id)
 
         # find threshold
         threshold = __focus_threshold(df, round_id)
         level, round_id_l1, round_id_l2 = __get_round_ids(round_id)
-        print('get_ids: round_id:%d, level=%d, l1=%d, l2=%d' % (round_id, level, round_id_l1, round_id_l2))
+        log.info('get_ids: round_id:%d, level=%d, l1=%d, l2=%d' % (round_id, level, round_id_l1, round_id_l2))
 
         if level == 2:
             l2_choices = __get_model_class_list(dataset, 2)
@@ -113,13 +119,18 @@ def __create_search_round(dataset_id):
             # focus on models > threshold
             if threshold != 0:
                 l1_choices = [x[0] for x in __get_list_best_models(df) if x[1] <= threshold]
-                print('focusing on ', l1_choices)
+                log.info('focusing on %s' % l1_choices)
 
             i_choice = round_id_l1 % len(l1_choices)
             ref = l1_choices[i_choice]
 
         solution = model_solutions_map[ref]
         params = get_random_params(solution.space_params)
+
+    # check params
+    rule = solution.rule_params
+    if rule:
+        params = rule(dataset, default_mode, params)
 
     # generate pre-processing pipeline and pre-processing params
     if level == 1:
@@ -174,7 +185,7 @@ def __focus_threshold(df, round_id):
     ratio = RATIO_THRESHOLD_MAX - base * RATIO_THRESHOLD_SLOPE / 50
     n = max(RATIO_MIN, round(len(scores) * ratio/100))
     threshold = scores[n-1]
-    print('outlier threshold set at: %.5f (ratio=%.2f%%, n=%d, %d scores)' % (threshold, ratio, n, len(scores)))
+    log.info('outlier threshold set at: %.5f (ratio=%.2f%%, n=%d, %d scores)' % (threshold, ratio, n, len(scores)))
     return threshold
 
 
@@ -194,7 +205,7 @@ def __get_pipeline(dataset, default_mode, i_round, df, threshold):
     if threshold == 0:
         best_pp = None
     else:
-        best_pp = __get_list_best_pp(df)
+        best_pp = __get_list_best_pp(df, cv_max=True)
 
     # X pre-processing: text
     if len(dataset.text_cols) > 0:
@@ -222,7 +233,7 @@ def __get_pp_choice(dataset, category, default_mode, i_round, best_pp, threshold
         choices = __get_pp_list(dataset, category, default_mode)
     else:
         choices = [x[0] for x in best_pp if x[1] == category and x[2] <= threshold]
-        print('focusing on pre-processing for', category, choices)
+        log.info('focusing on pre-processing for %s / %s' % (category, choices))
 
     i_pp = i_round % len(choices)
     ref = choices[i_pp]
@@ -265,7 +276,7 @@ def __process_result(msg_result):
 
     # check if the search has been reset (round_id > round counter)
     if int(msg_result['round_id']) > int(get_key_store('dataset:%s:round_counter' % dataset_id)):
-        print('round %s skipped because greater than current counter' % msg_result['round_id'])
+        log.info('round %s skipped because greater than current counter' % msg_result['round_id'])
         return
 
     # update search history
@@ -288,16 +299,23 @@ def __process_result(msg_result):
     set_key_store('dataset:%s:best' % dataset_id, best.to_dict(orient='records'))
     set_key_store('dataset:%s:best_pp' % dataset_id, __get_best_pp(df))
 
+    # then check patience
+    if len(best2 > 0):
+        last_best, last_best_id = __get_last_best(df)
+        if msg_result['round_id'] - last_best_id > PATIENCE:
+            log.info('patience reached for dataset %s at round %d (last best: %d): search completed' % (dataset_id, msg_result['round_id'], last_best_id))
+            set_key_store('dataset:%s:status' % dataset_id, 'completed')
 
-def __get_last_best(df, level):
+
+def __get_last_best(df):
     # returns last best value and its index
     best = METRIC_NULL
-    i_best = -1
-    for i, score in enumerate(df[df.level == level].cv_max.values):
+    round_best = -1
+    for round_id, score in zip(df.round_id.values, df.cv_mean.values):
         if score < best:
             best = score
-            i_best = i
-    return best, i_best
+            round_id = round_id
+    return best, round_id
 
 
 def __get_list_best_models(df, level=1):
@@ -322,16 +340,16 @@ def __get_best_models(df):
     return pd.merge(best, counts, on='model_name')
 
 
-def __get_list_best_pp(df):
+def __get_list_best_pp(df, cv_max=False):
     # get the best results per pre-processing
     l = []
-    for cat, l_cat in __get_best_pp(df):
+    for cat, l_cat in __get_best_pp(df, cv_max):
         for p in l_cat:
             l.append((p['cat_ref'], cat, p['cv_max']))
     return l
 
 
-def __get_best_pp(df):
+def __get_best_pp(df, cv_max=False):
     # get the best results per pre-processing
 
     df = df[df.level == 1].copy()
@@ -352,15 +370,21 @@ def __get_best_pp(df):
             df['cat_name'] = df['pipeline'].map(lambda x: __select_cat(c, x)[1])
             df['cat_process'] = df['pipeline'].map(lambda x: __select_cat(c, x)[2])
             df['cat_params'] = df['pipeline'].map(lambda x: __select_cat(c, x)[3])
-
-            best = df.sort_values(by=['cat_ref', 'cv_mean']).groupby('cat_ref', as_index=False).first().sort_values(
-                by='cv_mean').fillna('')
+            if cv_max:
+                best = df.sort_values(by=['cat_ref', 'cv_max']).groupby('cat_ref', as_index=False).first().sort_values(
+                    by='cv_max').fillna('')
+            else:
+                best = df.sort_values(by=['cat_ref', 'cv_mean']).groupby('cat_ref', as_index=False).first().sort_values(
+                    by='cv_mean').fillna('')
 
             counts = df[['cat_ref', 'round_id']].groupby('cat_ref', as_index=False).count()
             counts.columns = ['cat_ref', 'searches']
 
             # relative performance
-            best['rel_score'] = abs(100 * (best.cv_mean - best.cv_mean.max()) / (best.cv_mean.max() - best.cv_mean.min()))
+            if cv_max:
+                best['rel_score'] = abs(100 * (best.cv_max - best.cv_max.max()) / (best.cv_max.max() - best.cv_max.min()))
+            else:
+                best['rel_score'] = abs(100 * (best.cv_mean - best.cv_mean.max()) / (best.cv_mean.max() - best.cv_mean.min()))
 
             all_cat.append((c, pd.merge(best, counts, on='cat_ref').to_dict(orient='records')))
 

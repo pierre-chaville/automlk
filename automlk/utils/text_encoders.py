@@ -1,6 +1,9 @@
 import string
+import logging
 import numpy as np
 from random import shuffle
+
+log = logging.getLogger(__name__)
 
 try:
     from gensim.models import Word2Vec, Doc2Vec, fasttext
@@ -26,8 +29,14 @@ TABLE_TRANS['}'] = ' '
 
 
 def clean_text(s, first_words=0):
-    # transforms sentence for word processing into a list a words
-    words = s.lower().translate(TABLE_TRANS).split()
+    """
+    clean the sentence for text processing: lowercase, punctuation
+
+    :param s: input string
+    :param first_words: number of words to keep (0 = all)
+    :return: string
+    """
+    words = str(s).lower().translate(TABLE_TRANS).split()
     if first_words != 0:
         words = words[:first_words]
     return " ".join(words)
@@ -41,8 +50,6 @@ def model_word2vec(text, params):
     :param params: dictionary of parameter space for word2vec
     :return: trained encoder model for word2vec
     """
-    #
-    print('generating word2vec')
     train_text = [clean_text(s).split() for s in text]
     model = Word2Vec(**params)
     model.build_vocab(train_text)
@@ -59,8 +66,6 @@ def vector_word2vec(model, text, params):
     :param params: parameters of the word2vec model
     :return: array of vectors (dim text x size of word2vec)
     """
-    #
-    print('generating paragraph vectors')
     v = []
     vector_text = [clean_text(s).split() for s in text]
     for s in vector_text:
@@ -77,13 +82,18 @@ def vector_word2vec(model, text, params):
 
     # create vector with word vectors and paragraph lenght
     v = np.array(v)
-    text_len = np.array([len(s) for s in text]).reshape(len(vector_text), 1)
+    text_len = np.array([len(str(s)) for s in text]).reshape(len(vector_text), 1)
     return np.concatenate((text_len, v), axis=1)
 
 
 def model_fasttext(text, params):
-    # generate a fasttext model from a text (list of sentences)
-    print('generating fasttext')
+    """
+    generate a fasttext model from a text (list of sentences)
+
+    :param text: text, as a list of sentences (strings)
+    :param params: dictionary of parameter space for word2vec
+    :return: trained encoder model for fasttext
+    """
     train_text = [clean_text(s).split() for s in text]
     model = fasttext.FastText(**params)
     model.build_vocab(train_text)
@@ -92,8 +102,14 @@ def model_fasttext(text, params):
 
 
 def vector_fasttext(model, text, params):
-    # generate an aggregate vector with words of the text
-    print('generating paragraph vectors')
+    """
+    generate an aggregate vector with words of the text
+
+    :param model: trained fasttext model
+    :param text: text, as a list of sentences (strings)
+    :param params: parameters of the word2vec model
+    :return: array of vectors (dim text x size of fasttext)
+    """
     v = []
     vector_text = [clean_text(s).split() for s in text]
     for s in vector_text:
@@ -110,13 +126,18 @@ def vector_fasttext(model, text, params):
 
     # create vector with word vectors and paragraph length
     v = np.array(v)
-    text_len = np.array([len(s) for s in text]).reshape(len(vector_text), 1)
+    text_len = np.array([len(str(s)) for s in text]).reshape(len(vector_text), 1)
     return np.concatenate((text_len, v), axis=1)
 
 
 def model_doc2vec(text, params):
-    # generate a doc2vec model from a text (list of sentences)
-    print('generating doc2vec')
+    """
+    generate a doc2vec model from a text (list of sentences)
+
+    :param text: text, as a list of sentences (strings)
+    :param params: dictionary of parameter space for word2vec
+    :return: trained encoder model for doc2vec
+    """
     train_text = [TaggedDocument(words=clean_text(s).split(), tags=[i]) for i, s in enumerate(text)]
     model = Doc2Vec(**params)
     model.build_vocab(train_text)
@@ -125,6 +146,12 @@ def model_doc2vec(text, params):
 
 
 def vector_doc2vec(model, text, params):
-    # generate an a doc2vec vector from text
-    print('generating paragraph vectors')
+    """
+    generate an a doc2vec vector from text
+
+    :param model: trained doc2vec model
+    :param text: text, as a list of sentences (strings)
+    :param params: parameters of the word2vec model
+    :return: array of vectors (dim text x size of doc2vec)
+    """
     return [model.infer_vector(clean_text(s).split()) for s in text]

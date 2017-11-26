@@ -20,6 +20,7 @@
 <table class="table table-bordered table-hover">
     <thead>
     <th>name</th>
+    <th>Id</th>
     <th>status</th>
     <th><i class="fa fa-play" aria-hidden="true"></i></th>
     <th>#</th>
@@ -29,13 +30,16 @@
     </thead>
     {% for domain in domains %}
     <tr>
-        <td colspan="11"><h4><i class="fa fa-folder-open-o" aria-hidden="true"></i>&nbsp;&nbsp;{{domain}}</h4></td>
+        <td colspan="12"><h4><i class="fa fa-folder-open-o" aria-hidden="true"></i>&nbsp;&nbsp;{{domain}}</h4></td>
     </tr>
     {% for dataset in datasets %}
     {% if dataset.domain == domain %}
     <tr>
         <td>
             <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{dataset.name}}</a><br>
+        </td>
+        <td>
+            <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{dataset.dataset_id}}</a><br>
         </td>
         <td>
             <div class="progress" style="height:8px">

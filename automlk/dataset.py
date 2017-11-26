@@ -583,7 +583,11 @@ class DataSet(object):
                 else:
                     return metric.function(y_act, y_pred_metric)
             else:
-                return -metric.function(y_act, y_pred_metric)
+                if metric.average and self.y_n_classes > 2:
+                    # need average if multi-class
+                    return -metric.function(y_act, y_pred_metric, average='micro')
+                else:
+                    return -metric.function(y_act, y_pred_metric)
         except Exception as e:
             print('error in evaluating metric %s: %s' % (metric_name, e))
             return METRIC_NULL
@@ -656,12 +660,14 @@ class DataSet(object):
                 if k['col_type'] != '':
                     col_type = k['col_type']
 
-            feature = Feature(col, raw_type, n_missing, n_unique, first_unique_values, description, to_keep, col_type, n_unique_ratio)
+            is_y = (col == self.y_col)
+            feature = Feature(col, raw_type, n_missing, n_unique, first_unique_values, description, to_keep, col_type,
+                              n_unique_ratio, is_y)
             features.append(feature)
 
             if col == self.y_col:
                 if (self.problem_type == 'regression') and (feature.col_type == 'categorical'):
-                    raise ValueError('target column %s must be numerical in regression' % col.name)
+                    raise ValueError('target column %s must be numerical in regression' % col)
 
                 is_y_categorical = (feature.col_type == 'categorical')
                 y_n_classes = int(feature.n_unique_values)
@@ -677,7 +683,8 @@ class DataSet(object):
 
 
 class Feature(object):
-    def __init__(self, name, raw_type, n_missing, n_unique_values, first_unique_values, description, to_keep, col_type, n_unique_ratio=0):
+    def __init__(self, name, raw_type, n_missing, n_unique_values, first_unique_values, description, to_keep,
+                 col_type, n_unique_ratio=0, is_y=False):
         # descriptive data
         self.name = name
         self.description = description
@@ -705,10 +712,11 @@ class Feature(object):
                 self.col_type = 'categorical'
 
             # additional rules
-            if self.col_type == 'numerical' and self.n_unique_values < 10:
-                self.col_type = 'categorical'
-            if self.col_type == 'categorical' and self.n_unique_ratio > 0.5:
-                self.col_type = 'categorical'
+            if not is_y:
+                if self.col_type == 'numerical' and self.n_unique_values < 10:
+                    self.col_type = 'categorical'
+                if self.col_type == 'categorical' and self.n_unique_ratio > 0.5:
+                    self.col_type = 'text'
 
             # TODO : manage dates
 

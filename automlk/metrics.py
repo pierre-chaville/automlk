@@ -5,13 +5,14 @@ import sklearn.metrics
 
 class Metric(object):
     # metric class
-    def __init__(self, name, function, problem_type, best_is_min, need_class=False, binary=False):
+    def __init__(self, name, function, problem_type, best_is_min, need_class=False, binary=False, average=False):
         self.name = name
         self.function = function
         self.problem_type = problem_type
         self.best_is_min = best_is_min
         self.need_class = need_class
         self.binary = binary
+        self.average = average
 
 # additional metrics not included in sklearn
 
@@ -72,9 +73,9 @@ metric_list = [
     # classification metrics:
     Metric('log_loss', sklearn.metrics.log_loss, 'classification', True),
     Metric('accuracy', sklearn.metrics.accuracy_score, 'classification', False, need_class=True),
-    Metric('precision', sklearn.metrics.precision_score, 'classification', False, need_class=True),
-    Metric('recall', sklearn.metrics.recall_score, 'classification', False, need_class=True),
-    Metric('f1', sklearn.metrics.f1_score, 'classification', False, need_class=True),
+    Metric('precision', sklearn.metrics.precision_score, 'classification', False, need_class=True, average=True),
+    Metric('recall', sklearn.metrics.recall_score, 'classification', False, need_class=True, average=True),
+    Metric('f1', sklearn.metrics.f1_score, 'classification', False, need_class=True, average=True),
     Metric('auc', sklearn.metrics.roc_auc_score, 'classification', False, need_class=False, binary=True),
     Metric('hinge', sklearn.metrics.hinge_loss, 'classification', True),
     Metric('gini', gini, 'classification', False, need_class=True, binary=True),
