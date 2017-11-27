@@ -746,10 +746,17 @@ def __create_train_test(dataset):
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=dataset.holdout_ratio,
                                                                 shuffle=dataset.val_col_shuffle, random_state=0)
         else:
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=dataset.holdout_ratio,
-                                                                shuffle=dataset.val_col_shuffle,
-                                                                stratify=y,
-                                                                random_state=0)
+            try:
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=dataset.holdout_ratio,
+                                                                    shuffle=dataset.val_col_shuffle,
+                                                                    stratify=y,
+                                                                    random_state=0)
+            except:
+                # may fail if two few classes -> split without stratify
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=dataset.holdout_ratio,
+                                                                    shuffle=dataset.val_col_shuffle,
+                                                                    random_state=0)
+
     # submit data
     if dataset.filename_submit != '':
         df = dataset.get_data('submit')

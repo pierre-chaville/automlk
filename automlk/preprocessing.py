@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 import pandas as pd
 import category_encoders as ce
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, MaxAbsScaler, Imputer, PolynomialFeatures
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, MaxAbsScaler, Imputer, PolynomialFeatures, LabelEncoder
 from sklearn.decomposition import TruncatedSVD, FastICA, PCA
 from sklearn.feature_selection import SelectFromModel
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
@@ -58,13 +58,31 @@ class HyperProcessCategorical(HyperProcess):
 
     @abstractmethod
     def fit(self, X, y):
-        # encoder = getattr(ce, self.params['encoder'])
-        # self.transformer = encoder(cols=self.context.cat_cols, drop_invariant=self.params['drop_invariant'])
         self.transformer.fit(X, y)
         # update new list of columns
         Xt = self.transformer.transform(X.copy())
         self.context.cat_cols = []
         self.context.feature_names = Xt.columns
+
+
+class HyperProcessLabel(HyperProcessCategorical):
+    # class for process categorical encoding - label encoder
+
+    def __init__(self, context, params):
+        super().__init__(context, params)
+        self.transformer = []
+
+    def fit(self, X, y):
+        self.transformer = []
+        for col in self.context.cat_cols:
+            encoder = {x: i for i, x in enumerate(X[col].unique())}
+            self.transformer.append((col, encoder))
+
+    def transform(self, X):
+        # transform X
+        for col, encoder in self.transformer:
+            X[col] = X[col].map(lambda x: encoder[x] if x in encoder else -1)
+        return X
 
 
 class HyperProcessOneHot(HyperProcessCategorical):

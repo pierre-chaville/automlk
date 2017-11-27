@@ -192,11 +192,11 @@ def __focus_threshold(df, round_id):
 def __time_limit(dataset):
     # determine max delay to execute search
     if dataset.n_rows < 10:
-        return 300 * int(1 + dataset.n_rows)
+        return 900 * int(1 + dataset.n_rows)
     elif dataset.n_rows < 100:
-        return 3600
-    else:
         return 3*3600
+    else:
+        return 6*3600
 
 
 def __get_pipeline(dataset, default_mode, i_round, df, threshold):

@@ -23,8 +23,9 @@ class PpSolution(object):
 # list of solutions
 pp_solutions = [
     # solutions for categorical encoding
+    PpSolution('CE-LAB', 'Label Encoder', HyperProcessLabel, {}, {}, 'categorical', default_solution=True),
     PpSolution('CE-HOT', 'One hot categorical', HyperProcessOneHot, default_categorical, space_categorical,
-               'categorical', default_solution=True),
+               'categorical'),
     PpSolution('CE-BASE', 'BaseN categorical', HyperProcessBaseN, default_categorical, space_baseN, 'categorical'),
     PpSolution('CE-HASH', 'Hashing categorical', HyperProcessHashing, default_categorical, space_categorical,
                'categorical'),

@@ -24,17 +24,18 @@ def launch_worker():
     init_timer_worker()
     msg_search = ''
     while True:
-        try:
-            # poll queue
-            msg_search = brpop_key_store('controller:search_queue')
-            heart_beep('worker', msg_search)
-            if msg_search != None:
-                log.info('received %s' % msg_search)
-                msg_search = {**msg_search, **{'start_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                               'host_name': socket.gethostname()}}
-                start_timer_worker(msg_search['time_limit'])
-                job_search(msg_search)
-                stop_timer_worker()
+        #try:
+        # poll queue
+        msg_search = brpop_key_store('controller:search_queue')
+        heart_beep('worker', msg_search)
+        if msg_search != None:
+            log.info('received %s' % msg_search)
+            msg_search = {**msg_search, **{'start_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                           'host_name': socket.gethostname()}}
+            start_timer_worker(msg_search['time_limit'])
+            job_search(msg_search)
+            stop_timer_worker()
+        """
         except KeyboardInterrupt:
             log.info('Keyboard interrupt: exiting')
             abort_timer_worker()
@@ -45,7 +46,7 @@ def launch_worker():
                 f.write(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + str(msg_search) + '\n')
                 f.write(str(e) + '\n')
                 f.write('-'*80 + '\n')
-
+        """
 
 def job_search(msg_search):
     """
@@ -135,11 +136,11 @@ def __search(dataset, context, solution, model, msg_search, ds, pool, pipeline):
 
     # generate submit file
     if dataset.filename_submit != '':
+        ls = len(ds.id_submit)
         if dataset.problem_type == 'regression':
-            submit = np.concatenate((ds.id_submit, y_pred_submit), axis=1)
+            submit = np.concatenate((np.reshape(ds.id_submit, (ls, 1)), np.reshape(y_pred_submit, (ls, 1))), axis=1)
         else:
-            l = len(ds.id_submit)
-            submit = np.concatenate((np.reshape(ds.id_submit, (l, 1)), np.reshape(y_pred_submit[:, 1], (l, 1))), axis=1)
+            submit = np.concatenate((np.reshape(ds.id_submit, (ls, 1)), np.reshape(y_pred_submit[:, 1], (ls, 1))), axis=1)
         df_submit = pd.DataFrame(submit)
         df_submit.columns = [dataset.col_submit, dataset.y_col]
         # allocate id column to avoid type conversion (to float)
