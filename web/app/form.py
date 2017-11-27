@@ -39,6 +39,7 @@ class CreateDatasetForm(FlaskForm):
     holdout_ratio = IntegerField(default=20)
     val_col = StringField(default='index')
     val_col_shuffle = BooleanField(default=True)
+    sampling = BooleanField(default=False)
 
 
 class UpdateDatasetForm(FlaskForm):

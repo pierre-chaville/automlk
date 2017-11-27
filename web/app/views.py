@@ -263,7 +263,8 @@ def create_dataset_form(form):
                        cv_folds=form.cv_folds.data,
                        y_col=form.y_col.data,
                        val_col=form.val_col.data,
-                       val_col_shuffle=form.val_col_shuffle.data)
+                       val_col_shuffle=form.val_col_shuffle.data,
+                       sampling=form.sampling.data)
         return redirect('index')
         #except Exception as e:
         #    flash(e)
@@ -305,6 +306,7 @@ def duplicate(dataset_id):
         form.y_col.data = dataset.y_col
         form.val_col.data = dataset.val_col
         form.val_col_shuffle.data = dataset.val_col_shuffle
+        form.sampling.data = dataset.sampling
 
     return render_template('create.html', form=form, config=get_config())
 
@@ -327,7 +329,7 @@ def update(dataset_id):
         dataset = get_dataset(dataset_id)
 
         # copy data to form
-        form.name.data = dataset.name + ' (copy)'
+        form.name.data = dataset.name
         form.domain.data = dataset.domain
         form.description.data = dataset.description
         form.source.data = dataset.source

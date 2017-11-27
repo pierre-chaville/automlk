@@ -210,18 +210,23 @@ def __get_pipeline(dataset, default_mode, i_round, df, threshold):
     # X pre-processing: text
     if len(dataset.text_cols) > 0:
         pipeline.append(__get_pp_choice(dataset, 'text', default_mode, i_round, best_pp, threshold))
+
     # X pre-processing: categorical
     if len(dataset.cat_cols) > 0:
         pipeline.append(__get_pp_choice(dataset, 'categorical', default_mode, i_round, best_pp, threshold))
+
     # missing values
     if len(dataset.missing_cols) > 0:
         pipeline.append(__get_pp_choice(dataset, 'missing', default_mode, i_round, best_pp, threshold))
+
     # scaling
     pipeline.append(__get_pp_choice(dataset, 'scaling', default_mode, i_round, best_pp, threshold))
+
     # feature selection
     pipeline.append(__get_pp_choice(dataset, 'feature', default_mode, i_round, best_pp, threshold))
+
     # re-sampling
-    if dataset.problem_type == 'classification':
+    if dataset.problem_type == 'classification' and dataset.sampling:
         pipeline.append(__get_pp_choice(dataset, 'sampling', default_mode, i_round, best_pp, threshold))
 
     return pipeline

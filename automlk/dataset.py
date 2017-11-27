@@ -15,7 +15,7 @@ from .store import *
 
 
 def create_dataset(name, domain, description, problem_type, y_col, source, mode, filename_train, metric,
-                   other_metrics=[], val_col='index', cv_folds=5, val_col_shuffle=True,
+                   other_metrics=[], val_col='index', cv_folds=5, val_col_shuffle=True, sampling=False,
                    holdout_ratio=0.2, filename_test='', filename_cols='', filename_submit='', url='',
                    col_submit=''):
     """
@@ -33,7 +33,8 @@ def create_dataset(name, domain, description, problem_type, y_col, source, mode,
     :param other_metrics: secondary metrics, separated by comma (eg: f1, accuracy)
     :param val_col: column name to perform the cross validation (default = 'index')
     :param cv_folds: number of cross validation folds (default = 5)
-    :param val_col_shuffle: need to shuffle in cross validation (default = false)
+    :param val_col_shuffle: need to shuffle in cross validation (default = True)
+    :param sampling: use re-sampling pre-processing (default = false)
     :param holdout_ratio: holdout ration to split train / eval set
     :param filename_test: name of the test set (benchmark mode)
     :param filename_cols: file to describe columns
@@ -49,7 +50,7 @@ def create_dataset(name, domain, description, problem_type, y_col, source, mode,
     others = [m for m in other_metrics.replace(' ', '').split(',') if m != '']
     dt = DataSet(0, name, domain, description, problem_type, y_col, source, mode, filename_train, metric,
                  other_metrics=others, val_col=val_col, cv_folds=cv_folds,
-                 val_col_shuffle=val_col_shuffle, holdout_ratio=holdout_ratio,
+                 val_col_shuffle=val_col_shuffle, sampling=sampling, holdout_ratio=holdout_ratio,
                  filename_test=filename_test, filename_cols=filename_cols,
                  filename_submit=filename_submit, col_submit=col_submit,
                  url=url, creation_date=creation_date)
@@ -124,6 +125,8 @@ def get_dataset(dataset_id, include_results=False):
         d['init_data']['domain'] = ''
     if 'text_cols' not in d['load_data'].keys():
         d['load_data']['text_cols'] = []
+    if 'sampling' not in d['init_data'].keys():
+        d['init_data']['sampling'] = False
     # deleted fields
     if 'is_public' in d['init_data'].keys():
         d['init_data'].pop('is_public')
@@ -353,7 +356,7 @@ class DataSet(object):
     """
 
     def __init__(self, dataset_id, name, domain, description, problem_type, y_col, source, mode, filename_train, metric,
-                 other_metrics, val_col, cv_folds, val_col_shuffle,
+                 other_metrics, val_col, cv_folds, val_col_shuffle, sampling,
                  holdout_ratio, filename_test, filename_cols, filename_submit, url, col_submit, creation_date):
         """
         creates a new dataset: it will be automatically stored
@@ -371,6 +374,7 @@ class DataSet(object):
         :param val_col: column name to perform the cross validation (default = 'index')
         :param cv_folds: number of cross validation folds (default = 5)
         :param val_col_shuffle: need to shuffle in cross validation (default = false)
+        :param sampling: use re-sampling pre-processing (default = false)
         :param holdout_ratio: holdout ration to split train / eval set
         :param filename_test: name of the test set
         :param filename_cols: (not implemented)
@@ -442,6 +446,7 @@ class DataSet(object):
         # validation & cross validation
         self.val_col = val_col
         self.val_col_shuffle = val_col_shuffle
+        self.sampling = sampling
         if (cv_folds < 1) or (cv_folds > 20):
             raise ValueError('cv folds must be in range 1 to 20')
         self.cv_folds = cv_folds
@@ -516,7 +521,7 @@ class DataSet(object):
                                'source': self.source, 'mode': self.mode,
                                'filename_train': self.filename_train, 'metric': self.metric,
                                'other_metrics': self.other_metrics, 'val_col': self.val_col, 'cv_folds': self.cv_folds,
-                               'val_col_shuffle': self.val_col_shuffle,
+                               'val_col_shuffle': self.val_col_shuffle, 'sampling': self.sampling,
                                'holdout_ratio': self.holdout_ratio, 'filename_test': self.filename_test,
                                'filename_cols': self.filename_cols, 'url': self.url,
                                'filename_submit': self.filename_submit, 'col_submit': self.col_submit,

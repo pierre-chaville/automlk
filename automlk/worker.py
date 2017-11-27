@@ -144,7 +144,7 @@ def __search(dataset, context, solution, model, msg_search, ds, pool, pipeline):
         df_submit = pd.DataFrame(submit)
         df_submit.columns = [dataset.col_submit, dataset.y_col]
         # allocate id column to avoid type conversion (to float)
-        df_submit[dataset.col_submit] = np.reshape(ds.id_submit, (l, 1))
+        df_submit[dataset.col_submit] = np.reshape(ds.id_submit, (ls, 1))
         df_submit.to_csv(get_dataset_folder(dataset.dataset_id) + '/submit/submit_%s.csv' % round_id, index=False)
 
     # save model importance
