@@ -50,6 +50,11 @@ def print_value(x):
     return ('%6.4f' % x).rstrip('0').rstrip('.') if isinstance(x, float) else str(x)
 
 
+def print_rounded(x, r):
+    # print floated rounded
+    return str((round(x, r))).rstrip('0').rstrip('.') if isinstance(x, float) else str(x)
+
+
 def print_duration(y):
     # easy print of a duration in h mn s
     x = float(y)

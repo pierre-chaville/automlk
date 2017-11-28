@@ -481,9 +481,11 @@ def get_cnf_matrix(dataset_id, round_id, part):
     :param dataset_id: dataset id
     :param round_id: round id
     :param part: 'eval' or 'test'
-    :return: names, matrix
+    :return: names, matrix, sums (of axis=1)
     """
     try:
-        return pickle.load(open(get_dataset_folder(dataset_id) + '/predict/%s_%s_cnf.pkl' % (round_id, part), 'rb'))
+        names, matrix = pickle.load(open(get_dataset_folder(dataset_id) + '/predict/%s_%s_cnf.pkl' % (round_id, part), 'rb'))
+        sums = np.sum(matrix, axis=1)
+        return names, matrix, sums
     except:
         return [], []

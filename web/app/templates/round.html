@@ -172,33 +172,32 @@
         <br>
         <img src="/get_img_round/{{dataset.dataset_id}}/{{round.round_id}}/predict_test?{{refresher}}"></img>
         {% else %}
-        <!-- confusion matrix as table !-->
-        <div class="table-responsive">
+        <!-- confusion matrix as sparse table !-->
+        <div>
+            <br>
             <table class="table table-bordered table-hover">
                 <thead>
-                <th></th>
-                <th colspan="{{ y_names|count }}" style="vertical-align:top; text-align:center;">Predicted</th>
+                <th>Actual</th>
+                <th>Predicted</th>
+                <th style="vertical-align:top; text-align:center">Count</th>
+                <th style="vertical-align:top; text-align:center">%</th>
                 </thead>
-                <thead>
-                <th style="vertical-align:top; text-align:center">Actual</th>
-                {% for name in y_names %}
-                <th style="vertical-align:top; text-align:center; text-orientation:upright; writing-mode:vertical-rl;">
-                    {{ name }}
-                </th>
-                {% endfor %}
-                </thead>
-
                 {% for x in range(y_names|count) %}
                 <tr>
-                    <td style="vertical-align:top; text-align:center">{{ y_names[x] }}</td>
-                    {% for y in range(y_names|count) %}
-                    <td style="vertical-align:top; text-align:center">
-                        {% if cnf_matrix[x, y] != 0 %}
-                        <span class="label {% if x == y %}label-success{% else %}label-warning{% endif %}">{{ cnf_matrix[x, y] }}</span>
-                        {% endif %}
-                    </td>
-                    {% endfor %}
+                    <td colspan="4"><h4>{{y_names[x]}}</h4></td>
                 </tr>
+                {% for y in range(y_names|count) %}
+                {% if cnf_matrix[x, y] != 0 %}
+                <tr>
+                    <td width="20%"></td>
+                    <td width="40%"><span class="label {% if x == y %}label-success{% else %}label-warning{% endif %}">{{y_names[y]}}</span></td>
+                    <td style="vertical-align:top; text-align:center">
+                        <span class="label {% if x == y %}label-success{% else %}label-warning{% endif %}">{{ cnf_matrix[x, y] }}</span>
+                    </td>
+                    <td style="vertical-align:top; text-align:center">{{ print_rounded(100 * cnf_matrix[x, y] / sums_matrix[x], 1) }} %</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
                 {% endfor %}
             </table>
         </div>

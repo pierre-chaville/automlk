@@ -133,10 +133,10 @@ def round(prm):
         pipeline = [s for s in pipeline if s[0] not in ['NO-SCALE', 'PASS']]
     params = get_round_params(search, round_id)
     features = get_feature_importance(dataset.dataset_id, round_id)
-    y_names, cnf_matrix = get_cnf_matrix(dataset_id, round_id, 'eval')
+    y_names, cnf_matrix, sums_matrix = get_cnf_matrix(dataset_id, round_id, 'eval')
     return render_template('round.html', dataset=dataset, round=round, pipeline=pipeline,
                            features=features, params=params, cols=params.keys(), refresher=int(time.time()),
-                           y_names=y_names, cnf_matrix=cnf_matrix, config=get_config())
+                           y_names=y_names, cnf_matrix=cnf_matrix, sums_matrix=sums_matrix, config=get_config())
 
 
 def __path_data(dataset_id):
