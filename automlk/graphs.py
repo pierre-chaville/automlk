@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -11,6 +12,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import confusion_matrix
 from .config import METRIC_NULL
 from .context import get_dataset_folder
+
+log = logging.getLogger(__name__)
 
 try:
     from wordcloud import WordCloud
@@ -54,7 +57,7 @@ def graph_histogram(dataset_id, col, is_categorical, values, part='train'):
                 plt.ylabel('frequencies')
                 __save_fig(dataset_id, '_hist_%s_%s' % (part, col), dark)
     except:
-        print('error in graph_histogram with dataset_id', dataset_id)
+        log.error('error in graph_histogram with dataset_id', dataset_id)
 
 
 def graph_correl_features(dataset, df):
@@ -94,7 +97,7 @@ def graph_correl_features(dataset, df):
                 plt.savefig(get_dataset_folder(dataset.dataset_id) + '/graphs/_correl.png', transparent=TRANSPARENT)
                 __save_fig(dataset.dataset_id, '_correl', dark)
     except:
-        print('error in graph_correl_features with dataset_id', dataset.dataset_id)
+        log.error('error in graph_correl_features with dataset_id', dataset.dataset_id)
 
 
 def __get_best_scores(scores):
@@ -166,7 +169,7 @@ def graph_history_search(dataset, df_search, best_models, level):
                     plt.legend(loc=4)
                 __save_fig(dataset.dataset_id, '_models_' + str(level), dark)
     except:
-        print('error in graph_history_search with dataset_id', dataset.dataset_id)
+        log.error('error in graph_history_search with dataset_id', dataset.dataset_id)
 
 
 def graph_predict_regression(dataset, round_id, y, y_pred, part='eval'):
@@ -197,7 +200,7 @@ def graph_predict_regression(dataset, round_id, y, y_pred, part='eval'):
                 plt.title('%s' % part)
                 __save_fig(dataset.dataset_id, 'predict_%s_%s' % (part, round_id), dark)
     except:
-        print('error in graph_predict_regression with dataset_id', dataset.dataset_id)
+        log.error('error in graph_predict_regression with dataset_id', dataset.dataset_id)
 
 
 def graph_predict_classification(dataset, round_id, y, y_pred, part='eval'):
@@ -248,7 +251,7 @@ def graph_predict_classification(dataset, round_id, y, y_pred, part='eval'):
                     __save_cnf_matrix(dataset.dataset_id, round_id, part, dataset.y_class_names, cnf_matrix)
 
     except:
-        print('error in graph_predict_classification with dataset_id', dataset.dataset_id)
+        log.error('error in graph_predict_classification with dataset_id', dataset.dataset_id)
 
 
 def graph_histogram_regression(dataset, round_id, y, part='eval'):
@@ -271,7 +274,7 @@ def graph_histogram_regression(dataset, round_id, y, part='eval'):
                 plt.ylabel('frequencies')
                 __save_fig(dataset.dataset_id, 'hist_%s_%s' % (part, round_id), dark)
     except:
-        print('error in graph_histogram_regression with dataset_id', dataset.dataset_id)
+        log.error('error in graph_histogram_regression with dataset_id', dataset.dataset_id)
 
 
 def graph_histogram_classification(dataset, round_id, y, part='eval'):
@@ -296,7 +299,7 @@ def graph_histogram_classification(dataset, round_id, y, part='eval'):
                 plt.legend()
                 __save_fig(dataset.dataset_id, 'hist_%s_%s' % (part, round_id), dark)
     except:
-        print('error in graph_histogram_classification with dataset_id', dataset.dataset_id)
+        log.error('error in graph_histogram_classification with dataset_id', dataset.dataset_id)
 
 
 def graph_regression_numerical(dataset_id, df, col, target):
@@ -319,7 +322,7 @@ def graph_regression_numerical(dataset_id, df, col, target):
                 plt.ylim(__standard_range(df[target].values, 1, 99))
                 __save_fig(dataset_id, '_col_' + col, dark)
     except:
-        print('error in graph_regression_numerical with dataset_id', dataset_id)
+        log.error('error in graph_regression_numerical with dataset_id', dataset_id)
 
 
 def graph_regression_categorical(dataset_id, df, col, target):
@@ -344,7 +347,7 @@ def graph_regression_categorical(dataset_id, df, col, target):
                 plt.ylim(__standard_range(df[target].values, 1, 99))
                 __save_fig(dataset_id, '_col_' + col, dark)
     except:
-        print('error in graph_regression_categorical with dataset_id', dataset_id)
+        log.error('error in graph_regression_categorical with dataset_id', dataset_id)
 
 
 def graph_classification_numerical(dataset_id, df, col, target):
@@ -369,7 +372,7 @@ def graph_classification_numerical(dataset_id, df, col, target):
                 plt.yticks(list(range(max(y) + 1)), y_labels)
                 __save_fig(dataset_id, '_col_' + col, dark)
     except:
-        print('error in graph_classification_numerical with dataset_id', dataset_id)
+        log.error('error in graph_classification_numerical with dataset_id', dataset_id)
 
 
 def graph_classification_categorical(dataset_id, df, col, target):
@@ -399,7 +402,7 @@ def graph_classification_categorical(dataset_id, df, col, target):
                 plt.yticks([x + 0.5 for x in list(range(max(y) + 1))], y_labels, rotation=0)
                 __save_fig(dataset_id, '_col_' + col, dark)
     except:
-        print('error in classification_categorical with dataset_id', dataset_id)
+        log.error('error in classification_categorical with dataset_id', dataset_id)
 
 
 def graph_text(dataset_id, df, col):
@@ -424,7 +427,7 @@ def graph_text(dataset_id, df, col):
             else:
                 wc.to_file(get_dataset_folder(dataset_id) + '/graphs/_col_%s.png' % col)
     except:
-        print('error in graph_text with dataset_id', dataset_id)
+        log.error('error in graph_text with dataset_id', dataset_id)
 
 
 def __standard_range(x, pmin, pmax):
@@ -488,4 +491,4 @@ def get_cnf_matrix(dataset_id, round_id, part):
         sums = np.sum(matrix, axis=1)
         return names, matrix, sums
     except:
-        return [], []
+        return [], [], []

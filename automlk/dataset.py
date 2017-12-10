@@ -1,3 +1,4 @@
+import logging
 import pickle
 import glob
 import pandas as pd
@@ -12,6 +13,9 @@ from .context import get_dataset_folder, get_data_folder, XySet
 from .metrics import metric_map
 from .graphs import *
 from .store import *
+from .textset import get_textset_list
+
+log = logging.getLogger(__name__)
 
 
 def create_dataset(name, domain, description, problem_type, y_col, source, mode, filename_train, metric,
@@ -75,6 +79,7 @@ def create_dataset(name, domain, description, problem_type, y_col, source, mode,
 
     # create graphs
     __send_grapher(dt.dataset_id)
+
     return dt
 
 
@@ -170,7 +175,7 @@ def update_dataset(dataset_id, name, domain, description, is_uploaded, source, u
     dt.save(dataset_id)
 
 
-def update_feature_dataset(dataset_id, name, description, to_keep, col_type):
+def update_feature_dataset(dataset_id, name, description, to_keep, col_type, text_ref):
     """
     update specifically some attributes of one column
 
@@ -179,6 +184,7 @@ def update_feature_dataset(dataset_id, name, description, to_keep, col_type):
     :param description: new description of the column
     :param to_keep: keep this column
     :param col_type: type of the column
+    :param text_ref: text set reference of the column (if col type = 'text')
     :return:
     """
     dt = get_dataset(dataset_id)
@@ -193,6 +199,10 @@ def update_feature_dataset(dataset_id, name, description, to_keep, col_type):
             else:
                 f.to_keep = False
             f.col_type = col_type
+            if f.col_type == 'text':
+                f.text_ref = text_ref
+            else:
+                f.text_ref = ''
 
     # regenerate list of X columns, categoricals and text columns
     dt.x_cols = [col.name for col in dt.features if col.to_keep and (col.name not in [dt.y_col, dt.val_col])]
@@ -229,7 +239,6 @@ def reset_dataset(dataset_id):
 
     # create graphs
     dt = get_dataset(dataset_id)
-    df_train = dt.get_data()
     __send_grapher(dt.dataset_id)
 
 
@@ -266,7 +275,7 @@ def __send_grapher(dataset_id):
     """
     # send queue the next graph job to do
     msg_search = {'dataset_id': dataset_id}
-    print('sending %s' % msg_search)
+    log.info('sending to grapher: %s' % msg_search)
     lpush_key_store('grapher:queue', msg_search)
 
 
@@ -298,7 +307,7 @@ def create_graph_data(dataset_id):
     # create graphs for all features
     for f in dataset.features:
         if f.to_keep and f.name != dataset.y_col:
-            print(f.name)
+            log.info('creating graph %s for dataset:%d' % (f.name, dataset_id))
             if f.col_type == 'numerical' and dataset.problem_type == 'regression':
                 graph_regression_numerical(dataset_id, df, f.name, dataset.y_col)
             elif f.col_type == 'categorical' and dataset.problem_type == 'regression':
@@ -380,9 +389,6 @@ class DataSet(object):
         :param filename_cols: (not implemented)
         :param url: url of the dataset
         """
-
-        # TODO: add feature details from file or dataframe
-
         # descriptive data:
         self.dataset_id = dataset_id
         self.name = name
@@ -495,7 +501,7 @@ class DataSet(object):
                          (col.name in self.x_cols) and (col.col_type == 'categorical')]
 
         self.text_cols = [col.name for col in self.features if
-                         (col.name in self.x_cols) and (col.col_type == 'text')]
+                          (col.name in self.x_cols) and (col.col_type == 'text')]
 
         self.missing_cols = [col.name for col in self.features if col.n_missing > 0]
 
@@ -534,7 +540,8 @@ class DataSet(object):
                                'y_n_classes': self.y_n_classes, 'y_class_names': self.y_class_names},
                  'features': [{'name': f.name, 'raw_type': str(f.raw_type), 'n_missing': int(f.n_missing),
                                'n_unique_values': int(f.n_unique_values), 'first_unique_values': f.first_unique_values,
-                               'description': f.description, 'to_keep': f.to_keep, 'col_type': f.col_type}
+                               'description': f.description, 'to_keep': f.to_keep,
+                               'col_type': f.col_type, 'text_ref': f.text_ref}
                               for f in self.features]
                  }
         set_key_store('dataset:%s' % self.dataset_id, store)
@@ -594,7 +601,7 @@ class DataSet(object):
                 else:
                     return -metric.function(y_act, y_pred_metric)
         except Exception as e:
-            print('error in evaluating metric %s: %s' % (metric_name, e))
+            log.error('error in evaluating metric %s: %s' % (metric_name, e))
             return METRIC_NULL
 
     def create_folders(self):
@@ -657,6 +664,7 @@ class DataSet(object):
             to_keep = True
             description = ''
             col_type = ''
+            text_ref = ''
             if col in cols:
                 k = cols[col]
                 description = k['description']
@@ -664,20 +672,25 @@ class DataSet(object):
                     to_keep = k['to_keep']
                 if k['col_type'] != '':
                     col_type = k['col_type']
+                if 'text_ref' in k.keys() and k['text_ref'] != '':
+                    text_ref = k['text_ref']
 
             is_y = (col == self.y_col)
             feature = Feature(col, raw_type, n_missing, n_unique, first_unique_values, description, to_keep, col_type,
-                              n_unique_ratio, is_y)
+                              text_ref, n_unique_ratio, is_y)
             features.append(feature)
 
-            if col == self.y_col:
+            if is_y:
                 if (self.problem_type == 'regression') and (feature.col_type == 'categorical'):
                     raise ValueError('target column %s must be numerical in regression' % col)
 
                 is_y_categorical = (feature.col_type == 'categorical')
                 y_n_classes = int(feature.n_unique_values)
-                y_class_names = [str(x) for x in np.sort(uniques)]
-
+                if self.problem_type == 'classification':
+                    uniques_ = [x if x == x else '' for x in uniques]
+                    y_class_names = [str(x) for x in np.sort(uniques_)]
+                else:
+                    y_class_names = []
         return features, is_y_categorical, y_n_classes, y_class_names
 
     def __import_data(self, filename, part):
@@ -689,12 +702,13 @@ class DataSet(object):
 
 class Feature(object):
     def __init__(self, name, raw_type, n_missing, n_unique_values, first_unique_values, description, to_keep,
-                 col_type, n_unique_ratio=0, is_y=False):
+                 col_type, text_ref='', n_unique_ratio=0., is_y=False):
         # descriptive data
         self.name = name
         self.description = description
         self.to_keep = to_keep
         self.raw_type = raw_type
+        self.text_ref = text_ref
 
         self.n_missing = n_missing
         self.n_unique_values = n_unique_values
@@ -722,8 +736,15 @@ class Feature(object):
                     self.col_type = 'categorical'
                 if self.col_type == 'categorical' and self.n_unique_ratio > 0.5:
                     self.col_type = 'text'
+                if text_ref != '':
+                    if col_type != 'text':
+                        raise ValueError(
+                            'feature %s of type %s : text reference can only apply to text' % (name, col_type))
+                    if text_ref not in get_textset_list():
+                        raise ValueError(
+                            'feature %s of type text: text reference id %s not found' % (name, str(text_ref)))
 
-            # TODO : manage dates
+                        # TODO : manage dates
 
 
 def __create_train_test(dataset):
@@ -812,11 +833,10 @@ def __prepare_y(dataset, y, y_train, y_test):
     # pre-processing of y: categorical
     if dataset.problem_type == 'classification':
         # encode class values as integers
-        encoder = LabelEncoder()
-        #encoder.fit([str(x) for x in np.concatenate((y_train, y_test), axis=0)])
-        y = encoder.fit_transform(y)
-        y_train = encoder.transform([str(x) for x in y_train])
-        y_test = encoder.transform([str(x) for x in y_test])
+        map_y = {x: i for i, x in enumerate(dataset.y_class_names)}
+        y = np.array([map_y[x] if x in map_y else 0 for x in y])
+        y_train = np.array([map_y[x] if x in map_y else 0 for x in y_train])
+        y_test = np.array([map_y[x] if x in map_y else 0 for x in y_test])
     return y, y_train, y_test
 
 
@@ -829,5 +849,3 @@ def get_y_eval(dataset_id):
     """
     #
     return pickle.load(open(get_dataset_folder(dataset_id) + '/y_eval.pkl', 'rb'))
-
-

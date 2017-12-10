@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Create new text set</h3>
+
+<div class="col-sm-6">
+    <form action="" method="post" name="create" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+        {{ form.csrf_token }}
+        <div class="form-group">
+            <label>Name</label>
+            {{ form.name(class="form-control",
+            placeholder="enter a unique name to identify the dataset")}}
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            {{ form.description(class="form-control", rows=3,
+            placeholder="enter the objective of this dataset and the meaning of data")}}
+        </div>
+        <div class="form-group">
+            <label>Source</label>
+            {{ form.source(class="form-control",
+            placeholder="origin or source of the dataset")}}
+        </div>
+        <div class="form-group">
+            <label>URL</label>
+            {{ form.url(class="form-control",
+            placeholder="url of the description dataset")}}
+        </div>
+        <div class="form-group">
+            <label>Data access mode</label>
+            {{ form.mode_file(class="form-control", **{"onchange":"changeModeFile(this.value)"}) }}
+        </div>
+        <div class="form-group">
+            <label>Text file</label>
+            <div id="div_filename">
+                {{ form.filename(class="form-control",
+                placeholder="optional file with description of the columns")}}
+            </div>
+            <div id="div_file_text">
+                {{ form.file_text(class="form-control") }}
+            </div>
+        </div>
+        <div style="height:50px"></div>
+        <nav class="navbar navbar-default navbar-fixed-bottom" role="navigation">
+            <div class="container" style="padding:5px">
+                <button type="submit" class="btn btn-default" style="float:right;">Save</button>
+            </div>
+        </nav>
+    </form>
+</div>
+
+<script type="text/javascript">
+    function changeModeFile(sel) {
+        if(sel=="upload") {
+            jQuery("#div_filename").hide();
+            jQuery("#div_file_text").show();
+        } else {
+            jQuery("#div_filename").show();
+            jQuery("#div_file_text").hide();
+        }
+    }
+</script>
+
+<script type="text/javascript">
+    window.onload = changeModeFile("{{form.mode_file.data}}")
+</script>
+
+{% endblock %}

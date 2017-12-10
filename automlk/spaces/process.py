@@ -53,6 +53,14 @@ space_doc2vec = {'size': HyperChoice([50, 100, 200, 400]),
                  'workers': 8
                  }
 
+# textset word2vec
+default_textset_word2vec = {'size': 200}
+space_textset_word2vec = {'size': HyperChoice([100, 200])}
+
+# textset doc2vec
+default_textset_doc2vec = {'size': 200}
+space_textset_doc2vec = {'size': HyperChoice([100, 200])}
+
 # missing values imputing
 
 default_missing_fixed = {'fixed': 0}

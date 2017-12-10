@@ -76,6 +76,10 @@ class EditFeatureForm(FlaskForm):
     domain = StringField('domain')
     description = TextAreaField('description')
     col_type = SelectField(choices=[('numerical', 'numerical'), ('categorical', 'categorical'), ('text', 'text'), ('date', 'date')])
+    text_ref = SelectField(choices=[])
+
+    def set_ref_choices(self, choices):
+        self.text_ref.choices = [x for x in [('', '')] + list(choices)]
 
 
 class ConfigForm(FlaskForm):
@@ -116,3 +120,29 @@ class DataForm(FlaskForm):
 
     def set_choices(self, choices):
         self.col.choices = [(x, x) for x in choices]
+
+
+class CreateTextsetForm(FlaskForm):
+    # this is the form to create a textset
+    name = StringField(validators=[DataRequired()])
+    description = TextAreaField()
+    source = StringField()
+    url = StringField()
+    mode_file = SelectField(choices=[('upload', 'upload'), ('path', 'file path')], default='upload')
+    filename = StringField()
+    file_text = FileField()
+
+
+class UpdateTextsetForm(FlaskForm):
+    # this is the form to update specific fields of a textset
+    name = StringField(validators=[DataRequired()])
+    description = TextAreaField()
+    source = StringField()
+    url = StringField()
+
+
+class DeleteTextsetForm(FlaskForm):
+    # form to confirm delete of a textset
+    id = StringField('id')
+    name = StringField('name')
+    description = TextAreaField('description')

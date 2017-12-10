@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Text set</h3>
+
+<div class="col-sm-6">
+    <table class="table">
+        <tr>
+            <td><label>Name</label></td>
+            <td>{{textset.name}}</td>
+        </tr>
+        <tr>
+            <td><label>Id</label></td>
+            <td>{{textset.textset_id}}</td>
+        </tr>
+        <tr>
+            <td><label>Description</label></td>
+            <td width="80%">{{textset.description}}</td>
+        </tr>
+        <tr>
+            <td><label>Source</label></td>
+            <td>{{textset.source}}</td>
+        </tr>
+        <tr>
+            <td><label>Url</label></td>
+            <td><a target="_blank" href="{{textset.url}}">{{textset.url}}</a></td>
+        </tr>
+        <tr>
+            <td><label>Text file</label></td>
+            <td>{{textset.filename}}</td>
+        </tr>
+        <tr>
+            <td><label>Size</label></td>
+            <td>{{textset.size}} B</td>
+        </tr>
+        <tr>
+            <td><label>Lines</label></td>
+            <td>{{textset.lines}}</td>
+        </tr>
+    </table>
+
+</div>
+
+{% endblock %}

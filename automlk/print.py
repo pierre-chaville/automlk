@@ -82,7 +82,7 @@ def print_title(t, s):
 
 def print_summary(dataset):
     # print a summary of the dataset
-    s = '%d rows x %d cols' % (dataset.n_rows, dataset.n_cols)
+    s = '%dK rows x %d cols' % (dataset.n_rows, dataset.n_cols)
     if dataset.n_cat_cols > 0:
         s += ', %d categ. cols' % (dataset.n_cat_cols)
     if dataset.n_missing > 0:

@@ -7,8 +7,8 @@ from automlk.results import *
 from automlk.doc import gener_doc
 from .form import *
 from automlk.context import get_uploads_folder, get_dataset_folder, get_config, set_config
-from automlk.dataset import get_dataset_list, get_dataset, delete_dataset, update_dataset, reset_dataset, \
-    update_feature_dataset, get_dataset_sample
+from automlk.dataset import *
+from automlk.textset import *
 from automlk.worker import get_search_rounds
 from automlk.graphs import get_cnf_matrix
 from automlk.store import set_key_store
@@ -28,7 +28,8 @@ def index():
     del_form = DeleteDatasetForm()
     reset_form = ResetDatasetForm()
     if request.method == 'POST':
-        datasets = [d for d in datasets if d.domain.startswith(sel_form.domain.data)]
+        domains = [d for d in domains if d.startswith(sel_form.domain.data)]
+        datasets = [d for d in datasets if d.domain in domains]
     return render_template('index.html', datasets=datasets, domains=domains, refresher=int(time.time()),
                            sel_form=sel_form, reset_form=reset_form, del_form=del_form, config=get_config())
 
@@ -60,6 +61,7 @@ def dataset(dataset_id):
     doc_path = os.path.abspath(get_dataset_folder(dataset_id) + '/docs/_build/html/index.html')
     doc_pdf = os.path.abspath(get_dataset_folder(dataset_id) + '/docs/_build/latex/dataset.pdf')
     form = EditFeatureForm()
+    form.set_ref_choices([(t.textset_id, t.name) for t in get_textset_list()])
     data_form = DataForm()
     data_form.set_choices([f.name for f in dataset.features if f.to_keep and f.name != dataset.y_col])
     sample = get_dataset_sample(dataset_id)
@@ -341,12 +343,15 @@ def update(dataset_id):
 def edit_feature(dataset_id):
     # edit the description of a column
     form = EditFeatureForm()
+    form.set_ref_choices([(t.textset_id, t.name) for t in get_textset_list()])
     if form.validate():
         update_feature_dataset(dataset_id,
                                name=form.name.data,
                                description=form.description.data,
                                to_keep=form.to_keep.data,
-                               col_type=form.col_type.data)
+                               col_type=form.col_type.data,
+                               text_ref=form.text_ref.data,
+                               )
         return redirect('/dataset/%s#features' % dataset_id)
 
 
@@ -398,6 +403,83 @@ def import_file():
             print('not validated')
 
     return render_template('import.html', form=form, config=get_config())
+
+
+@app.route('/textset_list', methods=['GET', 'POST'])
+def text_list():
+    # list of text sets
+    textset_list = get_textset_list()
+    del_form = DeleteTextsetForm()
+    return render_template('text_list.html', textset_list=textset_list, del_form=del_form,
+                           refresher=int(time.time()), config=get_config())
+
+
+@app.route('/textset/<string:textset_id>', methods=['GET', 'POST'])
+def text_set(textset_id):
+    # detail of a text set
+    textset = get_textset(textset_id)
+    return render_template('text.html', textset=textset, refresher=int(time.time()), config=get_config())
+
+
+@app.route('/create_text', methods=['GET', 'POST'])
+def create_text():
+    # form to create a new textset
+    form = CreateTextsetForm()
+    if request.method == 'POST':
+        if form.validate():
+            # try:
+            if form.mode_file.data == 'upload':
+                # check and upload a file
+                filename = form.file_text.data.filename
+                if filename == '' or filename.split('.')[-1].lower() != 'txt':
+                    flash('file %s type must be txt' % filename)
+                else:
+                    form.filename.data = get_uploads_folder() + '/' + str(uuid.uuid4()) + '.' + filename.split('.')[-1].lower()
+                    form.file_text.data.save(form.filename.data)
+
+            create_textset(name=form.name.data,
+                           description=form.description.data,
+                           source=form.source.data,
+                           url=form.url.data,
+                           filename=form.filename.data)
+            return redirect('/textset_list')
+            # except Exception as e:
+            #    flash(e)
+        else:
+            flash(", ".join([key + ': ' + form.errors[key][0] for key in form.errors.keys()]))
+
+    return render_template('create_text.html', form=form, config=get_config())
+
+
+@app.route('/update_text/<textset_id>', methods=['GET', 'POST'])
+def update_text(textset_id):
+    # form to update a textset
+    form = UpdateTextsetForm()
+    if request.method == 'POST':
+        if form.validate():
+            update_textset(textset_id,
+                           name=form.name.data,
+                           description=form.description.data,
+                           source=form.source.data,
+                           url=form.url.data)
+            return redirect('/textset_list')
+    else:
+        textset = get_textset(textset_id)
+        # copy data to form
+        form.name.data = textset.name
+        form.description.data = textset.description
+        form.source.data = textset.source
+        form.url.data = textset.url
+    return render_template('update_text.html', form=form, config=get_config())
+
+
+@app.route('/delete_text', methods=['POST'])
+def delete_text():
+    # delete a textset
+    form = DeleteTextsetForm()
+    if form.validate():
+        delete_textset(form.id.data)
+    return redirect('/textset_list')
 
 
 @app.route('/monitor', methods=['GET'])

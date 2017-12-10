@@ -80,62 +80,63 @@
                     <div id="div_file_train">
                         {{ form.file_train(class="form-control") }}
                     </div>
-                    <div class="form-group" id="test_group">
-                        <label>Test set file</label>
-                        <div id="div_filename_test">
-                            {{ form.filename_test(class="form-control",
-                            placeholder="test file in benchmark mode") }}
-                        </div>
-                        <div id="div_file_test">
-                            {{ form.file_test(class="form-control") }}
-                        </div>
+                </div>
+                <div class="form-group" id="test_group">
+                    <label>Test set file</label>
+                    <div id="div_filename_test">
+                        {{ form.filename_test(class="form-control",
+                        placeholder="test file in benchmark mode") }}
                     </div>
-                    <div id="submit_group">
-                        <div class="form-group">
-                            <label>Submit set file</label>
-                            <div id="div_filename_submit">
-                                {{ form.filename_submit(class="form-control",
-                                placeholder="submit file in competition mode")}}
-                            </div>
-                            <div id="div_file_submit">
-                                {{ form.file_submit(class="form-control") }}
-                            </div>
+                    <div id="div_file_test">
+                        {{ form.file_test(class="form-control") }}
+                    </div>
+                </div>
+                <div id="submit_group">
+                    <div class="form-group">
+                        <label>Submit set file</label>
+                        <div id="div_filename_submit">
+                            {{ form.filename_submit(class="form-control",
+                            placeholder="submit file in competition mode")}}
                         </div>
-                        <div class="form-group">
-                            <label>Submit column</label>
-                            {{ form.col_submit(class="form-control",
-                            placeholder="name of the id column for the submit file")}}
+                        <div id="div_file_submit">
+                            {{ form.file_submit(class="form-control") }}
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Folds cv</label>
-                        {{ form.cv_folds(class="form-control")}}
+                        <label>Submit column</label>
+                        {{ form.col_submit(class="form-control",
+                        placeholder="name of the id column for the submit file")}}
                     </div>
-                    <div class="form-group">
-                        <label>Holdout %</label>
-                        {{ form.holdout_ratio(class="form-control")}}
+                </div>
+                <div class="form-group">
+                    <label>Folds cv</label>
+                    {{ form.cv_folds(class="form-control")}}
+                </div>
+                <div class="form-group">
+                    <label>Holdout %</label>
+                    {{ form.holdout_ratio(class="form-control")}}
+                </div>
+                <div class="form-group">
+                    <label>Y column</label>
+                    {{ form.y_col(class="form-control",
+                    placeholder="name of the target columns")}}
+                </div>
+                <div class="form-group">
+                    <label>Validation column</label>
+                    {{ form.val_col(class="form-control")}}
+                </div>
+                <div class="form-group">
+                    <label>{{ form.val_col_shuffle(class="check-box-inline")}} Shuffle valid col</label>
+                </div>
+                <div class="form-group">
+                    <label>{{ form.sampling(class="check-box-inline")}} Use re-sampling</label>
+                </div>
+                <div style="height:50px"></div>
+                <nav class="navbar navbar-default navbar-fixed-bottom" role="navigation">
+                    <div class="container" style="padding:5px">
+                        <button type="submit" class="btn btn-default" style="float:right;">Save</button>
                     </div>
-                    <div class="form-group">
-                        <label>Y column</label>
-                        {{ form.y_col(class="form-control",
-                        placeholder="name of the target columns")}}
-                    </div>
-                    <div class="form-group">
-                        <label>Validation column</label>
-                        {{ form.val_col(class="form-control")}}
-                    </div>
-                    <div class="form-group">
-                        <label>{{ form.val_col_shuffle(class="check-box-inline")}} Shuffle valid col</label>
-                    </div>
-                    <div class="form-group">
-                        <label>{{ form.sampling(class="check-box-inline")}} Use re-sampling</label>
-                    </div>
-                    <div style="height:50px"></div>
-                    <nav class="navbar navbar-default navbar-fixed-bottom" role="navigation">
-                        <div class="container" style="padding:5px">
-                            <button type="submit" class="btn btn-default" style="float:right;">Save</button>
-                        </div>
-                    </nav>
+                </nav>
             </td>
         </tr>
     </table>
@@ -177,11 +178,13 @@
         }
     }
 
+
 </script>
 
 <script type="text/javascript">
     window.onload = changeMode("{{form.mode.data}}")
     window.onload = changeModeFile("{{form.mode_file.data}}")
+
 
 </script>
 
