@@ -2,7 +2,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, BooleanField, SelectField, IntegerField, FileField
 from wtforms.validators import DataRequired
 from automlk.metrics import metric_list
-
+from automlk.dataset import get_dataset_list
 
 class CreateDatasetForm(FlaskForm):
     # this is the form to create a dataset
@@ -146,3 +146,11 @@ class DeleteTextsetForm(FlaskForm):
     id = StringField('id')
     name = StringField('name')
     description = TextAreaField('description')
+
+
+class DupplicateRound(FlaskForm):
+    # for to dupplicate a dataset
+    dataset = SelectField(choices=[])
+
+    def set_choices(self, problem_type):
+        self.dataset.choices = [(d.dataset_id, '#%s: %s' % (d.dataset_id, d.name)) for d in get_dataset_list() if d.problem_type == problem_type]

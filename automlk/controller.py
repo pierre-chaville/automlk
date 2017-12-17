@@ -8,17 +8,17 @@ from .worker import get_search_rounds
 from .monitor import heart_beep, set_installed_version
 from .graphs import graph_history_search
 
-PATIENCE = 500               # number of equivalent results to wait before stop
-ROUNDS_MAX = 5000            # number max of rounds before stop
+PATIENCE = 500  # number of equivalent results to wait before stop
+ROUNDS_MAX = 5000  # number max of rounds before stop
 
-ROUND_START_ENSEMBLE = 200   # number of rounds to start ensembling
-RATIO_L1_L2 = 2              # number of L1 rounds compared to L2 rounds
+ROUND_START_ENSEMBLE = 200  # number of rounds to start ensembling
+RATIO_L1_L2 = 2  # number of L1 rounds compared to L2 rounds
 
-RATIO_ROUNDS = 10            # number rounds -> equivalent in number of results (only a fraction can pass threshold)
+RATIO_ROUNDS = 10  # number rounds -> equivalent in number of results (only a fraction can pass threshold)
 RATIO_START_THRESHOLD = 100  # number of rounds to start applying a threshold
-RATIO_MIN = 2                # minimum models to include in threshold (should be > 1)
-RATIO_THRESHOLD_MAX = 50     # maximum % of models to include in threshold (should be > 1)
-RATIO_THRESHOLD_SLOPE = 10   # % of models decrease per 50 results to include in threshold (should be > 1)
+RATIO_MIN = 2  # minimum models to include in threshold (should be > 1)
+RATIO_THRESHOLD_MAX = 50  # maximum % of models to include in threshold (should be > 1)
+RATIO_THRESHOLD_SLOPE = 10  # % of models decrease per 50 results to include in threshold (should be > 1)
 
 log = logging.getLogger(__name__)
 
@@ -40,20 +40,29 @@ def launch_controller():
         if len(active) == 0:
             heart_beep('controller', {})
             time.sleep(1)
-            continue
+        else:
+            # sends work to the workers when their queue is empty
+            if llen_key_store(SEARCH_QUEUE) == 0:
+                # get next dataset to search
+                i_dataset += 1
+                if i_dataset > len(active) - 1:
+                    i_dataset = 0
 
-        # sends work to the workers when their queue is empty
-        if llen_key_store(SEARCH_QUEUE) == 0:
-            # get next dataset to search
-            i_dataset += 1
-            if i_dataset > len(active) - 1:
-                i_dataset = 0
+                # retrieves dataset and status of search
+                dataset_id = active[i_dataset]
 
-            # retrieves dataset and status of search
-            dataset_id = active[i_dataset]
+                # find search job
+                msg_search = __create_search_round(dataset_id)
 
-            # find search job
-            msg_search = __create_search_round(dataset_id)
+                # send queue the next job to do
+                log.info('sending %s' % msg_search)
+                lpush_key_store(SEARCH_QUEUE, msg_search)
+                heart_beep('controller', msg_search)
+
+        # then read the duplicate queue
+        while llen_key_store(DUPLICATE_QUEUE) > 0:
+            msg = brpop_key_store(DUPLICATE_QUEUE)
+            msg_search = __duplicate_search_round(msg['round'], msg['dataset'])
 
             # send queue the next job to do
             log.info('sending %s' % msg_search)
@@ -144,6 +153,29 @@ def __create_search_round(dataset_id):
             'threshold': threshold, 'time_limit': __time_limit(dataset)}
 
 
+def __duplicate_search_round(round, dataset_id):
+    """
+    apply the parameters of the round to search in the target dataset
+
+    :param round: round parameters
+    :param dataset_id: id of the target dataset
+    :return:
+    """
+    dataset = get_dataset(dataset_id)
+
+    # generate round id
+    round_id = incr_key_store('dataset:%s:round_counter' % dataset_id) - 1
+    if round_id == 0:
+        # first launch: create train & eval & test set
+        create_dataset_sets(dataset)
+
+    # generate search message:
+    return {'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': round["solution"],
+            'level': round["level"], 'ensemble_depth': round["ensemble_depth"], 'model_name': round["model_name"],
+            'model_params': round["model_params"], 'pipeline': round["pipeline"],
+            'threshold': 0, 'time_limit': __time_limit(dataset)}
+
+
 def __get_round_ids(round_id):
     # find round ids for each level; return = level, round_id_l1, round_id_l2
 
@@ -179,12 +211,12 @@ def __focus_threshold(df, round_id):
         return 0
 
     # we take into account the length of results, but also we cap the round_id (1/10):
-    base = max(len(df), round_id/RATIO_ROUNDS) - RATIO_START_THRESHOLD
+    base = max(len(df), round_id / RATIO_ROUNDS) - RATIO_START_THRESHOLD
 
     # we will decrease the threshold from max % of the best scores to min%
     ratio = RATIO_THRESHOLD_MAX - base * RATIO_THRESHOLD_SLOPE / 50
-    n = max(RATIO_MIN, round(len(scores) * ratio/100))
-    threshold = scores[n-1]
+    n = max(RATIO_MIN, round(len(scores) * ratio / 100))
+    threshold = scores[n - 1]
     log.info('outlier threshold set at: %.5f (ratio=%.2f%%, n=%d, %d scores)' % (threshold, ratio, n, len(scores)))
     return threshold
 
@@ -194,9 +226,9 @@ def __time_limit(dataset):
     if dataset.n_rows < 10:
         return 900 * int(1 + dataset.n_rows)
     elif dataset.n_rows < 100:
-        return 3*3600
+        return 3 * 3600
     else:
-        return 6*3600
+        return 6 * 3600
 
 
 def __get_pipeline(dataset, default_mode, i_round, df, threshold):
@@ -276,7 +308,6 @@ def __get_model_class_list(dataset, level):
 
 
 def __process_result(msg_result):
-
     dataset_id = msg_result['dataset_id']
 
     # check if the search has been reset (round_id > round counter)
@@ -308,7 +339,8 @@ def __process_result(msg_result):
     if len(best2 > 0):
         last_best, last_best_id = __get_last_best(df)
         if msg_result['round_id'] - last_best_id > PATIENCE:
-            log.info('patience reached for dataset %s at round %d (last best: %d): search completed' % (dataset_id, msg_result['round_id'], last_best_id))
+            log.info('patience reached for dataset %s at round %d (last best: %d): search completed' % (
+                dataset_id, msg_result['round_id'], last_best_id))
             set_key_store('dataset:%s:status' % dataset_id, 'completed')
 
 
@@ -327,7 +359,7 @@ def __get_list_best_models(df, level=1):
     # returns best models
     if len(df[df.level == level]) < 1:
         return []
-    best = df[df.level == level].sort_values(by=['solution', 'cv_max']).\
+    best = df[df.level == level].sort_values(by=['solution', 'cv_max']). \
         groupby('solution', as_index=False).first().sort_values(by='cv_max')
     return [(x, y) for x, y in zip(best.solution.values, best.cv_max.values)]
 
@@ -387,9 +419,11 @@ def __get_best_pp(df, cv_max=False):
 
             # relative performance
             if cv_max:
-                best['rel_score'] = abs(100 * (best.cv_max - best.cv_max.max()) / (best.cv_max.max() - best.cv_max.min()))
+                best['rel_score'] = abs(
+                    100 * (best.cv_max - best.cv_max.max()) / (best.cv_max.max() - best.cv_max.min()))
             else:
-                best['rel_score'] = abs(100 * (best.cv_mean - best.cv_mean.max()) / (best.cv_mean.max() - best.cv_mean.min()))
+                best['rel_score'] = abs(
+                    100 * (best.cv_mean - best.cv_mean.max()) / (best.cv_mean.max() - best.cv_mean.min()))
 
             all_cat.append((c, pd.merge(best, counts, on='cat_ref').to_dict(orient='records')))
 

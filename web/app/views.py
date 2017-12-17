@@ -7,6 +7,7 @@ from automlk.results import *
 from automlk.doc import gener_doc
 from .form import *
 from automlk.context import get_uploads_folder, get_dataset_folder, get_config, set_config
+from automlk.config import DUPLICATE_QUEUE
 from automlk.dataset import *
 from automlk.textset import *
 from automlk.worker import get_search_rounds
@@ -120,7 +121,7 @@ def details_pp(prm):
                            refresher=int(time.time()), config=get_config())
 
 
-@app.route('/round/<string:prm>', methods=['GET'])
+@app.route('/round/<string:prm>', methods=['GET', 'POST'])
 def round(prm):
     # details of a search round (1 pre-processing + 1 model configuration)
     dataset_id, round_id = prm.split(';')
@@ -136,7 +137,12 @@ def round(prm):
     params = get_round_params(search, round_id)
     features = get_feature_importance(dataset.dataset_id, round_id)
     y_names, cnf_matrix, sums_matrix = get_cnf_matrix(dataset_id, round_id, 'eval')
-    return render_template('round.html', dataset=dataset, round=round, pipeline=pipeline,
+    form = DupplicateRound()
+    form.set_choices(dataset.problem_type)
+    if request.method == 'POST':
+        # apply round parameters for searching in another dataset
+        lpush_key_store(DUPLICATE_QUEUE, {'round': round, 'dataset': form.dataset.data})
+    return render_template('round.html', dataset=dataset, round=round, pipeline=pipeline, form=form,
                            features=features, params=params, cols=params.keys(), refresher=int(time.time()),
                            y_names=y_names, cnf_matrix=cnf_matrix, sums_matrix=sums_matrix, config=get_config())
 
@@ -234,42 +240,42 @@ def check_upload_file(f):
 def create_dataset_form(form):
     # performs creation of a dataset from a form
     if form.validate():
-        #try:
-        if form.mode_file.data == 'upload':
-            form.filename_cols.data = check_upload_file(form.file_cols.data)
-            form.filename_train.data = check_upload_file(form.file_train.data)
-            if form.mode.data == 'benchmark':
-                form.filename_test.data = check_upload_file(form.file_test.data)
-            else:
-                form.filename_test.data = ''
-            if form.mode.data == 'competition':
-                form.filename_submit.data = check_upload_file(form.file_submit.data)
-            else:
-                form.filename_submit.data = ''
+        try:
+            if form.mode_file.data == 'upload':
+                form.filename_cols.data = check_upload_file(form.file_cols.data)
+                form.filename_train.data = check_upload_file(form.file_train.data)
+                if form.mode.data == 'benchmark':
+                    form.filename_test.data = check_upload_file(form.file_test.data)
+                else:
+                    form.filename_test.data = ''
+                if form.mode.data == 'competition':
+                    form.filename_submit.data = check_upload_file(form.file_submit.data)
+                else:
+                    form.filename_submit.data = ''
 
-        create_dataset(name=form.name.data,
-                       domain=form.domain.data,
-                       description=form.description.data,
-                       source=form.source.data,
-                       url=form.url.data,
-                       problem_type=form.problem_type.data,
-                       metric=form.metric.data,
-                       other_metrics=form.other_metrics.data,
-                       mode=form.mode.data,
-                       filename_train=form.filename_train.data,
-                       holdout_ratio=form.holdout_ratio.data / 100.,
-                       filename_cols=form.filename_cols.data,
-                       filename_test=form.filename_test.data,
-                       filename_submit=form.filename_submit.data,
-                       col_submit=form.col_submit.data,
-                       cv_folds=form.cv_folds.data,
-                       y_col=form.y_col.data,
-                       val_col=form.val_col.data,
-                       val_col_shuffle=form.val_col_shuffle.data,
-                       sampling=form.sampling.data)
-        return redirect('index')
-        #except Exception as e:
-        #    flash(e)
+            create_dataset(name=form.name.data,
+                           domain=form.domain.data,
+                           description=form.description.data,
+                           source=form.source.data,
+                           url=form.url.data,
+                           problem_type=form.problem_type.data,
+                           metric=form.metric.data,
+                           other_metrics=form.other_metrics.data,
+                           mode=form.mode.data,
+                           filename_train=form.filename_train.data,
+                           holdout_ratio=form.holdout_ratio.data / 100.,
+                           filename_cols=form.filename_cols.data,
+                           filename_test=form.filename_test.data,
+                           filename_submit=form.filename_submit.data,
+                           col_submit=form.col_submit.data,
+                           cv_folds=form.cv_folds.data,
+                           y_col=form.y_col.data,
+                           val_col=form.val_col.data,
+                           val_col_shuffle=form.val_col_shuffle.data,
+                           sampling=form.sampling.data)
+            return redirect('index')
+        except Exception as e:
+            flash(e)
     else:
         flash(", ".join([key + ': ' + form.errors[key][0] for key in form.errors.keys()]))
     return None

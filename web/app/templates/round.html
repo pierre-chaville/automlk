@@ -21,6 +21,7 @@
     <li><a data-toggle="tab" href="#hist_graph">
         <span data-toggle="tooltip" data-placement="left" title="prediction histogram">
             <i class="fa fa-bar-chart" aria-hidden="true"></i>&nbsp;Hist</span></a></li>
+    <li><a data-toggle="tab" href="#other"><i class="fa fa-files-o"></i></a></li>
     {% if dataset.filename_submit != '' %}
     <li><a data-toggle="tab" href="#submit">Submit</a></li>
     {% endif %}
@@ -190,11 +191,14 @@
                 {% if cnf_matrix[x, y] != 0 %}
                 <tr>
                     <td width="20%"></td>
-                    <td width="40%"><span class="label {% if x == y %}label-success{% else %}label-warning{% endif %}">{{y_names[y]}}</span></td>
+                    <td width="40%"><span class="label {% if x == y %}label-success{% else %}label-warning{% endif %}">{{y_names[y]}}</span>
+                    </td>
                     <td style="vertical-align:top; text-align:center">
                         <span class="label {% if x == y %}label-success{% else %}label-warning{% endif %}">{{ cnf_matrix[x, y] }}</span>
                     </td>
-                    <td style="vertical-align:top; text-align:center">{{ print_rounded(100 * cnf_matrix[x, y] / sums_matrix[x], 1) }} %</td>
+                    <td style="vertical-align:top; text-align:center">{{ print_rounded(100 * cnf_matrix[x, y] /
+                        sums_matrix[x], 1) }} %
+                    </td>
                 </tr>
                 {% endif %}
                 {% endfor %}
@@ -218,6 +222,25 @@
                 </td>
             </tr>
         </table>
+    </div>
+    <!-- launch this round on another dataset -->
+    <div id="other" class="tab-pane">
+        <h4>Apply this round parameters for searching on another dataset</h4>
+        <br>
+        <div class="col-sm-6">
+            <form action="" method="post" name="dupplicate"
+                  enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+                {{ form.csrf_token }}
+                <div class="form-group">
+                    <label>Target dataset</label>
+                    {{ form.dataset(class="form-control")}}
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">Copy</button>
+                </div>
+            </form>
+        </div>
     </div>
     <!-- submit file -->
     <div id="submit" class="tab-pane">

@@ -1,5 +1,6 @@
 METRIC_NULL = 1e7
 SEARCH_QUEUE = 'controller:search_queue'
+DUPLICATE_QUEUE = 'controller:duplicate_queue'
 RESULTS_QUEUE = 'controller:results_queue'
 CONTROLLER_ID = 'controller:dataset_id'
 
