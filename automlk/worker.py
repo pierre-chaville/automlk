@@ -137,7 +137,8 @@ def __search(dataset, context, solution, model, msg_search, ds, pool, pipeline):
     # generate submit file
     if dataset.filename_submit != '':
         ls = len(ds.id_submit)
-        if dataset.problem_type == 'regression':
+        #if dataset.problem_type == 'regression':
+        if np.shape(y_pred_submit)[1] == 1:
             submit = np.concatenate((np.reshape(ds.id_submit, (ls, 1)), np.reshape(y_pred_submit, (ls, 1))), axis=1)
         else:
             submit = np.concatenate((np.reshape(ds.id_submit, (ls, 1)), np.reshape(y_pred_submit[:, 1], (ls, 1))), axis=1)

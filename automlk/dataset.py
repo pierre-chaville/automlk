@@ -833,10 +833,11 @@ def __prepare_y(dataset, y, y_train, y_test):
     # pre-processing of y: categorical
     if dataset.problem_type == 'classification':
         # encode class values as integers
-        map_y = {x: i for i, x in enumerate(dataset.y_class_names)}
-        y = np.array([map_y[x] if x in map_y else 0 for x in y])
-        y_train = np.array([map_y[x] if x in map_y else 0 for x in y_train])
-        y_test = np.array([map_y[x] if x in map_y else 0 for x in y_test])
+        print(dataset.y_class_names)
+        map_y = {str(x): i for i, x in enumerate(dataset.y_class_names)}
+        y = np.array([map_y[str(x)] if str(x) in map_y else 0 for x in y])
+        y_train = np.array([map_y[str(x)] if str(x) in map_y else 0 for x in y_train])
+        y_test = np.array([map_y[str(x)] if str(x) in map_y else 0 for x in y_test])
     return y, y_train, y_test
 
 
