@@ -30,6 +30,9 @@
     <li><a data-toggle="tab" href="#features">
         <span data-toggle="tooltip" data-placement="left" title="dataset features">
             <i class="fa fa-list" aria-hidden="true"></i></span></a></li>
+    <li><a data-toggle="tab" href="#specific">
+        <span data-toggle="tooltip" data-placement="left" title="dataset specific feature engineering and metrics">
+            <i class="fa fa-cog" aria-hidden="true"></i></span></a></li>
     {% if dataset.grapher %}
     <li><a data-toggle="tab" href="#data">
         <span data-toggle="tooltip" data-placement="left" title="sample of the dataset">
@@ -90,206 +93,16 @@
     </div>
     {% endif %}
     {% endif %}
-    <div id="dataset" class="tab-pane {% if n_searches1 == 0 %}active{% endif %}">
-        <table class="table">
-            <tr>
-                <td width="50%">
-                    <table class="table">
-                        <tr>
-                            <td><label>Name</label></td>
-                            <td>{{dataset.name}}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Id</label></td>
-                            <td>{{dataset.dataset_id}}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Description</label></td>
-                            <td width="80%">{{dataset.description}}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Url</label></td>
-                            <td><a target="_blank" href="{{dataset.url}}">{{dataset.url}}</a></td>
-                        </tr>
-                        <tr>
-                            <td><label>Mode</label></td>
-                            <td>{{dataset.mode}}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Train set</label></td>
-                            <td>{{dataset.filename_train}}</td>
-                        </tr>
-                        {% if dataset.filename_test != '' %}
-                        <tr>
-                            <td><label>Test set</label></td>
-                            <td>{{dataset.filename_test}}</td>
-                        </tr>
-                        {% endif %}
-                        {% if dataset.filename_submit != '' %}
-                        <tr>
-                            <td><label>Submit set</label></td>
-                            <td>{{dataset.filename_submit}}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Column submit</label></td>
-                            <td>{{dataset.col_submit}}</td>
-                        </tr>
-                        {% endif %}
-                        <tr>
-                            <td><label>Size</label></td>
-                            <td>{{dataset.size}} MB</td>
-                        </tr>
-                        <tr>
-                            <td><label>Rows</label></td>
-                            <td>{{dataset.n_rows}} K</td>
-                        </tr>
-                        <tr>
-                            <td><label>Columns</label></td>
-                            <td>{{dataset.n_cols}}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Categorical</label></td>
-                            <td>{{dataset.n_cat_cols}}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Text</label></td>
-                            <td>{{dataset.text_cols|count}}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Missing</label></td>
-                            <td>{{dataset.n_missing}}</td>
-                        </tr>
-                    </table>
-                </td>
-                <td width="50%">
-                    <table class="table">
-                        <tr>
-                            <td><label>Problem</label></td>
-                            <td>{{dataset.problem_type}}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Target column</label></td>
-                            <td>{{dataset.y_col}}</td>
-                        </tr>
-                        {% if dataset.problem_type == 'classification' %}
-                        <tr>
-                            <td><label>Number classes</td>
-                            <td>{{dataset.y_n_classes}}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Classes</label></td>
-                            <td>{{ print_list(dataset.y_class_names[:10]) }}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Is categorical</label></td>
-                            <td>{{dataset.is_y_categorical}}</td>
-                        </tr>
-                        {% endif %}
 
-                        <tr>
-                            <td><label>Validation column</label></td>
-                            <td>{{dataset.val_col}}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Shuffle val col</label></td>
-                            <td>{{dataset.val_col_shuffle}}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Metric</label></td>
-                            <td>{{dataset.metric}}</td>
-                        </tr>
-                        {% if dataset.other_metrics|count > 0 %}
-                        <tr>
-                            <td><label>other metrics</label></td>
-                            <td>{{ print_list(dataset.other_metrics) }}</td>
-                        </tr>
-                        {% endif %}
-                        <tr>
-                            <td><label>Number of CV folds</label></td>
-                            <td>{{dataset.cv_folds}}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Holdout ratio</label></td>
-                            <td>
-                                {% if dataset.with_test_set %}
-                                Use test set
-                                {% else %}
-                                {{dataset.holdout_ratio * 100}} %
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><label>X columns</label></td>
-                            <td width="70%">{{ print_list(dataset.x_cols) }}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Categorical columns</label></td>
-                            <td width="70%">{{ print_list(dataset.cat_cols) }}</td>
-                        </tr>
-                        <tr>
-                            <td><label>Text columns</label></td>
-                            <td width="70%">{{ print_list(dataset.text_cols) }}</td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </div>
-    <div id="features" class="tab-pane">
-        {% if dataset.round_counter > 1 %}
-        <p><i>NB: edit features is deactivated because the search has started</i></p>
-        {% endif %}
-        <table class="table table-bordered table-hover">
-            <thead>
-            <th>name</th>
-            <th>description</th>
-            <th>keep</th>
-            <th>raw_type</th>
-            <th>type</th>
-            <th>missing</th>
-            <th>unique</th>
-            <th>values</th>
-            {% if dataset.round_counter < 1 %}
-            <th>edit</th>
-            {% endif %}
-            </thead>
-            {% for col in dataset.features %}
-            <tr>
-                <td>{{col.name}}</td>
-                <td>{{col.description}}</td>
-                <td>
-                    {% if col.to_keep %}
-                    <i class="fa fa-check" style="color:green" aria-hidden="true"></i>
-                    {% else %}
-                    <i class="fa fa-times" style="color:red" aria-hidden="true"></i>
-                    {% endif %}
-                </td>
-                <td>{{col.raw_type}}</td>
-                <td>{{col.col_type}}</td>
-                <td>{% if col.n_missing!= 0 %}{{col.n_missing}}{% endif %}</td>
-                <td>{{col.n_unique_values}}</td>
-                <td>{{col.first_unique_values[:200]}}{% if col.first_unique_values|count > 200 %}...{% endif %}</td>
-                {% if dataset.round_counter < 1 %}
-                <td>
-                    <span data-toggle="tooltip" data-placement="left" title="edit feature"><a href="#EditModal"
-                                                                                              class="open_EditModal"
-                                                                                              style="color:inherit; text-decoration: none;"
-                                                                                              data-toggle="modal"
-                                                                                              data-target="#EditModal"
-                                                                                              data-name="{{col.name}}"
-                                                                                              data-to_keep="{{col.to_keep}}"
-                                                                                              data-raw_type="{{col.raw_type}}"
-                                                                                              data-col_type="{{col.col_type}}"
-                                                                                              data-text_ref="{{col.text_ref}}"
-                                                                                              data-description="{{col.description}}"
-                                                                                              style="color:inherit; text-decoration: none;">
-                        <i class="fa fa-pencil-square-o"></i></a></span>
-                </td>
-                {% endif %}
-            </tr>
-            {% endfor %}
-        </table>
-    </div>
+    <!-- infos on the dataset !-->
+    {% include 'dataset_info.html' %}
+
+    <!-- features of the dataset !-->
+    {% include 'dataset_features.html' %}
+
+    <!-- feature engineering and specific metrics !-->
+    {% include 'dataset_specific.html' %}
+
     {% if dataset.grapher %}
     <div id="data" class="tab-pane">
         {% include "sample.html" %}
@@ -335,7 +148,6 @@ $(".modal-body #col_type").val($(this).data('col_type'));
 $(".modal-body #text_ref").val($(this).data('text_ref'));
 $(".modal-body #description").val($(this).data('description'));
 });
-
 
 </script>
 
@@ -384,13 +196,61 @@ $(".modal-body #description").val($(this).data('description'));
     </div>
 </div>
 
+<div class="modal fade" id="DeleteMetricsModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Are you sure you want to remove this metrics ?</h4>
+            </div>
+            <form role="form" action="/delete_metrics/{{dataset.dataset_id}}" method="POST" name="request"
+                  enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Name:</label><span>&nbsp;&nbsp;{{metrics_name}}</span>
+                        <pre><b>def specific_metrics(y_act, y_pred):</b><br>{{ print_indent(metrics_content, 4)|safe }}</pre>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn_default" data-dismiss="modal">Cancel</button>
+                        {{ form.submit }}
+                        <input type="submit" class="btn btn_primary" value="Submit">
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="DeleteFEModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Are you sure you want to remove this feature engineering function ?</h4>
+            </div>
+            <form role="form" action="/delete_engineering/{{dataset.dataset_id}}" method="POST" name="request"
+                  enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <pre><b>def specific_feature_engineering(X):</b><br>{{ print_indent(fe_content, 4)|safe }}
+                            <br>&nbsp;&nbsp;&nbsp;&nbsp;<b>return X</b>
+                        </pre>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn_default" data-dismiss="modal">Cancel</button>
+                        {{ form.submit }}
+                        <input type="submit" class="btn btn_primary" value="Submit">
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
 {% if n_searches1 >= 0 %}
 <script>
     setInterval(function() {
       window.location.reload();
     }, 300000);
-
-
 
 </script>
 {% endif %}
@@ -402,8 +262,6 @@ $(".modal-body #description").val($(this).data('description'));
     }
 
 });
-
-
 
 </script>
 

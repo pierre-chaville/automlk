@@ -1,6 +1,11 @@
+import logging
 import math
 import numpy as np
 import sklearn.metrics
+from .config import METRIC_NULL
+
+
+log = logging.getLogger(__name__)
 
 
 class Metric(object):
@@ -93,3 +98,33 @@ metric_list = [
 
 metric_map = {m.name: m for m in metric_list}
 
+
+def evaluate_metric(y_act, y_pred, metric_name, n_classes):
+    # evaluate score with the metric of the dataset
+    metric = metric_map[metric_name]
+    try:
+        if metric.need_class:
+            # convert proba to classes
+            y_pred_metric = np.argmax(y_pred, axis=1)
+        else:
+            if metric.binary:
+                y_pred_metric = y_pred[:, 1]
+            else:
+                y_pred_metric = y_pred
+
+        # use sign before metrics to always compare best is min in comparisons
+        # but requires to display abs value for display
+        if metric.best_is_min:
+            if metric.name == 'log_loss':
+                return metric.function(y_act, y_pred_metric, labels=list(range(n_classes)))
+            else:
+                return metric.function(y_act, y_pred_metric)
+        else:
+            if metric.average and n_classes > 2:
+                # need average if multi-class
+                return -metric.function(y_act, y_pred_metric, average='micro')
+            else:
+                return -metric.function(y_act, y_pred_metric)
+    except Exception as e:
+        log.error('error in evaluating metric %s: %s' % (metric_name, e))
+        return METRIC_NULL

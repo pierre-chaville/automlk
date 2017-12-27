@@ -2,19 +2,23 @@ from app import app
 import time
 import os
 import uuid
-from flask import render_template, send_file, redirect, request, abort, flash, send_from_directory, jsonify
+from flask import render_template, redirect, request, flash
 from automlk.results import *
 from automlk.doc import gener_doc
 from .form import *
-from automlk.context import get_uploads_folder, get_dataset_folder, get_config, set_config
+from automlk.context import get_uploads_folder
 from automlk.config import DUPLICATE_QUEUE
 from automlk.dataset import *
-from automlk.textset import *
+from automlk.specific import *
 from automlk.worker import get_search_rounds
 from automlk.graphs import get_cnf_matrix
 from automlk.store import set_key_store
-from automlk.dataset import create_dataset
-from automlk.monitor import get_heart_beeps
+
+# include additional views
+from .views_api import *
+from .views_textset import *
+from .views_specific import *
+from .views_admin import *
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -29,22 +33,17 @@ def index():
     del_form = DeleteDatasetForm()
     reset_form = ResetDatasetForm()
     if request.method == 'POST':
-        domains = [d for d in domains if d.startswith(sel_form.domain.data)]
+        redirect_to_index = redirect('/index')
+        response = app.make_response(redirect_to_index)
+        response.set_cookie('automlk_folder', value=sel_form.domain.data)
+        return response
+    if 'automlk_folder' in request.cookies:
+        folder = request.cookies.get('automlk_folder')
+        domains = [d for d in domains if d.startswith(folder)]
         datasets = [d for d in datasets if d.domain in domains]
+        sel_form.domain.data = folder
     return render_template('index.html', datasets=datasets, domains=domains, refresher=int(time.time()),
                            sel_form=sel_form, reset_form=reset_form, del_form=del_form, config=get_config())
-
-
-@app.route('/start/<string:dataset_id>', methods=['GET'])
-def start(dataset_id):
-    set_key_store('dataset:%s:status' % dataset_id, 'searching')
-    return redirect('/index')
-
-
-@app.route('/pause/<string:dataset_id>', methods=['GET'])
-def pause(dataset_id):
-    set_key_store('dataset:%s:status' % dataset_id, 'pause')
-    return redirect('/index')
 
 
 @app.route('/gendoc/<string:dataset_id>', methods=['GET'])
@@ -65,6 +64,8 @@ def dataset(dataset_id):
     form.set_ref_choices([(t.textset_id, t.name) for t in get_textset_list()])
     data_form = DataForm()
     data_form.set_choices([f.name for f in dataset.features if f.to_keep and f.name != dataset.y_col])
+    fe_content = get_feature_engineering(dataset_id)
+    metrics_name, metrics_best, metrics_content = get_specific_metrics(dataset_id)
     sample = get_dataset_sample(dataset_id)
     if not os.path.exists(doc_path):
         doc_path = ''
@@ -78,23 +79,15 @@ def dataset(dataset_id):
         best2 = [b for b in best if b['level'] == 2]
         return render_template('dataset.html', dataset=dataset, best1=best1, best2=best2, best_pp=best_pp,
                                n_searches1=len(search[search.level == 1]), n_searches2=len(search[search.level == 2]),
-                               form=form, data_form=data_form, doc_path=doc_path, doc_pdf=doc_pdf,
+                               form=form, data_form=data_form,
+                               doc_path=doc_path, doc_pdf=doc_pdf, fe_content=fe_content,
+                               metrics_name=metrics_name, metrics_best=metrics_best, metrics_content=metrics_content,
                                sample=sample, refresher=int(time.time()), config=get_config())
     else:
         return render_template('dataset.html', dataset=dataset, n_searches1=0, doc_path=doc_path, form=form,
-                               data_form=data_form, sample=sample, refresher=int(time.time()), config=get_config())
-
-
-@app.route('/column/<string:dataset_id>/<string:col>', methods=['GET'])
-def column(dataset_id, col):
-    # gets the features
-    dataset = get_dataset(dataset_id)
-    if col == "None":
-        return jsonify([f for f in dataset.features if f.to_keep and f.name != dataset.y_col][0].__dict__)
-    for f in dataset.features:
-        if f.name == col:
-            return jsonify(f.__dict__)
-    return jsonify()
+                               data_form=data_form, fe_content=fe_content,
+                               metrics_name=metrics_name, metrics_best=metrics_best, metrics_content=metrics_content,
+                               sample=sample, refresher=int(time.time()), config=get_config())
 
 
 @app.route('/details/<string:prm>', methods=['GET'])
@@ -147,68 +140,6 @@ def round(prm):
                            y_names=y_names, cnf_matrix=cnf_matrix, sums_matrix=sums_matrix, config=get_config())
 
 
-def __path_data(dataset_id):
-    folder = get_dataset_folder(dataset_id)
-    if folder.startswith('..'):
-        return os.path.abspath(folder)
-    else:
-        return folder
-
-
-@app.route('/get_img_dataset/<string:dataset_id>/<string:graph_type>', methods=['GET'])
-def get_img_dataset(dataset_id, graph_type):
-    # retrieves the graph at dataset level from dataset_id;round_id, where dataset_id is dataset id and round_id is round id
-    if get_config()['graph_theme'] == 'dark':
-        return send_file(__path_data(dataset_id) + '/graphs_dark/_%s.png' % graph_type, mimetype='image/png')
-    else:
-        return send_file(__path_data(dataset_id) + '/graphs/_%s.png' % graph_type, mimetype='image/png')
-
-
-@app.route('/get_img_data/<string:dataset_id>/<string:col>', methods=['GET'])
-def get_img_data(dataset_id, col):
-    # retrieves the graph of col data
-    if get_config()['graph_theme'] == 'dark':
-        return send_file(__path_data(dataset_id) + '/graphs_dark/_col_%s.png' % col, mimetype='image/png')
-    else:
-        return send_file(__path_data(dataset_id) + '/graphs/_col_%s.png' % col, mimetype='image/png')
-
-
-@app.route('/get_img_round/<string:dataset_id>/<string:round_id>/<string:graph_type>', methods=['GET'])
-def get_img_round(dataset_id, round_id, graph_type):
-    # retrieves the graph at dataset level from dataset_id;round_id, where dataset_id is dataset id and round_id is round id
-    if get_config()['graph_theme'] == 'dark':
-        return send_file(__path_data(dataset_id) + '/graphs_dark/%s_%s.png' % (graph_type, round_id), mimetype='image/png')
-    else:
-        return send_file(__path_data(dataset_id) + '/graphs/%s_%s.png' % (graph_type, round_id), mimetype='image/png')
-
-
-@app.route('/get_doc_html/<string:dataset_id>', methods=['GET'])
-def get_doc(dataset_id):
-    # return html doc as zip file
-    return send_file(__path_data(dataset_id) + '/doc.zip', as_attachment=True)
-
-
-@app.route('/get_doc_pdf/<string:dataset_id>', methods=['GET'])
-def get_doc_pdf(dataset_id):
-    # retrieves the pdf document of the dataset
-    return send_file(__path_data(dataset_id) + '/docs/_build/latex/dataset.pdf', as_attachment=True)
-
-
-@app.route('/get_predict/<string:dataset_id>/<string:round_id>', methods=['GET'])
-def get_predict(dataset_id, round_id):
-    # download the prediction file
-    create_predict_file(dataset_id, round_id)
-    return send_file(__path_data(dataset_id) + '/submit/predict_%s.xlsx' % round_id,
-                     as_attachment=True, attachment_filename='predict_%s_%s.xlsx' % (dataset_id, round_id))
-
-
-@app.route('/get_submit/<string:dataset_id>/<string:round_id>', methods=['GET'])
-def get_submit(dataset_id, round_id):
-    # download the submit file
-    return send_file(__path_data(dataset_id) + '/submit/submit_%s.csv' % round_id,
-                     as_attachment=True, attachment_filename='submit_%s_%s.csv' % (dataset_id, round_id))
-
-
 @app.route('/create', methods=['GET', 'POST'])
 def create():
     # form to create a new dataset
@@ -258,21 +189,11 @@ def create_dataset_form(form):
                            description=form.description.data,
                            source=form.source.data,
                            url=form.url.data,
-                           problem_type=form.problem_type.data,
-                           metric=form.metric.data,
-                           other_metrics=form.other_metrics.data,
                            mode=form.mode.data,
                            filename_train=form.filename_train.data,
-                           holdout_ratio=form.holdout_ratio.data / 100.,
                            filename_cols=form.filename_cols.data,
                            filename_test=form.filename_test.data,
-                           filename_submit=form.filename_submit.data,
-                           col_submit=form.col_submit.data,
-                           cv_folds=form.cv_folds.data,
-                           y_col=form.y_col.data,
-                           val_col=form.val_col.data,
-                           val_col_shuffle=form.val_col_shuffle.data,
-                           sampling=form.sampling.data)
+                           filename_submit=form.filename_submit.data)
             return redirect('index')
         except Exception as e:
             flash(e)
@@ -299,16 +220,62 @@ def duplicate(dataset_id):
         form.description.data = dataset.description
         form.source.data = dataset.source
         form.url.data = dataset.url
-        form.problem_type.data = dataset.problem_type
-        form.metric.data = dataset.metric
-        form.other_metrics.data = ",".join(dataset.other_metrics)
         form.mode.data = dataset.mode
         form.mode_file.data = 'path'
         form.filename_train.data = dataset.filename_train
-        form.holdout_ratio.data = int(dataset.holdout_ratio * 100)
         form.filename_cols.data = dataset.filename_cols
         form.filename_test.data = dataset.filename_test
         form.filename_submit.data = dataset.filename_submit
+
+    return render_template('create.html', form=form, config=get_config())
+
+
+@app.route('/start_search/<dataset_id>', methods=['GET', 'POST'])
+def start_search(dataset_id):
+    # form to duplicate a dataset
+    dataset = get_dataset(dataset_id)
+    specific_name, specific_best, specific_content = get_specific_metrics(dataset_id)
+    form = StartDatasetForm()
+    form.set_metrics_choices(specific_name, specific_content)
+    form.set_columns_choices([f.name for f in dataset.features])
+    if request.method == 'POST':
+        if form.validate():
+            if form.problem_type.data == 'regression':
+                metric = form.regression_metric.data
+                other_metrics = form.regression_other_metrics.data
+            else:
+                metric = form.classification_metric.data
+                other_metrics = form.classification_other_metrics.data
+            if dataset.mode == 'competition':
+                col_submit = form.col_submit.data
+            else:
+                col_submit = ''
+            update_problem_dataset(dataset_id,
+                                   problem_type=form.problem_type.data,
+                                   metric=metric,
+                                   other_metrics=other_metrics,
+                                   holdout_ratio=form.holdout_ratio.data/100,
+                                   col_submit=col_submit,
+                                   cv_folds=form.cv_folds.data,
+                                   y_col=form.y_col.data,
+                                   val_col=form.val_col.data,
+                                   val_col_shuffle=form.val_col_shuffle.data,
+                                   sampling=form.sampling.data)
+            set_key_store('dataset:%s:status' % dataset_id, 'searching')
+            return redirect('index')
+        else:
+            flash(", ".join([key + ': ' + form.errors[key][0] for key in form.errors.keys()]))
+    else:
+        # copy data to form
+        form.problem_type.data = dataset.problem_type
+        if dataset.problem_type == 'regression':
+            form.regression_metric.data = dataset.metric
+            form.regression_other_metrics.data = dataset.other_metrics
+        else:
+            form.classification_metric.data = dataset.metric
+            form.classification_other_metrics.data = dataset.other_metrics
+
+        form.holdout_ratio.data = int(dataset.holdout_ratio * 100)
         form.col_submit.data = dataset.col_submit
         form.cv_folds.data = dataset.cv_folds
         form.y_col.data = dataset.y_col
@@ -316,7 +283,19 @@ def duplicate(dataset_id):
         form.val_col_shuffle.data = dataset.val_col_shuffle
         form.sampling.data = dataset.sampling
 
-    return render_template('create.html', form=form, config=get_config())
+    return render_template('start.html', dataset=dataset, form=form, config=get_config())
+
+
+@app.route('/restart/<string:dataset_id>', methods=['GET'])
+def restart(dataset_id):
+    set_key_store('dataset:%s:status' % dataset_id, 'searching')
+    return redirect('/index')
+
+
+@app.route('/pause/<string:dataset_id>', methods=['GET'])
+def pause(dataset_id):
+    set_key_store('dataset:%s:status' % dataset_id, 'pause')
+    return redirect('/index')
 
 
 @app.route('/update/<dataset_id>', methods=['GET', 'POST'])
@@ -345,22 +324,6 @@ def update(dataset_id):
     return render_template('update.html', form=form, config=get_config())
 
 
-@app.route('/edit_feature/<string:dataset_id>', methods=['POST'])
-def edit_feature(dataset_id):
-    # edit the description of a column
-    form = EditFeatureForm()
-    form.set_ref_choices([(t.textset_id, t.name) for t in get_textset_list()])
-    if form.validate():
-        update_feature_dataset(dataset_id,
-                               name=form.name.data,
-                               description=form.description.data,
-                               to_keep=form.to_keep.data,
-                               col_type=form.col_type.data,
-                               text_ref=form.text_ref.data,
-                               )
-        return redirect('/dataset/%s#features' % dataset_id)
-
-
 @app.route('/reset', methods=['POST'])
 def reset():
     # reset a dataset
@@ -384,7 +347,9 @@ def import_file():
     # form to import a file of dataset descriptions
     form = ImportForm()
     if request.method == 'POST':
+        print('post')
         if form.validate():
+            print('validate')
             f = form.file_import.data
             ext = f.filename.split('.')[-1].lower()
             if ext not in ['csv', 'tsv', 'xls', 'xlsx']:
@@ -402,7 +367,7 @@ def import_file():
                         print('creating dataset %s in %s' % (line['name'], line['problem_type']))
                         create_dataset(**line)
                         line_number += 1
-                    return redirect('index')
+                    return redirect('/')
                 except Exception as e:
                     flash('Error in line %d: %s' % (line_number, str(e)))
         else:
@@ -410,115 +375,3 @@ def import_file():
 
     return render_template('import.html', form=form, config=get_config())
 
-
-@app.route('/textset_list', methods=['GET', 'POST'])
-def text_list():
-    # list of text sets
-    textset_list = get_textset_list()
-    del_form = DeleteTextsetForm()
-    return render_template('text_list.html', textset_list=textset_list, del_form=del_form,
-                           refresher=int(time.time()), config=get_config())
-
-
-@app.route('/textset/<string:textset_id>', methods=['GET', 'POST'])
-def text_set(textset_id):
-    # detail of a text set
-    textset = get_textset(textset_id)
-    return render_template('text.html', textset=textset, refresher=int(time.time()), config=get_config())
-
-
-@app.route('/create_text', methods=['GET', 'POST'])
-def create_text():
-    # form to create a new textset
-    form = CreateTextsetForm()
-    if request.method == 'POST':
-        if form.validate():
-            # try:
-            if form.mode_file.data == 'upload':
-                # check and upload a file
-                filename = form.file_text.data.filename
-                if filename == '' or filename.split('.')[-1].lower() != 'txt':
-                    flash('file %s type must be txt' % filename)
-                else:
-                    form.filename.data = get_uploads_folder() + '/' + str(uuid.uuid4()) + '.' + filename.split('.')[-1].lower()
-                    form.file_text.data.save(form.filename.data)
-
-            create_textset(name=form.name.data,
-                           description=form.description.data,
-                           source=form.source.data,
-                           url=form.url.data,
-                           filename=form.filename.data)
-            return redirect('/textset_list')
-            # except Exception as e:
-            #    flash(e)
-        else:
-            flash(", ".join([key + ': ' + form.errors[key][0] for key in form.errors.keys()]))
-
-    return render_template('create_text.html', form=form, config=get_config())
-
-
-@app.route('/update_text/<textset_id>', methods=['GET', 'POST'])
-def update_text(textset_id):
-    # form to update a textset
-    form = UpdateTextsetForm()
-    if request.method == 'POST':
-        if form.validate():
-            update_textset(textset_id,
-                           name=form.name.data,
-                           description=form.description.data,
-                           source=form.source.data,
-                           url=form.url.data)
-            return redirect('/textset_list')
-    else:
-        textset = get_textset(textset_id)
-        # copy data to form
-        form.name.data = textset.name
-        form.description.data = textset.description
-        form.source.data = textset.source
-        form.url.data = textset.url
-    return render_template('update_text.html', form=form, config=get_config())
-
-
-@app.route('/delete_text', methods=['POST'])
-def delete_text():
-    # delete a textset
-    form = DeleteTextsetForm()
-    if form.validate():
-        delete_textset(form.id.data)
-    return redirect('/textset_list')
-
-
-@app.route('/monitor', methods=['GET'])
-def monitor():
-    # monitor workers
-    return render_template('monitor.html', controller=get_heart_beeps('controller'),
-                           workers=get_heart_beeps('worker'), config=get_config())
-
-
-@app.route('/config', methods=['GET', 'POST'])
-def config():
-    # view/edit configuration
-    form = ConfigForm()
-    if request.method == 'POST':
-        if form.validate():
-            try:
-                set_config(data=form.data.data,
-                           theme=form.theme.data,
-                           bootstrap=form.bootstrap.data,
-                           graph_theme=form.graph_theme.data,
-                           store=form.store.data,
-                           store_url=form.store_url.data)
-            except Exception as e:
-                flash(str(e))
-    else:
-        config = get_config()
-
-        # copy data to form
-        form.data.data = config['data']
-        form.theme.data = config['theme']
-        form.bootstrap.data = config['bootstrap']
-        form.graph_theme.data = config['graph_theme']
-        form.store.data = config['store']
-        form.store_url.data = config['store_url']
-
-    return render_template('config.html', form=form, config=get_config())

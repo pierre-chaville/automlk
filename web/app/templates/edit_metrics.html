@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Edit function for specific metrics</h3>
+
+<p><i>Enter the content of the metrics, except the definition part. It must return the value of the metrics</i></p>
+<br>
+<form role="form" action="" method="POST" name="request"
+      enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+    <div class="modal-body">
+        <div class="form-group">
+            <label>Metrics name</label>
+            {{ form.name(class="form-control", placeholder="Enter name of the metrics")}}
+        </div>
+        <div class="form-group">
+            <label>Best is min
+            {{ form.best_is_min(class="form-control")}}</label>
+        </div>
+        <div class="form-group">
+            <p style="font-family: 'courier new', courier, monospace;">def specific_metrics(y_act, y_pred):</p>
+            {{ form.content(class="form-control", rows="10", style="font-family: 'courier new',
+            courier, monospace;") }}
+        </div>
+    </div>
+    <div style="height:50px"></div>
+    <nav class="navbar navbar-default navbar-fixed-bottom" role="navigation">
+        <div class="container" style="padding:5px">
+            <div style="float:right;">
+                <a href="/dataset/{{dataset_id}}#specific" class="btn btn-default">Cancel</a>
+                &nbsp;&nbsp;
+                <button class="btn btn-primary">Save</button>
+            </div>
+        </div>
+    </nav>
+</form>
+</div>
+
+{% endblock %}

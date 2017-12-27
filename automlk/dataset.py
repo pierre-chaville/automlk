@@ -1,110 +1,39 @@
 import logging
 import pickle
 import glob
-import pandas as pd
-import numpy as np
 import datetime
 import shutil
-
-from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
-from sklearn.preprocessing import LabelEncoder
-from .config import METRIC_NULL
-from .context import get_dataset_folder, get_data_folder, XySet
+import pandas as pd
+import numpy as np
 from .metrics import metric_map
-from .graphs import *
 from .store import *
 from .textset import get_textset_list
+from .context import get_dataset_folder
+
 
 log = logging.getLogger(__name__)
 
 
-def create_dataset(name, domain, description, problem_type, y_col, source, mode, filename_train, metric,
-                   other_metrics=[], val_col='index', cv_folds=5, val_col_shuffle=True, sampling=False,
-                   holdout_ratio=0.2, filename_test='', filename_cols='', filename_submit='', url='',
-                   col_submit=''):
+def get_dataset_ids():
     """
-    creates a dataset
+    get the list of ids all datasets
 
-    :param name: name of the dataset
-    :param domain: domain classification of the dataset (string separated by /)
-    :param description: description of the dataset
-    :param problem_type: 'regression' or 'classification'
-    :param y_col: name of the target column
-    :param source: source of the dataset
-    :param mode: standard (train set), benchmark (train + test set), competition (train + submit set)
-    :param filename_train: file path of the training set
-    :param metric: metric to be used to select the best models ('mse', 'rmse', 'log_loss', ...)
-    :param other_metrics: secondary metrics, separated by comma (eg: f1, accuracy)
-    :param val_col: column name to perform the cross validation (default = 'index')
-    :param cv_folds: number of cross validation folds (default = 5)
-    :param val_col_shuffle: need to shuffle in cross validation (default = True)
-    :param sampling: use re-sampling pre-processing (default = false)
-    :param holdout_ratio: holdout ration to split train / eval set
-    :param filename_test: name of the test set (benchmark mode)
-    :param filename_cols: file to describe columns
-    :param filename_submit: name of the submit set (competition mode)
-    :param url: url of the dataset
-    :param col_submit: index column to be used in submit file (competition mode)
-    :return: dataset object
+    :return: list of ids
     """
-
-    # create object and control data
-    creation_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    others = [m for m in other_metrics.replace(' ', '').split(',') if m != '']
-    dt = DataSet(0, name, domain, description, problem_type, y_col, source, mode, filename_train, metric,
-                 other_metrics=others, val_col=val_col, cv_folds=cv_folds,
-                 val_col_shuffle=val_col_shuffle, sampling=sampling, holdout_ratio=holdout_ratio,
-                 filename_test=filename_test, filename_cols=filename_cols,
-                 filename_submit=filename_submit, col_submit=col_submit,
-                 url=url, creation_date=creation_date)
-
-    # control data
-    df_cols, df_train, df_test, df_submit = dt.initialize_data()
-
-    # update stats
-    dt.update_stats(df_train, df_test, df_submit)
-
-    # save and create objects and graphs related to the dataset
-    dataset_id = str(incr_key_store('dataset:counter'))
-    set_key_store('dataset:%s:status' % dataset_id, 'created')
-    set_key_store('dataset:%s:grapher' % dataset_id, False)
-    set_key_store('dataset:%s:results' % dataset_id, 0)
-    set_key_store('dataset:%s:level' % dataset_id, 1)
-    rpush_key_store('dataset:list', dataset_id)
-
-    dt.save(dataset_id)
-    dt.create_folders()
-    dt.finalize_creation(df_train, df_test, df_submit)
-
-    # create graphs
-    __send_grapher(dt.dataset_id)
-
-    return dt
+    return list_key_store('dataset:list')
 
 
-def create_dataset_sets(dt):
+def get_dataset_list(include_results=False):
     """
-    creates the train & test set, and the evaluation set per folds
+    get the list of all datasets
 
-    :param dt: dataset
-    :return:
+    :param include_results: flag to determine if the status are also retrieved (default = False)
+    :return: list of datasets objects or empty list if error (eg. redis or environment not set)
     """
-    # create train & test set
-    X, y, X_train, X_test, y_train, y_test, X_submit, id_submit = __create_train_test(dt)
-
-    # prepare y values
-    y, y_train, y_test = __prepare_y(dt, y, y_train, y_test)
-
-    # create cv folds
-    cv_folds = __create_cv(dt, X_train, y_train)
-
-    # prepare and store eval set
-    y_eval_list, y_eval, idx_eval = __store_eval_set(dt, y_train, y_test, cv_folds)
-
-    # then store all these results in a pickle store
-    ds = XySet(X, y, X_train, y_train, X_test, y_test, X_submit, id_submit, cv_folds, y_eval_list, y_eval, idx_eval)
-    pickle.dump(ds, open(get_dataset_folder(dt.dataset_id) + '/data/eval_set.pkl', 'wb'))
+    # try:
+    return [get_dataset(dataset_id, include_results) for dataset_id in get_dataset_ids()]
+    # except:
+    #    return []
 
 
 def get_dataset(dataset_id, include_results=False):
@@ -128,27 +57,104 @@ def get_dataset(dataset_id, include_results=False):
             d['init_data']['mode'] = 'standard'
     if 'domain' not in d['init_data'].keys():
         d['init_data']['domain'] = ''
-    if 'text_cols' not in d['load_data'].keys():
-        d['load_data']['text_cols'] = []
-    if 'sampling' not in d['init_data'].keys():
-        d['init_data']['sampling'] = False
     # deleted fields
     if 'is_public' in d['init_data'].keys():
         d['init_data'].pop('is_public')
     if 'is_uploaded' in d['init_data'].keys():
         d['init_data'].pop('is_uploaded')
 
+    # upward compatibility for prob_data
+    if 'prob_data' not in d.keys():
+        prob_keys = ['problem_type', 'y_col', 'metric', 'other_metrics', 'val_col', 'cv_folds', 'val_col_shuffle',
+                     'sampling', 'holdout_ratio', 'col_submit']
+        d['prob_data'] = {}
+        for key in prob_keys:
+            if key in d['init_data'].keys():
+                d['prob_data'][key] = d['init_data'][key]
+                d['init_data'].pop(key)
+
+    # upward compatibility for calc_data
+    if 'calc_data' not in d.keys():
+        calc_keys = ['n_cat_cols', 'n_missing', 'x_cols', 'text_cols', 'textref_cols', 'cat_cols', 'missing_cols',
+                     'is_y_categorical', 'best_is_min', 'y_n_classes', 'y_class_names']
+        d['calc_data'] = {}
+        for key in calc_keys:
+            if key in d['load_data'].keys():
+                d['calc_data'][key] = d['load_data'][key]
+                d['load_data'].pop(key)
+            elif key in d['init_data'].keys():
+                d['calc_data'][key] = d['init_data'][key]
+                d['init_data'].pop(key)
+
+    if 'text_cols' not in d['calc_data'].keys():
+        d['calc_data']['text_cols'] = []
+    if 'textref_cols' not in d['calc_data'].keys():
+        d['calc_data']['textref_cols'] = []
+    if 'sampling' not in d['prob_data'].keys():
+        d['prob_data']['sampling'] = False
+
     # then load dataset object
     dt = DataSet(**d['init_data'])
     dt.load(d['load_data'], d['features'])
+    dt.status = get_key_store('dataset:%s:status' % dataset_id)
+    # if dt.status != 'created':
+    dt.update_problem(**d['prob_data'])
+    dt.load_calc(d['calc_data'])
 
     # add counters and results
-    dt.status = get_key_store('dataset:%s:status' % dataset_id)
     dt.grapher = get_key_store('dataset:%s:grapher' % dataset_id)
     dt.round_counter = get_counter_store('dataset:%s:round_counter' % dataset_id)
 
     if include_results:
         dt.results = get_key_store('dataset:%s:results' % dataset_id)
+
+    return dt
+
+
+def create_dataset(name, domain, description, source, mode, filename_train, filename_test='', filename_cols='',
+                   filename_submit='', url=''):
+    """
+    creates a dataset
+
+    :param name: name of the dataset
+    :param domain: domain classification of the dataset (string separated by /)
+    :param description: description of the dataset
+    :param source: source of the dataset
+    :param mode: standard (train set), benchmark (train + test set), competition (train + submit set)
+    :param filename_train: file path of the training set
+    :param filename_test: name of the test set (benchmark mode)
+    :param filename_cols: file to describe columns
+    :param filename_submit: name of the submit set (competition mode)
+    :param url: url of the dataset
+    :return: dataset object
+    """
+
+    # create object and control data
+    creation_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # others = [m for m in other_metrics.replace(' ', '').split(',') if m != '']
+    dt = DataSet(0, name, domain, description, source, mode, filename_train,
+                 filename_test=filename_test, filename_cols=filename_cols,
+                 filename_submit=filename_submit,
+                 url=url, creation_date=creation_date)
+
+    # control data
+    df_cols, df_train, df_test, df_submit = dt.initialize_data()
+
+    # update stats
+    dt.update_stats(df_train, df_test, df_submit)
+
+    # save and create objects and graphs related to the dataset
+    dataset_id = str(incr_key_store('dataset:counter'))
+    set_key_store('dataset:%s:status' % dataset_id, 'created')
+    set_key_store('dataset:%s:grapher' % dataset_id, False)
+    set_key_store('dataset:%s:results' % dataset_id, 0)
+    set_key_store('dataset:%s:level' % dataset_id, 1)
+    rpush_key_store('dataset:list', dataset_id)
+
+    dt.save(dataset_id)
+    dt.create_folders()
+    dt.finalize_creation(df_train, df_test, df_submit)
 
     return dt
 
@@ -205,12 +211,33 @@ def update_feature_dataset(dataset_id, name, description, to_keep, col_type, tex
                 f.text_ref = ''
 
     # regenerate list of X columns, categoricals and text columns
-    dt.x_cols = [col.name for col in dt.features if col.to_keep and (col.name not in [dt.y_col, dt.val_col])]
-    dt.cat_cols = [col.name for col in dt.features if (col.name in dt.x_cols) and (col.col_type == 'categorical')]
-    dt.text_cols = [col.name for col in dt.features if (col.name in dt.x_cols) and (col.col_type == 'text')]
-    dt.n_cat_cols = len(dt.cat_cols)
-
+    dt.update_calc()
     # then save dataset data
+    dt.save(dataset_id)
+
+
+def update_problem_dataset(dataset_id, problem_type, y_col, metric, other_metrics, val_col, cv_folds, val_col_shuffle,
+                           sampling, holdout_ratio, col_submit):
+    """
+    updates the problem type of a dataset
+
+    :param dataset_id: id of the dataset
+    :param problem_type: 'regression' or 'classification'
+    :param y_col: name of the target column
+    :param metric: metric to be used to select the best models ('mse', 'rmse', 'log_loss', ...)
+    :param other_metrics: list of secondary metrics (as a list)
+    :param val_col: column name to perform the cross validation (default = 'index')
+    :param cv_folds: number of cross validation folds (default = 5)
+    :param val_col_shuffle: need to shuffle in cross validation (default = false)
+    :param sampling: use re-sampling pre-processing (default = false)
+    :param holdout_ratio: holdout ration to split train / eval set
+    :param col_submit: column to use in the submit file
+    """
+    dt = get_dataset(dataset_id)
+    dt.update_problem(problem_type, y_col, metric, other_metrics, val_col, cv_folds, val_col_shuffle,
+                      sampling, holdout_ratio, col_submit)
+    dt.update_y_data()
+    dt.update_calc()
     dt.save(dataset_id)
 
 
@@ -239,7 +266,6 @@ def reset_dataset(dataset_id):
 
     # create graphs
     dt = get_dataset(dataset_id)
-    __send_grapher(dt.dataset_id)
 
 
 def delete_dataset(dataset_id):
@@ -267,62 +293,6 @@ def delete_dataset(dataset_id):
         del_key_store('dataset:%s:search' % dataset_id)
 
 
-def __send_grapher(dataset_id):
-    """
-
-    :param dataset_id: dataset to request
-    :return:
-    """
-    # send queue the next graph job to do
-    msg_search = {'dataset_id': dataset_id}
-    log.info('sending to grapher: %s' % msg_search)
-    lpush_key_store('grapher:queue', msg_search)
-
-
-def create_graph_data(dataset_id):
-    """
-    creates the graphs for each column feature of the dataset
-
-    :param dataset_id: dataset id
-    :return:
-    """
-    dataset = get_dataset(dataset_id)
-    df = dataset.get_data()
-
-    # create a sample set
-    pickle.dump(df.head(20), open(get_dataset_folder(dataset_id) + '/data/sample.pkl', 'wb'))
-
-    # fillna to avoid issues
-    for f in dataset.features:
-        if f.col_type == 'numerical':
-            df[f.name].fillna(0, inplace=True)
-        else:
-            df[f.name].fillna('', inplace=True)
-            df[f.name] = df[f.name].map(str)
-
-    # create graph of target distrubution and correlations
-    graph_histogram(dataset_id, dataset.y_col, dataset.is_y_categorical, df[dataset.y_col].values)
-    graph_correl_features(dataset, df.copy())
-
-    # create graphs for all features
-    for f in dataset.features:
-        if f.to_keep and f.name != dataset.y_col:
-            log.info('creating graph %s for dataset:%d' % (f.name, dataset_id))
-            if f.col_type == 'numerical' and dataset.problem_type == 'regression':
-                graph_regression_numerical(dataset_id, df, f.name, dataset.y_col)
-            elif f.col_type == 'categorical' and dataset.problem_type == 'regression':
-                graph_regression_categorical(dataset_id, df, f.name, dataset.y_col)
-            elif f.col_type == 'numerical' and dataset.problem_type == 'classification':
-                graph_classification_numerical(dataset_id, df, f.name, dataset.y_col)
-            elif f.col_type == 'categorical' and dataset.problem_type == 'classification':
-                graph_classification_categorical(dataset_id, df, f.name, dataset.y_col)
-            elif f.col_type == 'text':
-                graph_text(dataset_id, df, f.name)
-
-    # update status grapher
-    set_key_store('dataset:%s:grapher' % dataset_id, True)
-
-
 def get_dataset_sample(dataset_id):
     """
     retrieves a sample of the dataset
@@ -337,54 +307,22 @@ def get_dataset_sample(dataset_id):
         return [{}]
 
 
-def get_dataset_list(include_results=False):
-    """
-    get the list of all datasets
-
-    :param include_status: flag to determine if the status are also retrieved (default = False)
-    :return: list of datasets objects or empty list if error (eg. redis or environment not set)
-    """
-    try:
-        return [get_dataset(dataset_id, include_results) for dataset_id in get_dataset_ids()]
-    except:
-        return []
-
-
-def get_dataset_ids():
-    """
-    get the list of ids all datasets
-
-    :return: list of ids
-    """
-    return list_key_store('dataset:list')
-
-
 class DataSet(object):
     """
     a dataset is an object managing all the features and data of an experiment
     """
 
-    def __init__(self, dataset_id, name, domain, description, problem_type, y_col, source, mode, filename_train, metric,
-                 other_metrics, val_col, cv_folds, val_col_shuffle, sampling,
-                 holdout_ratio, filename_test, filename_cols, filename_submit, url, col_submit, creation_date):
+    def __init__(self, dataset_id, name, domain, description, source, mode, filename_train,
+                 filename_test, filename_cols, filename_submit, url, creation_date):
         """
         creates a new dataset: it will be automatically stored
 
         :param name: name of the dataset
         :param domain: domain classification of the dataset (string separated by /)
         :param description: description of the dataset
-        :param problem_type: 'regression' or 'classification'
-        :param y_col: name of the target column
         :param source: source of the dataset
         :param mode: standard (train set), benchmark (train + test set), competition (train + submit set)
         :param filename_train: file path of the training set
-        :param metric: metric to be used to select the best models ('mse', 'rmse', 'log_loss', ...)
-        :param other_metrics: list of secondary metrics (as a list)
-        :param val_col: column name to perform the cross validation (default = 'index')
-        :param cv_folds: number of cross validation folds (default = 5)
-        :param val_col_shuffle: need to shuffle in cross validation (default = false)
-        :param sampling: use re-sampling pre-processing (default = false)
-        :param holdout_ratio: holdout ration to split train / eval set
         :param filename_test: name of the test set
         :param filename_cols: (not implemented)
         :param url: url of the dataset
@@ -395,15 +333,9 @@ class DataSet(object):
         self.domain = domain
         self.description = description
 
-        # problem and optimisation
-        if problem_type not in ['regression', 'classification']:
-            raise ValueError('problem type must be regression or classification')
-        self.problem_type = problem_type
-
         self.with_test_set = False
         self.url = url
         self.source = source  # url or file id
-        self.y_col = y_col
         if filename_train == '':
             raise ValueError('filename train cannot be empty')
         # check // mode
@@ -413,34 +345,142 @@ class DataSet(object):
         if mode == 'standard':
             if filename_test != '':
                 raise ValueError('test set should be empty in standard mode')
-            if filename_submit != '' or col_submit != '':
+            if filename_submit != '':
                 raise ValueError('submit set should be empty in standard mode')
         elif mode == 'benchmark':
             if filename_test == '':
                 raise ValueError('test set cannot be empty in benchmark mode')
-            if filename_submit != '' or col_submit != '':
+            if filename_submit != '':
                 raise ValueError('submit set should be empty in benchmark mode')
         else:
             # competition mode
             if filename_test != '':
                 raise ValueError('test set cannot be empty in competition mode')
-            if filename_submit == '' or col_submit == '':
+            if filename_submit == '':
                 raise ValueError('submit set cannot be empty in competition mode')
 
         self.filename_train = filename_train
         self.filename_test = filename_test
         self.filename_cols = filename_cols
         self.filename_submit = filename_submit
-        self.col_submit = col_submit
         self.creation_date = creation_date
 
-        if metric not in metric_map.keys():
-            raise ValueError('metric %s is not known' % metric)
-        if metric_map[metric].problem_type != self.problem_type:
-            raise ValueError('metric %s is not compatible with %s' % (metric, problem_type))
-        self.metric = metric
+        # initialize other data
+        self.problem_type = 'classification'
+        self.y_col = ''
+        self.metric = 'log_loss'
+        self.other_metrics = ''
+        self.val_col = ''
+        self.cv_folds = 5
+        self.val_col_shuffle = True
+        self.sampling = False
+        self.holdout_ratio = 0.2
+        self.col_submit = ''
+        self.n_cat_cols = 0
+        self.n_missing = 0
+        self.x_cols = []
+        self.text_cols = []
+        self.textref_cols = []
+        self.cat_cols = []
+        self.missing_cols = []
+        self.is_y_categorical = False
+        self.best_is_min = True
+        self.y_n_classes = 0
+        self.y_class_names = []
 
-        self.best_is_min = metric_map[metric].best_is_min
+    def initialize_data(self):
+        # initialize dataframes
+
+        # check column description data
+        if self.filename_cols != '':
+            self.__check_data(self.filename_cols)
+            df_cols = self.__read_data(self.filename_cols)
+        else:
+            df_cols = pd.DataFrame()
+
+        # check train data
+        self.__check_data(self.filename_train)
+        df_train = self.__read_data(self.filename_train)
+        self.features = self.__initialize_features(df_train, df_cols)
+
+        # check test data
+        if self.filename_test != '':
+            self.__check_data(self.filename_test)
+            df_test = self.__read_data(self.filename_test)
+            self.with_test_set = True
+            self.holdout_ratio = 0
+        else:
+            df_test = pd.DataFrame()
+
+        if self.filename_submit != '':
+            self.__check_data(self.filename_submit)
+            df_submit = self.__read_data(self.filename_submit)
+        else:
+            df_submit = pd.DataFrame()
+
+        return df_cols, df_train, df_test, df_submit
+
+    def update_stats(self, df_train, df_test, df_submit):
+        # create stats on the dataset
+        self.size = int(df_train.memory_usage().sum() / 1000000)
+        self.n_rows = int(len(df_train) / 1000)
+        self.n_cols = len(df_train.columns)
+        self.test_size = int(df_test.memory_usage().sum() / 1000000)
+        self.submit_size = int(df_submit.memory_usage().sum() / 1000000)
+
+    def update_calc(self):
+        # update calculated indicators on columns
+        self.x_cols = [col.name for col in self.features if
+                       col.to_keep and (col.name not in [self.y_col, self.val_col])]
+        self.cat_cols = [col.name for col in self.features if
+                         (col.name in self.x_cols) and (col.col_type == 'categorical')]
+        self.text_cols = [col.name for col in self.features if
+                          (col.name in self.x_cols) and ((col.col_type == 'text') and (col.text_ref == ''))]
+        self.textref_cols = [col.name for col in self.features if
+                             (col.name in self.x_cols) and ((col.col_type == 'text') and (col.text_ref != ''))]
+        self.missing_cols = [col.name for col in self.features if col.n_missing > 0]
+
+        self.n_missing = len(self.missing_cols)
+        self.n_cat_cols = len(self.cat_cols)
+
+    def update_problem(self, problem_type, y_col, metric, other_metrics, val_col, cv_folds, val_col_shuffle, sampling,
+                       holdout_ratio, col_submit, best_is_min=True):
+        # update problem data
+        """
+        creates a new dataset: it will be automatically stored
+
+        :param problem_type: 'regression' or 'classification'
+        :param y_col: name of the target column
+        :param metric: metric to be used to select the best models ('mse', 'rmse', 'log_loss', ...)
+        :param other_metrics: list of secondary metrics (as a list)
+        :param val_col: column name to perform the cross validation (default = 'index')
+        :param cv_folds: number of cross validation folds (default = 5)
+        :param val_col_shuffle: need to shuffle in cross validation (default = false)
+        :param sampling: use re-sampling pre-processing (default = false)
+        :param holdout_ratio: holdout ration to split train / eval set
+        :param col_submit: column to use in the submit file
+        :param best_is_min: best is min flag required is metric == 'specific' (else we use from metric definition)
+        """
+        # problem and optimisation
+        if problem_type not in ['regression', 'classification']:
+            raise ValueError('problem type must be regression or classification')
+        self.problem_type = problem_type
+
+        self.y_col = y_col
+
+        if self.mode != 'competition' and col_submit != '':
+            raise ValueError('submit column can only be used in competition mode')
+        self.col_submit = col_submit
+
+        if metric == 'specific':
+            self.best_is_min = best_is_min
+        else:
+            if metric not in metric_map.keys():
+                raise ValueError('metric %s is not known' % metric)
+            if metric_map[metric].problem_type != self.problem_type:
+                raise ValueError('metric %s is not compatible with %s' % (metric, problem_type))
+            self.best_is_min = metric_map[self.metric].best_is_min
+        self.metric = metric
 
         for m in other_metrics:
             if m not in metric_map.keys():
@@ -460,62 +500,22 @@ class DataSet(object):
             raise ValueError('holdout_ratio must be in range 0 to 1')
         self.holdout_ratio = holdout_ratio
 
-    def initialize_data(self):
-        # initialize dataframes
+        if self.y_col != '':
+            y_feature = [f for f in self.features if f.name == self.y_col][0]
+            if (self.problem_type == 'regression') and (y_feature.col_type == 'categorical'):
+                raise ValueError('target column %s must be numerical in regression' % self.y_col)
 
-        # check column description data
-        if self.filename_cols != '':
-            self.__check_data(self.filename_cols)
-            df_cols = self.__read_data(self.filename_cols)
+    def update_y_data(self):
+        # update calculated data related to the y column
+        y_feature = [f for f in self.features if f.name == self.y_col][0]
+        self.is_y_categorical = (y_feature.col_type == 'categorical')
+        self.y_n_classes = int(y_feature.n_unique_values)
+        if self.problem_type == 'classification':
+            uniques = self.get_data()[self.y_col].unique()
+            uniques_ = [x if x == x else '' for x in uniques]
+            self.y_class_names = [str(x) for x in np.sort(uniques_)]
         else:
-            df_cols = pd.DataFrame()
-
-        # check train data
-        self.__check_data(self.filename_train)
-        df_train = self.__read_data(self.filename_train)
-        if self.y_col not in df_train.columns:
-            raise ValueError('y_col %s not in the columns of the dataset' % self.y_col)
-
-        self.features, self.is_y_categorical, self.y_n_classes, self.y_class_names = self.__initialize_features(
-            df_train, df_cols)
-
-        # check test data
-        if self.filename_test != '':
-            self.__check_data(self.filename_test)
-            df_test = self.__read_data(self.filename_test)
-            self.with_test_set = True
-            self.holdout_ratio = 0
-        else:
-            df_test = pd.DataFrame()
-
-        if self.filename_submit != '':
-            self.__check_data(self.filename_submit)
-            df_submit = self.__read_data(self.filename_submit)
-        else:
-            df_submit = pd.DataFrame()
-
-        self.x_cols = [col.name for col in self.features if
-                       col.to_keep and (col.name not in [self.y_col, self.val_col])]
-
-        self.cat_cols = [col.name for col in self.features if
-                         (col.name in self.x_cols) and (col.col_type == 'categorical')]
-
-        self.text_cols = [col.name for col in self.features if
-                          (col.name in self.x_cols) and (col.col_type == 'text')]
-
-        self.missing_cols = [col.name for col in self.features if col.n_missing > 0]
-
-        return df_cols, df_train, df_test, df_submit
-
-    def update_stats(self, df_train, df_test, df_submit):
-        # create stats on the dataset
-        self.size = int(df_train.memory_usage().sum() / 1000000)
-        self.n_rows = int(len(df_train) / 1000)
-        self.n_cols = len(df_train.columns)
-        self.n_cat_cols = len(self.cat_cols)
-        self.n_missing = len(self.missing_cols)
-        self.test_size = int(df_test.memory_usage().sum() / 1000000)
-        self.submit_size = int(df_submit.memory_usage().sum() / 1000000)
+            self.y_class_names = []
 
     def save(self, dataset_id):
         # saves dataset data in a pickle store
@@ -523,20 +523,22 @@ class DataSet(object):
 
         # save as json
         store = {'init_data': {'dataset_id': self.dataset_id, 'name': self.name, 'domain': self.domain,
-                               'description': self.description, 'problem_type': self.problem_type, 'y_col': self.y_col,
+                               'description': self.description,
                                'source': self.source, 'mode': self.mode,
-                               'filename_train': self.filename_train, 'metric': self.metric,
-                               'other_metrics': self.other_metrics, 'val_col': self.val_col, 'cv_folds': self.cv_folds,
-                               'val_col_shuffle': self.val_col_shuffle, 'sampling': self.sampling,
-                               'holdout_ratio': self.holdout_ratio, 'filename_test': self.filename_test,
+                               'filename_train': self.filename_train, 'filename_test': self.filename_test,
                                'filename_cols': self.filename_cols, 'url': self.url,
-                               'filename_submit': self.filename_submit, 'col_submit': self.col_submit,
-                               'creation_date': self.creation_date},
+                               'filename_submit': self.filename_submit, 'creation_date': self.creation_date},
                  'load_data': {'size': self.size, 'n_rows': self.n_rows, 'n_cols': self.n_cols,
-                               'n_cat_cols': self.n_cat_cols, 'n_missing': self.n_missing,
-                               'with_test_set': self.with_test_set, 'x_cols': self.x_cols, 'text_cols': self.text_cols,
+                               'with_test_set': self.with_test_set},
+                 'prob_data': {'problem_type': self.problem_type, 'y_col': self.y_col,
+                               'metric': self.metric, 'other_metrics': self.other_metrics,
+                               'val_col': self.val_col, 'cv_folds': self.cv_folds,
+                               'val_col_shuffle': self.val_col_shuffle, 'sampling': self.sampling,
+                               'holdout_ratio': self.holdout_ratio, 'col_submit': self.col_submit},
+                 'calc_data': {'n_cat_cols': self.n_cat_cols, 'n_missing': self.n_missing,
+                               'x_cols': self.x_cols, 'text_cols': self.text_cols, 'textref_cols': self.textref_cols,
                                'cat_cols': self.cat_cols, 'missing_cols': self.missing_cols,
-                               'best_is_min': self.best_is_min, 'is_y_categorical': self.is_y_categorical,
+                               'is_y_categorical': self.is_y_categorical, 'best_is_min': self.best_is_min,
                                'y_n_classes': self.y_n_classes, 'y_class_names': self.y_class_names},
                  'features': [{'name': f.name, 'raw_type': str(f.raw_type), 'n_missing': int(f.n_missing),
                                'n_unique_values': int(f.n_unique_values), 'first_unique_values': f.first_unique_values,
@@ -551,6 +553,11 @@ class DataSet(object):
         for k in load_data.keys():
             setattr(self, k, load_data[k])
         self.features = [Feature(**f) for f in features]
+
+    def load_calc(self, calc_data):
+        # reload calculated data from json
+        for k in calc_data.keys():
+            setattr(self, k, calc_data[k])
 
     def finalize_creation(self, df_train, df_test, df_submit):
         # generates objects related to the dataset
@@ -568,41 +575,6 @@ class DataSet(object):
         :return: data as a dataframe
         """
         return pd.read_pickle(self.__folder() + '/data/%s.pkl' % part)
-
-    def evaluate_metric(self, y_act, y_pred, metric_name=None):
-        # evaluate score with the metric of the dataset
-        if not metric_name:
-            metric_name = self.metric
-        else:
-            if metric_name not in self.other_metrics:
-                raise ValueError('evaluation metric not listed in other metrics')
-        metric = metric_map[metric_name]
-        try:
-            if metric.need_class:
-                # convert proba to classes
-                y_pred_metric = np.argmax(y_pred, axis=1)
-            else:
-                if metric.binary:
-                    y_pred_metric = y_pred[:, 1]
-                else:
-                    y_pred_metric = y_pred
-
-            # use sign before metrics to always compare best is min in comparisons
-            # but requires to display abs value for display
-            if metric.best_is_min:
-                if metric.name == 'log_loss':
-                    return metric.function(y_act, y_pred_metric, labels=list(range(self.y_n_classes)))
-                else:
-                    return metric.function(y_act, y_pred_metric)
-            else:
-                if metric.average and self.y_n_classes > 2:
-                    # need average if multi-class
-                    return -metric.function(y_act, y_pred_metric, average='micro')
-                else:
-                    return -metric.function(y_act, y_pred_metric)
-        except Exception as e:
-            log.error('error in evaluating metric %s: %s' % (metric_name, e))
-            return METRIC_NULL
 
     def create_folders(self):
         # create folders
@@ -646,13 +618,8 @@ class DataSet(object):
         # creates the columns for a dataset from the data as a dataframe
 
         cols = {x['name']: x for x in df_cols.fillna('').to_dict(orient='records')}
-
         # reset columns
         features = []
-        is_y_categorical = False
-        y_n_classes = 0
-        y_class_names = []
-
         # retrieve column info from dataframe data
         for col in df.columns:
             n_missing = df[col].isnull().sum()
@@ -675,23 +642,43 @@ class DataSet(object):
                 if 'text_ref' in k.keys() and k['text_ref'] != '':
                     text_ref = k['text_ref']
 
-            is_y = (col == self.y_col)
             feature = Feature(col, raw_type, n_missing, n_unique, first_unique_values, description, to_keep, col_type,
-                              text_ref, n_unique_ratio, is_y)
+                              text_ref, n_unique_ratio)
             features.append(feature)
 
-            if is_y:
-                if (self.problem_type == 'regression') and (feature.col_type == 'categorical'):
-                    raise ValueError('target column %s must be numerical in regression' % col)
+        return features
 
-                is_y_categorical = (feature.col_type == 'categorical')
-                y_n_classes = int(feature.n_unique_values)
-                if self.problem_type == 'classification':
-                    uniques_ = [x if x == x else '' for x in uniques]
-                    y_class_names = [str(x) for x in np.sort(uniques_)]
-                else:
-                    y_class_names = []
-        return features, is_y_categorical, y_n_classes, y_class_names
+    def update_features(self, df):
+        # updates the list of features with new dataframe
+
+        # reset columns
+        map_old_features = {f.name: f for f in self.features}
+        features = []
+        # retrieve column info from dataframe data
+        for col in df.columns:
+            n_missing = df[col].isnull().sum()
+            uniques = df[col].unique()
+            n_unique = len(uniques)
+            n_unique_ratio = n_unique / len(df)
+            raw_type = str(df[col].dtype)
+            first_unique_values = ', '.join([str(x) for x in uniques[:5]])
+            if col in map_old_features:
+                f = map_old_features[col]
+                to_keep = f.to_keep
+                description = f.description
+                col_type = f.col_type
+                text_ref = f.text_ref
+            else:
+                to_keep = True
+                description = '[by feature engineering]'
+                col_type = ''
+                text_ref = ''
+
+            feature = Feature(col, raw_type, n_missing, n_unique, first_unique_values, description, to_keep, col_type,
+                              text_ref, n_unique_ratio)
+            features.append(feature)
+
+        self.features = features
 
     def __import_data(self, filename, part):
         # copy file in the dataset
@@ -702,7 +689,7 @@ class DataSet(object):
 
 class Feature(object):
     def __init__(self, name, raw_type, n_missing, n_unique_values, first_unique_values, description, to_keep,
-                 col_type, text_ref='', n_unique_ratio=0., is_y=False):
+                 col_type, text_ref='', n_unique_ratio=0.):
         # descriptive data
         self.name = name
         self.description = description
@@ -731,114 +718,17 @@ class Feature(object):
                 self.col_type = 'categorical'
 
             # additional rules
-            if not is_y:
-                if self.col_type == 'numerical' and self.n_unique_values < 10:
-                    self.col_type = 'categorical'
-                if self.col_type == 'categorical' and self.n_unique_ratio > 0.5:
-                    self.col_type = 'text'
-                if text_ref != '':
-                    if col_type != 'text':
-                        raise ValueError(
-                            'feature %s of type %s : text reference can only apply to text' % (name, col_type))
-                    if text_ref not in get_textset_list():
-                        raise ValueError(
-                            'feature %s of type text: text reference id %s not found' % (name, str(text_ref)))
-
-                        # TODO : manage dates
-
-
-def __create_train_test(dataset):
-    dataset = get_dataset(dataset.dataset_id)
-    data_train = dataset.get_data()
-    # TODO: split according to val_col
-    # split into train & test set
-    if dataset.with_test_set:
-        data_test = dataset.get_data('test')
-
-        X_train = data_train[dataset.x_cols]
-        y_train = data_train[dataset.y_col].values
-
-        X_test = data_test[dataset.x_cols]
-        y_test = data_test[dataset.y_col].values
-
-        X = X_train.copy()
-        y = y_train.copy()
-    else:
-        X = data_train[dataset.x_cols]
-        y = data_train[dataset.y_col].values
-
-        # test set generated by split with holdout ratio
-        if dataset.problem_type == 'regression':
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=dataset.holdout_ratio,
-                                                                shuffle=dataset.val_col_shuffle, random_state=0)
-        else:
-            try:
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=dataset.holdout_ratio,
-                                                                    shuffle=dataset.val_col_shuffle,
-                                                                    stratify=y,
-                                                                    random_state=0)
-            except:
-                # may fail if two few classes -> split without stratify
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=dataset.holdout_ratio,
-                                                                    shuffle=dataset.val_col_shuffle,
-                                                                    random_state=0)
-
-    # submit data
-    if dataset.filename_submit != '':
-        df = dataset.get_data('submit')
-        X_submit = df[dataset.x_cols]
-        id_submit = df[dataset.col_submit].values
-    else:
-        X_submit = []
-        id_submit = []
-
-    return X, y, X_train, X_test, y_train, y_test, X_submit, id_submit
-
-
-def __create_cv(dataset, X_train, y_train):
-    # generate cv folds
-    # TODO: split according to val_col
-    if dataset.problem_type == 'classification':
-        skf = StratifiedKFold(n_splits=dataset.cv_folds, shuffle=dataset.val_col_shuffle, random_state=0)
-        cv_folds = [(train_index, eval_index) for train_index, eval_index in skf.split(X_train, y_train)]
-    else:
-        skf = KFold(n_splits=dataset.cv_folds, shuffle=dataset.val_col_shuffle, random_state=0)
-        cv_folds = [(train_index, eval_index) for train_index, eval_index in skf.split(X_train)]
-    return cv_folds
-
-
-def __store_eval_set(dataset, y_train, y_test, cv_folds):
-    y_eval_list = []
-    i_eval_list = []
-    # stores eval set
-    for i, (train_index, eval_index) in enumerate(cv_folds):
-        pickle.dump(y_train[train_index], open(get_dataset_folder(dataset.dataset_id) + '/y_train_%d.pkl' % i, 'wb'))
-        pickle.dump(y_train[eval_index], open(get_dataset_folder(dataset.dataset_id) + '/y_eval_%d.pkl' % i, 'wb'))
-        y_eval_list.append(y_train[eval_index])
-        i_eval_list.append(eval_index)
-
-    # stores test set
-    pickle.dump(y_test, open(get_dataset_folder(dataset.dataset_id) + '/y_test.pkl', 'wb'))
-
-    # generate y_eval
-    y_eval = np.concatenate(y_eval_list, axis=0)
-
-    # store y_eval
-    pickle.dump(y_train, open(get_dataset_folder(dataset.dataset_id) + '/y_eval.pkl', 'wb'))
-
-    return y_eval_list, y_eval, np.concatenate(i_eval_list, axis=0)
-
-
-def __prepare_y(dataset, y, y_train, y_test):
-    # pre-processing of y: categorical
-    if dataset.problem_type == 'classification':
-        # encode class values as integers
-        print(dataset.y_class_names)
-        map_y = {str(x): i for i, x in enumerate(dataset.y_class_names)}
-        y = np.array([map_y[str(x)] if str(x) in map_y else 0 for x in y])
-        y_train = np.array([map_y[str(x)] if str(x) in map_y else 0 for x in y_train])
-        y_test = np.array([map_y[str(x)] if str(x) in map_y else 0 for x in y_test])
-    return y, y_train, y_test
+            if self.col_type == 'numerical' and self.n_unique_values < 10:
+                self.col_type = 'categorical'
+            if self.col_type == 'categorical' and self.n_unique_ratio > 0.5:
+                self.col_type = 'text'
+            if text_ref != '':
+                if col_type != 'text':
+                    raise ValueError(
+                        'feature %s of type %s : text reference can only apply to text' % (name, col_type))
+                if text_ref not in get_textset_list():
+                    raise ValueError(
+                        'feature %s of type text: text reference id %s not found' % (name, str(text_ref)))
 
 
 def get_y_eval(dataset_id):

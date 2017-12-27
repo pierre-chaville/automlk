@@ -1,0 +1,40 @@
+<div id="specific" class="tab-pane">
+    {% if dataset.round_counter >= 1 %}
+    <p><i>NB: edit features is deactivated because the search has started</i></p>
+    {% endif %}
+    <h4>Feature engineering</h4>
+    {% if fe_content != '' %}
+    <pre><b>def specific_feature_engineering(X):</b><br>{{ print_indent(fe_content, 4)|safe }}<br>&nbsp;&nbsp;&nbsp;&nbsp;<b>return X</b></pre>
+    {% else %}
+    <p><i>No specific feature engineering function defined</i></p>
+    {% endif %}
+    {% if dataset.round_counter < 1 %}
+    {% if fe_content != '' %}
+    <span data-toggle="tooltip" data-placement="left" title="delete function">
+        <a href="#DeleteFEModal" data-toggle="modal" data-target="#DeleteFEModal">Delete</a></span>&nbsp;|&nbsp;
+    {% endif %}
+    <span data-toggle="tooltip" data-placement="left" title="edit function"><a
+            href="/edit_engineering/{{dataset.dataset_id}}">Edit function</a></span>
+    {% endif %}
+    <br>
+    <br>
+    <br>
+    <h4>Specific metrics</h4>
+    {% if metrics_content != '' %}
+    <label>Name:</label><span>&nbsp;&nbsp;{{metrics_name}}</span><br>
+    <label>Best is min:</label><span>&nbsp;&nbsp;{{'True' if metrics_best else 'False'}}</span>
+    <pre><b>def specific_metrics(y_act, y_pred):</b><br>{{ print_indent(metrics_content, 4)|safe }}</pre>
+    {% else %}
+    <p><i>No specific metrics defined</i></p>
+    {% endif %}
+    {% if dataset.round_counter < 1 %}
+    {% if metrics_content != '' %}
+    <span data-toggle="tooltip" data-placement="left" title="delete function">
+        <a href="#DeleteMetricsModal" data-toggle="modal" data-target="#DeleteMetricsModal">Delete</a>
+    </span>&nbsp;|&nbsp;
+    {% endif %}
+    <span data-toggle="tooltip" data-placement="left" title="edit function"><a
+            href="/edit_metrics/{{dataset.dataset_id}}">Edit function</a></span>
+    {% endif %}
+    <br>
+</div>

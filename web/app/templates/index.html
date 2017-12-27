@@ -66,9 +66,12 @@
             </a>
         </td>
         <td>
-            {% if dataset.status in ['created', 'pause', 'completed'] %}
+            {% if dataset.status == 'created' %}
             <span data-toggle="tooltip" data-placement="left" title="start search">
-                <a href="/start/{{dataset.dataset_id}}"><i class="fa fa-play" aria-hidden="true"></i></a></span>
+                <a href="/start_search/{{dataset.dataset_id}}"><i class="fa fa-play" aria-hidden="true"></i></a></span>
+            {% elif dataset.status == 'pause' %}
+            <span data-toggle="tooltip" data-placement="left" title="restart search">
+                <a href="/restart/{{dataset.dataset_id}}"><i class="fa fa-play" aria-hidden="true"></i></a></span>
             {% elif dataset.status == 'searching' %}
             <span data-toggle="tooltip" data-placement="left" title="pause search">
                 <a href="/pause/{{dataset.dataset_id}}"><i class="fa fa-pause" aria-hidden="true"></i></a></span>

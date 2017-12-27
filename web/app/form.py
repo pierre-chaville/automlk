@@ -1,17 +1,15 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, BooleanField, SelectField, IntegerField, FileField
+from wtforms import StringField, TextAreaField, BooleanField, SelectField, IntegerField, FileField, SelectMultipleField
 from wtforms.validators import DataRequired
 from automlk.metrics import metric_list
 from automlk.dataset import get_dataset_list
+
 
 class CreateDatasetForm(FlaskForm):
     # this is the form to create a dataset
     name = StringField(validators=[DataRequired()])
     domain = StringField(validators=[DataRequired()])
     description = TextAreaField()
-    problem_type = SelectField(choices=[('classification', 'classification'), ('regression', 'regression')])
-    y_col = StringField(validators=[DataRequired()])
-
     source = StringField()
     url = StringField()
 
@@ -30,16 +28,6 @@ class CreateDatasetForm(FlaskForm):
 
     filename_submit = StringField()
     file_submit = FileField()
-    col_submit = StringField()
-
-    metric = SelectField(choices=[(m.name, m.name) for m in metric_list])
-    other_metrics = StringField()
-
-    cv_folds = IntegerField(default=5)
-    holdout_ratio = IntegerField(default=20)
-    val_col = StringField(default='index')
-    val_col_shuffle = BooleanField(default=True)
-    sampling = BooleanField(default=False)
 
 
 class UpdateDatasetForm(FlaskForm):
@@ -50,6 +38,40 @@ class UpdateDatasetForm(FlaskForm):
     is_uploaded = BooleanField()
     source = StringField()
     url = StringField()
+
+
+class StartDatasetForm(FlaskForm):
+    # this is the form to start the search on a dataset
+    problem_type = SelectField(choices=[('classification', 'classification'), ('regression', 'regression')])
+    regression_metric = SelectField(choices=[])
+    regression_other_metrics = SelectMultipleField(choices=[(m.name, m.name) for m in metric_list if m.problem_type == 'regression'])
+    classification_metric = SelectField(choices=[])
+    classification_other_metrics = SelectMultipleField(choices=[(m.name, m.name) for m in metric_list if m.problem_type == 'classification'])
+
+    y_col = SelectField(choices=[])
+    col_submit = SelectField(choices=[])
+
+    cv_folds = IntegerField(default=5)
+    holdout_ratio = IntegerField(default=20)
+
+    val_col = SelectField(choices=[])
+    val_col_shuffle = BooleanField(default=True)
+
+    sampling = BooleanField(default=False)
+
+    def set_metrics_choices(self, specific_name, specific_content):
+        if specific_content != '':
+            # in this case, the only metrics available for primary metrics is specific
+            self.regression_metric.choices = [('specific', specific_name + ' [specific]')]
+            self.classification_metric.choices = self.regression_metric.choices
+        else:
+            self.regression_metric.choices = [(m.name, m.name) for m in metric_list if m.problem_type == 'regression']
+            self.classification_metric.choices = [(m.name, m.name) for m in metric_list if m.problem_type == 'classification']
+
+    def set_columns_choices(self, cols):
+        self.y_col.choices = [(x, x) for x in cols]
+        self.col_submit.choices = [(x, x) for x in cols]
+        self.val_col.choices = [(x, x) for x in ['index'] + cols]
 
 
 class ResetDatasetForm(FlaskForm):
@@ -80,6 +102,18 @@ class EditFeatureForm(FlaskForm):
 
     def set_ref_choices(self, choices):
         self.text_ref.choices = [x for x in [('', '')] + list(choices)]
+
+
+class EditFeatureEngineeringForm(FlaskForm):
+    # form to edit function feature engineering
+    content = TextAreaField('content')
+
+
+class EditMetricsForm(FlaskForm):
+    # form to edit function for specific metrics
+    name = StringField('name', validators=[DataRequired()])
+    best_is_min = BooleanField('best_is_min', default=True)
+    content = TextAreaField('content')
 
 
 class ConfigForm(FlaskForm):

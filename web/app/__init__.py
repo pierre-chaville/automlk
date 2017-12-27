@@ -12,6 +12,7 @@ app.jinja_env.globals.update(print_value=print_value)
 app.jinja_env.globals.update(print_rounded=print_rounded)
 app.jinja_env.globals.update(print_duration=print_duration)
 app.jinja_env.globals.update(print_params=print_params)
+app.jinja_env.globals.update(print_indent=print_indent)
 app.jinja_env.globals.update(print_other_metrics=print_other_metrics)
 
 from app import views

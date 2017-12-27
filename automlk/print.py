@@ -75,6 +75,17 @@ def print_params(p):
         return None
 
 
+def print_indent(t, indent=4):
+    """
+    print a text (eg a python piece of code) with indent
+    :param t: text (string with \n)
+    :param indent: indentation
+    :return: formatted text
+    """
+    s_indent = "&nbsp;"*indent
+    return s_indent + t.replace('\n', '<br>' + s_indent).replace('\t', s_indent)
+
+
 def print_title(t, s):
     # prints a title t in rst format, using the symbole s
     return t + '\n' #+ s*len(s) + '\n'

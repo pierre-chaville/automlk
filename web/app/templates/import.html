@@ -9,7 +9,13 @@
         <label>Dataset data to import</label>
         {{ form.file_import(class="form-control") }}
     </div>
-    <button type="submit" class="btn btn-primary">Submit</button>
+    <div class="container" style="padding:5px">
+        <div style="float:right;">
+            <a href="/" class="btn btn-default">Cancel</a>
+            &nbsp;&nbsp;
+            <button class="btn btn-primary">Import</button>
+        </div>
+    </div>
 </form>
 
 {% endblock %}

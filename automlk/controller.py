@@ -1,12 +1,14 @@
 import logging
 from .config import *
 from .store import *
-from .dataset import get_dataset_ids, get_dataset, create_dataset_sets
+from .dataset import get_dataset_ids, get_dataset
 from .solutions import *
 from .solutions_pp import *
 from .worker import get_search_rounds
 from .monitor import heart_beep, set_installed_version
 from .graphs import graph_history_search
+from .specific import *
+from .prepare import prepare_dataset_sets
 
 PATIENCE = 500  # number of equivalent results to wait before stop
 ROUNDS_MAX = 5000  # number max of rounds before stop
@@ -87,7 +89,7 @@ def __create_search_round(dataset_id):
     round_id = incr_key_store('dataset:%s:round_counter' % dataset_id) - 1
     if round_id == 0:
         # first launch: create train & eval & test set
-        create_dataset_sets(dataset)
+        prepare_dataset_sets(dataset)
 
     # initialize search parameters
     level = 1
@@ -167,7 +169,7 @@ def __duplicate_search_round(round, dataset_id):
     round_id = incr_key_store('dataset:%s:round_counter' % dataset_id) - 1
     if round_id == 0:
         # first launch: create train & eval & test set
-        create_dataset_sets(dataset)
+        prepare_dataset_sets(dataset)
 
     # generate search message:
     return {'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': round["solution"],
@@ -311,7 +313,11 @@ def __process_result(msg_result):
     dataset_id = msg_result['dataset_id']
 
     # check if the search has been reset (round_id > round counter)
-    if int(msg_result['round_id']) > int(get_key_store('dataset:%s:round_counter' % dataset_id)):
+    round_counter = get_key_store('dataset:%s:round_counter' % dataset_id)
+    if not isinstance(round_counter, int):
+        log.info('abort round because dataset current counter is not int')
+        return
+    elif int(msg_result['round_id']) > int(round_counter):
         log.info('round %s skipped because greater than current counter' % msg_result['round_id'])
         return
 

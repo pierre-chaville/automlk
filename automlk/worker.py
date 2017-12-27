@@ -5,6 +5,8 @@ from .dataset import get_dataset
 from .graphs import graph_histogram_regression, graph_histogram_classification, graph_predict_regression, graph_predict_classification
 from .solutions import *
 from .monitor import *
+from .metrics import evaluate_metric
+from .specific import apply_specific_metrics, return_specific_metrics
 from .solutions_pp import pp_solutions_map
 
 log = logging.getLogger(__name__)
@@ -57,6 +59,10 @@ def job_search(msg_search):
     """
     # load dataset
     dataset = get_dataset(msg_search['dataset_id'])
+
+    # define function for specific metric if any
+    if dataset.metric == 'specific':
+        apply_specific_metrics(dataset.dataset_id)
 
     # load train/eval/test data
     ds_ini = pickle.load(open(get_dataset_folder(msg_search['dataset_id']) + '/data/eval_set.pkl', 'rb'))
@@ -190,7 +196,7 @@ def __cv(solution, model, dataset, ds, pipeline, threshold):
                 if threshold != 0:
                     # test outlier (i.e. exceeds threshold)
                     y_pred = __predict(solution, model, ds.X[eval_index])
-                    score = dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
+                    score = __evaluate_metric(dataset, ds.y_train[eval_index], y_pred)
                     if score > threshold:
                         log.info('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
                         time.sleep(10)
@@ -203,7 +209,7 @@ def __cv(solution, model, dataset, ds, pipeline, threshold):
 
             if threshold != 0:
                 # test outlier:
-                score = dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
+                score = __evaluate_metric(dataset, ds.y_train[eval_index], y_pred)
                 if score > threshold:
                     log.info('%dth round found outlier: %.5f with threshold %.5f' % (i, score, threshold))
                     time.sleep(10)
@@ -267,7 +273,7 @@ def __cv_pool(solution, model, dataset, pool, ds, threshold, depth):
             log.info('fit early stopping')
             model.fit_early_stopping(X_train[train_index], ds.y_train[train_index], X_train[eval_index], ds.y_train[eval_index])
             y_pred = __predict(solution, model, X_train[eval_index])
-            score = dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
+            score = __evaluate_metric(dataset, ds.y_train[eval_index], y_pred)
             if threshold != 0 and score > threshold:
                 log.info('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
                 time.sleep(10)
@@ -278,7 +284,7 @@ def __cv_pool(solution, model, dataset, pool, ds, threshold, depth):
         y_pred = __predict(solution, model, X_train[eval_index])
         y_pred_eval.append(y_pred)
         y_pred_test.append(__predict(solution, model, X_test))
-        score = dataset.evaluate_metric(ds.y_train[eval_index], y_pred)
+        score = __evaluate_metric(dataset, ds.y_train[eval_index], y_pred)
         if threshold != 0 and score > threshold:
             log.info('found outlier: %.5f with threshold %.5f' % (score, threshold))
             time.sleep(10)
@@ -337,18 +343,18 @@ def __save_importance(model, dataset, context, round_id):
 
 def __evaluate_round(dataset, msg_search, y_train, y_pred_eval, y_test, y_pred_test, y_eval_list, y_pred_eval_list):
     # score on full eval set, test set and cv
-    msg_search['score_eval'] = dataset.evaluate_metric(y_train, y_pred_eval)
-    msg_search['score_test'] = dataset.evaluate_metric(y_test, y_pred_test)
-    msg_search['scores_cv'] = [dataset.evaluate_metric(y_act, y_pred) for y_act, y_pred in
+    msg_search['score_eval'] = __evaluate_metric(dataset, y_train, y_pred_eval)
+    msg_search['score_test'] = __evaluate_metric(dataset, y_test, y_pred_test)
+    msg_search['scores_cv'] = [__evaluate_metric(dataset, y_act, y_pred) for y_act, y_pred in
                                zip(y_eval_list, y_pred_eval_list)]
     msg_search['cv_mean'] = np.mean(msg_search['scores_cv'])
     msg_search['cv_std'] = np.std(msg_search['scores_cv'])
     msg_search['cv_max'] = np.max(msg_search['scores_cv'])
 
     # score with secondary metrics
-    msg_search['eval_other_metrics'] = {m: dataset.evaluate_metric(y_train, y_pred_eval, m) for m in
+    msg_search['eval_other_metrics'] = {m: __evaluate_other_metrics(dataset, m, y_train, y_pred_eval) for m in
                                         dataset.other_metrics}
-    msg_search['test_other_metrics'] = {m: dataset.evaluate_metric(y_test, y_pred_test, m) for m in
+    msg_search['test_other_metrics'] = {m: __evaluate_other_metrics(dataset, m, y_test, y_pred_test) for m in
                                         dataset.other_metrics}
 
     rpush_key_store(RESULTS_QUEUE, msg_search)
@@ -421,3 +427,34 @@ def get_search_rounds(dataset_id):
     """
     results = list_key_store('dataset:%s:rounds' % dataset_id)
     return pd.DataFrame(results)
+
+
+def __evaluate_metric(dataset, y_act, y_pred):
+    """
+    evaluates primary metrics for the dataset
+
+    :param dataset: dataset object
+    :param y_act: actual values
+    :param y_pred: predicted values
+    :return: metrics
+    """
+    if dataset.metric == 'specific':
+        if dataset.best_is_min:
+            return return_specific_metrics(y_act, y_pred)
+        else:
+            return -return_specific_metrics(y_act, y_pred)
+    else:
+        return evaluate_metric(y_act, y_pred, dataset.metric, dataset.y_n_classes)
+
+
+def __evaluate_other_metrics(dataset, m, y_act, y_pred):
+    """
+    evaluates other metrics for the dataset
+
+    :param dataset: dataset object
+    :param m: name of the other metric
+    :param y_act: actual values
+    :param y_pred: predicted values
+    :return: metrics
+    """
+    return evaluate_metric(y_act, y_pred, m, dataset.y_n_classes)

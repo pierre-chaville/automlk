@@ -1,5 +1,5 @@
-name,Domain,description,source,mode,filename_train,filename_test,filename_cols,filename_submit,url,problem_type,y_col,val_col,val_col_shuffle,col_submit,metric,other_metrics,cv_folds,holdout_ratio
+name,Domain,description,source,mode,filename_train,filename_test,filename_cols,filename_submit,url
 Credit Card Fraud Detection,Benchmarks/Large,"The datasets contains transactions made by credit cards in September 2013 by european cardholders.
 This dataset presents transactions that occurred in two days, where we have 492 frauds out of 284,807 transactions.
  The dataset is highly unbalanced, the positive class (frauds) account for 0.172% of all transactions.
- It contains only numerical input variables which are the result of a PCA transformation.",Kaggle,standard,../datasets/creditcard/creditcard.csv,,,,https://www.kaggle.com/dalpozz/creditcardfraud,classification,Class,index,TRUE,,log_loss,"accuracy, precision, recall, f1",3,0.2
+ It contains only numerical input variables which are the result of a PCA transformation.",Kaggle,standard,../datasets/creditcard/creditcard.csv,,,,https://www.kaggle.com/dalpozz/creditcardfraud

@@ -37,19 +37,6 @@
                     {{ form.url(class="form-control",
                     placeholder="url of the description dataset")}}
                 </div>
-                <div class="form-group">
-                    <label>Problem type</label>
-                    {{ form.problem_type(class="form-control")}}
-                </div>
-                <div class="form-group">
-                    <label>Metric</label>
-                    {{ form.metric(class="form-control")}}
-                </div>
-                <div class="form-group">
-                    <label>Other metrics</label>
-                    {{ form.other_metrics(class="form-control",
-                    placeholder="enter other metrics separated by comma")}}
-                </div>
             </td>
             <td></td>
             <td style="vertical-align:top">
@@ -102,39 +89,15 @@
                             {{ form.file_submit(class="form-control") }}
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Submit column</label>
-                        {{ form.col_submit(class="form-control",
-                        placeholder="name of the id column for the submit file")}}
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Folds cv</label>
-                    {{ form.cv_folds(class="form-control")}}
-                </div>
-                <div class="form-group">
-                    <label>Holdout %</label>
-                    {{ form.holdout_ratio(class="form-control")}}
-                </div>
-                <div class="form-group">
-                    <label>Y column</label>
-                    {{ form.y_col(class="form-control",
-                    placeholder="name of the target columns")}}
-                </div>
-                <div class="form-group">
-                    <label>Validation column</label>
-                    {{ form.val_col(class="form-control")}}
-                </div>
-                <div class="form-group">
-                    <label>{{ form.val_col_shuffle(class="check-box-inline")}} Shuffle valid col</label>
-                </div>
-                <div class="form-group">
-                    <label>{{ form.sampling(class="check-box-inline")}} Use re-sampling</label>
                 </div>
                 <div style="height:50px"></div>
                 <nav class="navbar navbar-default navbar-fixed-bottom" role="navigation">
                     <div class="container" style="padding:5px">
-                        <button type="submit" class="btn btn-default" style="float:right;">Save</button>
+                        <div style="float:right;">
+                            <a href="/" class="btn btn-default">Cancel</a>
+                            &nbsp;&nbsp;
+                            <button class="btn btn-primary">Save</button>
+                        </div>
                     </div>
                 </nav>
             </td>
@@ -184,7 +147,6 @@
 <script type="text/javascript">
     window.onload = changeMode("{{form.mode.data}}")
     window.onload = changeModeFile("{{form.mode_file.data}}")
-
 
 </script>
 
