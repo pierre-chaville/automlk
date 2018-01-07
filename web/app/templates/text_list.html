@@ -9,7 +9,7 @@
     <th>name</th>
     <th>status</th>
     <th>description</th>
-    <th colspan="2">Actions</th>
+    <th colspan="3">Actions</th>
     </thead>
     {% for textset in textset_list %}
     <tr>
@@ -39,6 +39,18 @@
                         class="fa fa-pencil-square-o"></i></a></span>
         </td>
         <td>
+            <span data-toggle="tooltip" data-placement="left" title="reset model"><a href="#ResetModal"
+                                                                                              class="open_ResetModal"
+                                                                                              style="color:inherit; text-decoration: none;"
+                                                                                              data-toggle="modal"
+                                                                                              data-target="#ResetModal"
+                                                                                        data-id="{{textset.textset_id}}"
+                                                                                        data-name="{{textset.name}}"
+                                                                                        data-description="{{textset.description}}">
+                <i class="fa fa-undo" aria-hidden="true"></i></a></span>
+        </td>
+
+        <td>
             <span data-toggle="tooltip" data-placement="left" title="delete textset"><a href="#DeleteModal"
                                                                                         class="open_DeleteModal"
                                                                                         style="color:inherit; text-decoration: none;"
@@ -60,9 +72,50 @@ $(".modal-body #name").val($(this).data('name'));
 $(".modal-body #description").val($(this).data('description'));
 });
 
+$(document).on("click", ".open_ResetModal", function() {
+$(".modal-body #reset_id").val($(this).data('id'));
+$(".modal-body #reset_name").val($(this).data('name'));
+$(".modal-body #reset_description").val($(this).data('description'));
+});
 
 
 </script>
+
+
+
+<div class="modal fade" id="ResetModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Are you sure you want to reset ? This will erase all previous model results</h4>
+            </div>
+            <form role="form" action="/reset_text" method="POST" name="request" enctype="multipart/form-data">
+                {{ reset_form.hidden_tag() }}
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Id</label>
+                        <input class="form-control" type="text" name="reset_id" id="reset_id" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input class="form-control" type="text" name="reset_name" id="reset_name" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea class="form-control" name="reset_description" id="reset_description" rows="3"
+                                  readonly></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn_default" data-dismiss="modal">Cancel</button>
+                    {{ del_form.submit }}
+                    <input type="submit" class="btn btn_primary" value="Submit">
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 
 <div class="modal fade" id="DeleteModal">
     <div class="modal-dialog">

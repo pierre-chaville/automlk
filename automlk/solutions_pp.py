@@ -4,11 +4,12 @@ from imblearn.under_sampling import RandomUnderSampler
 
 PP_CATEGORIES = ['categorical', 'missing', 'text', 'scaling', 'feature', 'sampling']
 
+
 class PpSolution(object):
     # to define a pre-processing and the parameters / conditions of usage
 
     def __init__(self, ref, name, process, default_params, space_params, pp_type, selectable=True, limit_size=1e32,
-                 default_solution=False):
+                 problem_type='*'):
         self.ref = ref
         self.name = name
         self.process = process
@@ -17,50 +18,100 @@ class PpSolution(object):
         self.pp_type = pp_type
         self.selectable = selectable
         self.limit_size = limit_size
-        self.default_solution = default_solution
+        self.problem_type = problem_type
 
 
 # list of solutions
 pp_solutions = [
     # solutions for categorical encoding
-    PpSolution('CE-LAB', 'Label Encoder', HyperProcessLabel, {}, {}, 'categorical', default_solution=True),
-    PpSolution('CE-HOT', 'One hot categorical', HyperProcessOneHot, default_categorical, space_categorical,
-               'categorical', limit_size=1000),
-    PpSolution('CE-BASE', 'BaseN categorical', HyperProcessBaseN, default_categorical, space_baseN, 'categorical'),
-    PpSolution('CE-HASH', 'Hashing categorical', HyperProcessHashing, default_categorical, space_categorical,
+    PpSolution('CE-PASS', 'No encoding', TransformerPassThrough, {}, {}, 'categorical'),
+    PpSolution('CE-LAB', 'Label Encoder', TransformerLabel, {}, {}, 'categorical'),
+    PpSolution('CE-HOT', 'One hot categorical', TransformerOneHot, default_categorical, space_categorical,
+               'categorical'),
+    PpSolution('CE-BASE', 'BaseN categorical', TransformerBaseN, default_categorical, space_baseN, 'categorical'),
+    PpSolution('CE-HASH', 'Hashing categorical', TransformerHashing, default_categorical, space_categorical,
                'categorical'),
 
     # solutions for missing values
-    PpSolution('MISS-FIXED', 'Missing values fixed', HyperProcessMissingFixed, default_missing_fixed,
-               space_missing_fixed, 'missing', default_solution=True),
-    PpSolution('MISS', 'Missing values', HyperProcessMissing, default_missing, space_missing, 'missing'),
+    PpSolution('MS-PASS', 'No missing', TransformerPassThrough, {}, {}, 'missing'),
+    PpSolution('MS-FIXED', 'Missing values fixed', TransformerMissingFixed, default_missing_fixed,
+               space_missing_fixed, 'missing'),
+    PpSolution('MS-FREQ', 'Missing values frequencies', TransformerMissingFrequency, default_missing_frequency,
+               space_missing_frequency, 'missing'),
 
     # solutions for text processing
-    PpSolution('BOW', 'Bag of words', HyperProcessBOW, default_bow, space_bow, 'text'),
-    PpSolution('W2V', 'Word2Vec', HyperProcessWord2Vec, default_word2vec, space_word2vec, 'text',
-               selectable=import_gensim, default_solution=True),
-    PpSolution('D2V', 'Doc2Vec', HyperProcessDoc2Vec, default_doc2vec, space_doc2vec, 'text', selectable=import_gensim),
+    PpSolution('TX-BOW', 'Bag of words', TransformerBOW, default_textset_bow, space_textset_bow, 'text'),
+    PpSolution('TX-W2V', 'Word2Vec', TransformerWord2Vec, default_textset_w2v, space_textset_w2v, 'text',
+               selectable=import_gensim),
+    PpSolution('TX-D2V', 'Doc2Vec', TransformerDoc2Vec, default_textset_d2v, space_textset_d2v, 'text',
+               selectable=import_gensim),
 
     # scaling solutions
-    PpSolution('SCALE', 'Feature Scaling', HyperProcessScaling, default_scaling, space_scaling, 'scaling'),
-    PpSolution('NO-SCALE', 'No Scaling', HyperProcessNoScaling, NO_PARAMS, NO_PARAMS, 'scaling', default_solution=True),
+    PpSolution('SC-PASS', 'No scaling', TransformerPassThrough, {}, {}, 'scaling'),
+    PpSolution('SC-STD', 'Scaling Standard', TransformerScalingStandard, {}, {}, 'scaling'),
+    PpSolution('SC-MINMAX', 'Scaling MinMax', TransformerScalingMinMax, {}, {}, 'scaling'),
+    PpSolution('SC-MAXABS', 'Scaling MaxAbs', TransformerScalingMaxAbs, {}, {}, 'scaling'),
+    PpSolution('SC-ROBUST', 'Scaling Robust', TransformerScalingRobust,
+               default_scaling_robust, space_scaling_robust, 'scaling'),
 
-    # feature processing (selection, reduction)
-    PpSolution('PASS', 'No Feature selection', HyperProcessPassThrough, NO_PARAMS, NO_PARAMS, 'feature',
-               default_solution=True),
-    PpSolution('SVD', 'Truncated SVD', HyperProcessTruncatedSVD, default_truncated_svd, space_truncated_svd, 'feature',
+    # feature reduction
+    PpSolution('FR-PASS', 'No Feature selection', TransformerPassThrough, {}, {}, 'feature'),
+    PpSolution('FR-SVD', 'Truncated SVD', TransformerTruncatedSVD, default_truncated_svd, space_truncated_svd,
+               'feature',
                limit_size=50),
-    PpSolution('ICA', 'Fast ICA', HyperProcessFastICA, default_fast_ica, space_fast_ica, 'feature', limit_size=50),
-    PpSolution('PCA', 'PCA', HyperProcessPCA, default_pca, space_pca, 'feature', limit_size=50),
-    PpSolution('FS-RF', 'Selection RF', HyperProcessSelectionRf, default_sel_rf, space_sel_rf, 'feature'),
+    PpSolution('FR-ICA', 'Fast ICA', TransformerFastICA, default_fast_ica, space_fast_ica, 'feature', limit_size=50),
+    PpSolution('FR-PCA', 'PCA', TransformerPCA, default_pca, space_pca, 'feature', limit_size=50),
+
+    # feature selection from model
+    PpSolution('FR-RFR', 'Selection RF', TransformerSelectionRfR, default_sel_rf, space_sel_rf, 'feature',
+               problem_type='regression'),
+    PpSolution('FR-RFC', 'Selection RF', TransformerSelectionRfC, default_sel_rf, space_sel_rf, 'feature',
+               problem_type='classification'),
+    PpSolution('FR-LR', 'Selection LSVR', TransformerSelectionLinearSVR, {}, {}, 'feature', problem_type='regression'),
 
     # sampling solutions
-    PpSolution('SP_PASS', 'No re-sampling', NoSampling, {}, {}, 'sampling', default_solution=True),
+    PpSolution('SP-PASS', 'No re-sampling', NoSampling, {}, {}, 'sampling'),
     PpSolution('SP-ROS', 'Random Over', RandomOverSampler, {}, {}, 'sampling'),
     PpSolution('SP-SMOTE', 'SMOTE', SMOTE, {}, {}, 'sampling'),
-    PpSolution('SP-RUS', 'Random Under', RandomUnderSampler, {}, {}, 'sampling'),
 
 ]
 
 # mapping table
 pp_solutions_map = {s.ref: s for s in pp_solutions}
+
+# default pre-processing lists
+pp_def_lgbm = ['CE-PASS', 'MS-FIXED', 'TX-W2V', 'SC-PASS', 'FR-PASS']
+pp_def_trees = ['CE-LAB', 'MS-FIXED', 'TX-W2V', 'SC-PASS', 'FR-PASS']
+pp_def_knn = ['CE-HOT', 'MS-FIXED', 'TX-W2V', 'SC-STD', 'FR-PASS']
+pp_def_linear = ['CE-HOT', 'MS-FIXED', 'TX-W2V', 'SC-ROBUST', 'FR-PASS']
+pp_def_NN = ['CE-HOT', 'MS-FIXED', 'TX-W2V', 'SC-MINMAX', 'FR-PASS']
+
+pp_list_lgbm = ['CE-LAB', 'CE-HOT', 'CE-BASE', 'CE-HASH',
+                'MS-FIXED', 'MS-FREQ',
+                'TX-BOW', 'TX-W2V', 'TX-D2V',
+                'SC-PASS', 'SC-STD', 'SC-MINMAX', 'SC-MAXABS', 'SC-ROBUST',
+                'FR-PASS', 'FR-SVD', 'FR-ICA', 'FR-PCA', 'FR-RFR', 'FR-RFC', 'FR-LR']
+
+pp_list_trees = ['CE-LAB', 'CE-HOT', 'CE-BASE', 'CE-HASH',
+                 'MS-FIXED', 'MS-FREQ',
+                 'TX-BOW', 'TX-W2V', 'TX-D2V',
+                 'SC-PASS', 'SC-STD', 'SC-MINMAX', 'SC-MAXABS', 'SC-ROBUST',
+                 'FR-PASS', 'FR-SVD', 'FR-ICA', 'FR-PCA', 'FR-RFR', 'FR-RFC', 'FR-LR']
+
+pp_list_knn = ['CE-HOT', 'CE-BASE', 'CE-HASH',
+               'MS-FIXED', 'MS-FREQ',
+               'TX-BOW', 'TX-W2V', 'TX-D2V',
+               'SC-STD', 'SC-MINMAX', 'SC-MAXABS', 'SC-ROBUST',
+               'FR-PASS', 'FR-SVD', 'FR-ICA', 'FR-PCA', 'FR-RFR', 'FR-RFC', 'FR-LR']
+
+pp_list_linear = ['CE-HOT', 'CE-BASE', 'CE-HASH',
+                  'MS-FIXED', 'MS-FREQ',
+                  'TX-BOW', 'TX-W2V', 'TX-D2V',
+                  'SC-STD', 'SC-MINMAX', 'SC-MAXABS', 'SC-ROBUST',
+                  'FR-PASS', 'FR-SVD', 'FR-ICA', 'FR-PCA', 'FR-RFR', 'FR-RFC', 'FR-LR']
+
+pp_list_NN = ['CE-HOT', 'CE-BASE', 'CE-HASH',
+              'MS-FIXED', 'MS-FREQ',
+              'TX-BOW', 'TX-W2V', 'TX-D2V',
+              'SC-STD', 'SC-MINMAX', 'SC-MAXABS', 'SC-ROBUST',
+              'FR-PASS', 'FR-SVD', 'FR-ICA', 'FR-PCA', 'FR-RFR', 'FR-RFC', 'FR-LR']

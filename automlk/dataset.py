@@ -380,7 +380,6 @@ class DataSet(object):
         self.n_missing = 0
         self.x_cols = []
         self.text_cols = []
-        self.textref_cols = []
         self.cat_cols = []
         self.missing_cols = []
         self.is_y_categorical = False
@@ -434,10 +433,7 @@ class DataSet(object):
                        col.to_keep and (col.name not in [self.y_col, self.val_col])]
         self.cat_cols = [col.name for col in self.features if
                          (col.name in self.x_cols) and (col.col_type == 'categorical')]
-        self.text_cols = [col.name for col in self.features if
-                          (col.name in self.x_cols) and ((col.col_type == 'text') and (col.text_ref == ''))]
-        self.textref_cols = [col.name for col in self.features if
-                             (col.name in self.x_cols) and ((col.col_type == 'text') and (col.text_ref != ''))]
+        self.text_cols = [col.name for col in self.features if (col.name in self.x_cols) and (col.col_type == 'text')]
         self.missing_cols = [col.name for col in self.features if col.n_missing > 0]
 
         self.n_missing = len(self.missing_cols)
@@ -479,7 +475,7 @@ class DataSet(object):
                 raise ValueError('metric %s is not known' % metric)
             if metric_map[metric].problem_type != self.problem_type:
                 raise ValueError('metric %s is not compatible with %s' % (metric, problem_type))
-            self.best_is_min = metric_map[self.metric].best_is_min
+            self.best_is_min = metric_map[metric].best_is_min
         self.metric = metric
 
         for m in other_metrics:
@@ -536,7 +532,7 @@ class DataSet(object):
                                'val_col_shuffle': self.val_col_shuffle, 'sampling': self.sampling,
                                'holdout_ratio': self.holdout_ratio, 'col_submit': self.col_submit},
                  'calc_data': {'n_cat_cols': self.n_cat_cols, 'n_missing': self.n_missing,
-                               'x_cols': self.x_cols, 'text_cols': self.text_cols, 'textref_cols': self.textref_cols,
+                               'x_cols': self.x_cols, 'text_cols': self.text_cols,
                                'cat_cols': self.cat_cols, 'missing_cols': self.missing_cols,
                                'is_y_categorical': self.is_y_categorical, 'best_is_min': self.best_is_min,
                                'y_n_classes': self.y_n_classes, 'y_class_names': self.y_class_names},

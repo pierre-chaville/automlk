@@ -1,7 +1,10 @@
 import logging
+import uuid
 from .config import *
 from .store import *
+from .context import get_uploads_folder
 from .dataset import get_dataset_ids, get_dataset
+from .textset import create_textset, get_textset_status
 from .solutions import *
 from .solutions_pp import *
 from .worker import get_search_rounds
@@ -13,7 +16,7 @@ from .prepare import prepare_dataset_sets
 PATIENCE = 500  # number of equivalent results to wait before stop
 ROUNDS_MAX = 5000  # number max of rounds before stop
 
-ROUND_START_ENSEMBLE = 200  # number of rounds to start ensembling
+ROUND_START_ENSEMBLE = 200  # number of rounds to start ensembles
 RATIO_L1_L2 = 2  # number of L1 rounds compared to L2 rounds
 
 RATIO_ROUNDS = 10  # number rounds -> equivalent in number of results (only a fraction can pass threshold)
@@ -57,11 +60,12 @@ def launch_controller():
                 msg_search = __create_search_round(dataset_id)
 
                 # send queue the next job to do
-                log.info('sending %s' % msg_search)
-                lpush_key_store(SEARCH_QUEUE, msg_search)
-                heart_beep('controller', msg_search)
+                if msg_search != {}:
+                    log.info('sending %s' % msg_search)
+                    lpush_key_store(SEARCH_QUEUE, msg_search)
+                    heart_beep('controller', msg_search)
 
-        # then read the duplicate queue
+        # then read the duplicate ROUND queue
         while llen_key_store(DUPLICATE_QUEUE) > 0:
             msg = brpop_key_store(DUPLICATE_QUEUE)
             msg_search = __duplicate_search_round(msg['round'], msg['dataset'])
@@ -91,6 +95,15 @@ def __create_search_round(dataset_id):
         # first launch: create train & eval & test set
         prepare_dataset_sets(dataset)
 
+        # check if requires generation of unsupervised features
+        if len(dataset.text_cols) > 0:
+            __prepare_text_sets(dataset)
+
+    # check if text set is completed
+    if len(dataset.text_cols) > 0:
+        if not __check_text_sets(dataset):
+            return {}
+
     # initialize search parameters
     level = 1
     default_mode = False
@@ -102,9 +115,7 @@ def __create_search_round(dataset_id):
     l1_choices = __get_model_class_list(dataset, 1)
 
     if round_id < len(l1_choices):
-
         # default mode, level 1
-
         default_mode = True
         round_id_l1 = round_id
         i_choice = round_id_l1 % len(l1_choices)
@@ -112,10 +123,8 @@ def __create_search_round(dataset_id):
         solution = model_solutions_map[ref]
         params = solution.default_params
     else:
-
         # get search history
         df = get_search_rounds(dataset_id)
-
         # find threshold
         threshold = __focus_threshold(df, round_id)
         level, round_id_l1, round_id_l2 = __get_round_ids(round_id)
@@ -145,14 +154,77 @@ def __create_search_round(dataset_id):
 
     # generate pre-processing pipeline and pre-processing params
     if level == 1:
-        pipeline = __get_pipeline(dataset, default_mode, round_id_l1, df, threshold)
+        pipeline = __get_pipeline(dataset, solution, default_mode, round_id_l1, df, threshold)
     else:
         pipeline = []
 
     # generate search message
     return {'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': solution.ref, 'level': level,
             'ensemble_depth': ensemble_depth, 'model_name': solution.name, 'model_params': params, 'pipeline': pipeline,
-            'threshold': threshold, 'time_limit': __time_limit(dataset)}
+            'threshold': threshold, 'time_limit': __time_limit(dataset)}  # 'percent_data': 100, 'cv': True}
+
+
+def __prepare_text_sets(dataset):
+    """
+    generates unsupervised text sets for the datatset
+
+    :param dataset: dataset object
+    :return:
+    """
+    for f in dataset.features:
+        if f.name in dataset.text_cols and f.text_ref == '':
+            col = f.name
+            log.info('creating textset for column %s' % col)
+            # generate file for text set
+            filename = get_uploads_folder() + '/' + str(uuid.uuid4()) + '.txt'
+
+            df = dataset.get_data('train')
+            with open(filename, 'w') as f:
+                for line in df[col].values:
+                    f.write(line + '\n')
+
+            if dataset.mode == 'benchmark':
+                # add also text from test
+                df = dataset.get_data('test')
+                with open(filename, 'a') as f:
+                    for line in df[col].values:
+                        f.write(line + '\n')
+            elif dataset.mode == 'competition':
+                df = dataset.get_data('submit')
+                with open(filename, 'a') as f:
+                    for line in df[col].values:
+                        f.write(line + '\n')
+
+            # create text set
+            ts = create_textset(name=dataset.name + '/' + col,
+                                description='generated automatically for dataset: %s (id=%s) and column : %s' % (
+                                dataset.name, dataset.dataset_id, col),
+                                source='train and test set', url='',
+                                filename=filename)
+
+            # update ref in dataset features
+            for f in dataset.features:
+                if f.name == col:
+                    f.text_ref = ts.textset_id
+
+            log.info('created textset id : %s' % ts.textset_id)
+
+    # then save dataset
+    dataset.save(dataset.dataset_id)
+
+
+def __check_text_sets(dataset):
+    """
+    check if all text sets searches are completed
+
+    :param dataset: dataset object
+    :return:
+    """
+    for f in dataset.features:
+        if f.name in dataset.text_cols:
+            if get_textset_status(f.text_ref) != 'completed':
+                return False
+    return True
 
 
 def __duplicate_search_round(round, dataset_id):
@@ -233,7 +305,7 @@ def __time_limit(dataset):
         return 6 * 3600
 
 
-def __get_pipeline(dataset, default_mode, i_round, df, threshold):
+def __get_pipeline(dataset, solution, default_mode, i_round, df, threshold):
     # generates the list of potential data pre-processing depending on the problem type
     pipeline = []
     if threshold == 0:
@@ -241,38 +313,42 @@ def __get_pipeline(dataset, default_mode, i_round, df, threshold):
     else:
         best_pp = __get_list_best_pp(df, cv_max=True)
 
+    # missing values
+    if len(dataset.missing_cols) > 0:
+        pipeline.append(__get_pp_choice(dataset, 'missing', solution, default_mode, i_round, best_pp, threshold))
+
     # X pre-processing: text
     if len(dataset.text_cols) > 0:
-        pipeline.append(__get_pp_choice(dataset, 'text', default_mode, i_round, best_pp, threshold))
+        pipeline.append(__get_pp_choice(dataset, 'text', solution, default_mode, i_round, best_pp, threshold))
 
     # X pre-processing: categorical
     if len(dataset.cat_cols) > 0:
-        pipeline.append(__get_pp_choice(dataset, 'categorical', default_mode, i_round, best_pp, threshold))
-
-    # missing values
-    if len(dataset.missing_cols) > 0:
-        pipeline.append(__get_pp_choice(dataset, 'missing', default_mode, i_round, best_pp, threshold))
+        pipeline.append(__get_pp_choice(dataset, 'categorical', solution, default_mode, i_round, best_pp, threshold))
 
     # scaling
-    pipeline.append(__get_pp_choice(dataset, 'scaling', default_mode, i_round, best_pp, threshold))
+    pipeline.append(__get_pp_choice(dataset, 'scaling', solution, default_mode, i_round, best_pp, threshold))
 
     # feature selection
-    pipeline.append(__get_pp_choice(dataset, 'feature', default_mode, i_round, best_pp, threshold))
+    pipeline.append(__get_pp_choice(dataset, 'feature', solution, default_mode, i_round, best_pp, threshold))
 
     # re-sampling
     if dataset.problem_type == 'classification' and dataset.sampling:
-        pipeline.append(__get_pp_choice(dataset, 'sampling', default_mode, i_round, best_pp, threshold))
+        pipeline.append(__get_pp_choice(dataset, 'sampling', solution, default_mode, i_round, best_pp, threshold))
 
-    return pipeline
+    # clean and return the pipeline from null steps
+    return [p for p in pipeline if p[0] != '']
 
 
-def __get_pp_choice(dataset, category, default_mode, i_round, best_pp, threshold):
+def __get_pp_choice(dataset, category, solution, default_mode, i_round, best_pp, threshold):
     # select a solution bewteen the list of potential solutions from the category
     if threshold == 0:
-        choices = __get_pp_list(dataset, category, default_mode)
+        choices = __get_pp_list(dataset, category, solution, default_mode)
     else:
-        choices = [x[0] for x in best_pp if x[1] == category and x[2] <= threshold]
+        choices = [x[0] for x in best_pp if (x[1] == category) and (x[2] <= threshold)]
         log.info('focusing on pre-processing for %s / %s' % (category, choices))
+
+    if len(choices) == 0:
+        return '', category, '', {}
 
     i_pp = i_round % len(choices)
     ref = choices[i_pp]
@@ -284,14 +360,16 @@ def __get_pp_choice(dataset, category, default_mode, i_round, best_pp, threshold
     return ref, category, s.name, params
 
 
-def __get_pp_list(dataset, category, default_mode):
+def __get_pp_list(dataset, category, solution, default_mode):
     # generates the list of potential pre-processing choices in a specific category, depending on the problem type
     choices = []
-    for s in pp_solutions:
+    if default_mode:
+        l_solutions = [pp_solutions_map[p] for p in solution.pp_default]
+    else:
+        l_solutions = [pp_solutions_map[p] for p in solution.pp_list]
+    for s in l_solutions:
         if s.pp_type == category and dataset.n_rows < s.limit_size:
-            if default_mode and s.default_solution:
-                choices.append(s.ref)
-            elif not default_mode:
+            if s.problem_type == '*' or s.problem_type == dataset.problem_type:
                 choices.append(s.ref)
     return choices
 

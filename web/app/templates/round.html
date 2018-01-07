@@ -168,7 +168,7 @@
             </tr>
         </table>
         {% else %}
-        {% if dataset.y_n_classes < 5 %}
+        {% if dataset.y_n_classes <= 10 %}
         <img src="/get_img_round/{{dataset.dataset_id}}/{{round.round_id}}/predict_eval?{{refresher}}"></img>
         <br>
         <img src="/get_img_round/{{dataset.dataset_id}}/{{round.round_id}}/predict_test?{{refresher}}"></img>
@@ -191,13 +191,12 @@
                 {% if cnf_matrix[x, y] != 0 %}
                 <tr>
                     <td width="20%"></td>
-                    <td width="40%"><span class="label {% if x == y %}label-success{% else %}label-warning{% endif %}">{{y_names[y]}}</span>
+                    <td width="40%"><h4 style="{% if x != y %}color:orange{% endif %}">{{y_names[y]}}</h4></td>>
                     </td>
                     <td style="vertical-align:top; text-align:center">
-                        <span class="label {% if x == y %}label-success{% else %}label-warning{% endif %}">{{ cnf_matrix[x, y] }}</span>
+                        <h5 style="{% if x != y %}color:orange{% endif %}">{{ cnf_matrix[x, y] }}</h5>
                     </td>
-                    <td style="vertical-align:top; text-align:center">{{ print_rounded(100 * cnf_matrix[x, y] /
-                        sums_matrix[x], 1) }} %
+                    <td style="vertical-align:top; text-align:center">{{ print_rounded(100 * cnf_matrix[x, y] / sums_matrix[x], 1) }} %
                     </td>
                 </tr>
                 {% endif %}

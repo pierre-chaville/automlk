@@ -1,6 +1,12 @@
 categorical encoding:
 ---------------------
 
+**No encoding**
+    **
+
+**Label Encoder**
+    **
+
 **One hot categorical**
     *drop_invariant*
 
@@ -15,33 +21,45 @@ text encoding:
 --------------
 
 **Bag of words**
-    *max_features, ngram_range, tfidf, first_words*
+
 
 **Word2Vec**
-    *size, iter, window, min_count, sg, workers*
+
 
 **Doc2Vec**
-    *size, iter, window, min_count, dm, workers*
+
 
 
 imputing missing values:
 ------------------------
 
+**No missing**
+    **
+
 **Missing values fixed**
     *fixed*
 
-**Missing values**
-    *strategy*
+**Missing values frequencies**
+    *frequency*
 
 
 feature scaling:
 ----------------
 
-**Feature Scaling**
-    *scaler*
-
-**No Scaling**
+**No scaling**
     **
+
+**Scaling Standard**
+    **
+
+**Scaling MinMax**
+    **
+
+**Scaling MaxAbs**
+    **
+
+**Scaling Robust**
+    *quantile_range*
 
 
 feature selection:
@@ -62,20 +80,10 @@ feature selection:
 **Selection RF**
     *n_estimators*
 
+**Selection RF**
+    *n_estimators*
 
-sampling:
----------
-
-**No re-sampling**
-    **
-
-**Random Over**
-    **
-
-**SMOTE**
-    **
-
-**Random Under**
+**Selection LSVR**
     **
 
 

@@ -175,6 +175,13 @@ class UpdateTextsetForm(FlaskForm):
     url = StringField()
 
 
+class ResetTextsetForm(FlaskForm):
+    # form to confirm reset of a textset
+    reset_id = StringField('id')
+    reset_name = StringField('name')
+    reset_description = TextAreaField('description')
+
+
 class DeleteTextsetForm(FlaskForm):
     # form to confirm delete of a textset
     id = StringField('id')

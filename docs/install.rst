@@ -73,7 +73,7 @@ Basic installation
 
 The simplest installation runs on a single machine, with at least the following processes:
 1. the web app
-2. the controller
+2. the controller, grapher and text worker
 3. a single worker
 
 These 3 components are run in a console (Windows) or Terminal (Linux).
@@ -112,15 +112,17 @@ From the web app, you can now define the set-up and then import the example of d
 You can launch the search in a dataset simply by clicking on the start/pause button in the home screen, and view the results through with the web interface.
 The search will continue automatically until the search is completed.
 
-To run the controller:
+To run the controller, grapher et text manager:
 
 .. code-block:: python
 
     cd automlk-master/run
 
     python run_controller.py
+    python run_grapher.py
+    python run_worker_text.py
 
-To run the worker:
+To run the workers on one or multiple machines:
 
 *On Linux:*
 
@@ -208,8 +210,8 @@ Please see the Redis documentation directly to install and configure your Redis 
 The Redis server can be installed on the same machine as the web server.
 
 
-Controller
-__________
+Controller, grapher and text worker
+___________________________________
 
 The controller can be executed on the machine of the web server. It can also be installed if required on a specific machine.
 
@@ -222,6 +224,8 @@ To run the controller:
     cd automlk-master/run
 
     python run_controller.py
+    python run_grapher.py
+    python run_worker_text.py
 
 
 Workers

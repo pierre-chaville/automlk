@@ -2,6 +2,7 @@ import string
 import logging
 import numpy as np
 from random import shuffle
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 log = logging.getLogger(__name__)
 
@@ -28,18 +29,33 @@ TABLE_TRANS['{'] = ' '
 TABLE_TRANS['}'] = ' '
 
 
-def clean_text(s, first_words=0):
+def clean_text(s):
     """
     clean the sentence for text processing: lowercase, punctuation
 
     :param s: input string
-    :param first_words: number of words to keep (0 = all)
     :return: string
     """
     words = str(s).lower().translate(TABLE_TRANS).split()
-    if first_words != 0:
-        words = words[:first_words]
     return " ".join(words)
+
+
+def model_bow(text, params):
+    """
+    generate a bag of words model from a text (list of sentences)
+
+    :param text: text, as a list of sentences (strings)
+    :param params: dictionary of parameter space for word2vec
+    :return: trained encoder model for bag of words
+    """
+    train_text = [clean_text(s) for s in text]
+    model_params = {key: params[key] for key in params.keys() if key not in ['tfidf']}
+    if params['tfidf']:
+        model = TfidfVectorizer(**model_params)
+    else:
+        model = CountVectorizer(**model_params)
+    model.fit(train_text)
+    return model
 
 
 def model_word2vec(text, params):

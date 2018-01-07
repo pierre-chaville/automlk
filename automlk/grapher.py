@@ -4,6 +4,8 @@ from .store import *
 from .graphs import *
 from .monitor import heart_beep
 from .dataset import get_dataset_list, get_dataset
+from .specific import get_feature_engineering, apply_feature_engineering
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s [%(module)s %(lineno)3d] %(message)s',
                     handlers=[
@@ -39,6 +41,12 @@ def create_graph_data(dataset_id):
     """
     dataset = get_dataset(dataset_id)
     df = dataset.get_data()
+
+    # apply feature engineering (if any)
+    fe = get_feature_engineering(dataset.dataset_id)
+    data_train = dataset.get_data()
+    if fe != '':
+        df = apply_feature_engineering(dataset.dataset_id, df)
 
     # create a sample set
     pickle.dump(df.head(20), open(get_dataset_folder(dataset_id) + '/data/sample.pkl', 'wb'))

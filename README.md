@@ -63,6 +63,16 @@ optional:
 
 - Redis (for in memory key/value storage and queues)
 
+
+Status of the project
+---------------------
+AutoMLk is currently in alpha mode.
+During this period, incompatible changes may happen until the finalization of the version.
+
+We have run this version during several months on multiple machines and multiple datasets.
+We expect to be in beta soon.
+
+
 References
 ----------
 Feurer, Matthias, et al. "Efficient and robust automated machine learning." Advances in Neural Information Processing Systems. 2015.

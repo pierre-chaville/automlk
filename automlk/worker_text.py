@@ -1,7 +1,10 @@
 import pickle
 from .monitor import *
+from .context import text_model_filename
 from .textset import *
 from .utils.text_encoders import *
+from .spaces.process import space_textset_bow, space_textset_w2v, space_textset_d2v
+
 
 log = logging.getLogger(__name__)
 
@@ -33,51 +36,30 @@ def launch_worker_text():
 
     :return:
     """
-    msg_search = ''
     while True:
-        # poll queue
-        textset_id = brpop_key_store('worker_text:search_queue')
-        heart_beep('worker_text', str(textset_id))
-        if textset_id != None:
-            log.info('searching textset %d' % textset_id)
+        # check the list of datasets
+        for ts in get_textset_list():
+            if ts.status != 'completed':
+                log.info('searching textset %s' % ts.textset_id)
 
-            # read textset
-            textset = get_textset(textset_id)
-            set_key_store('textset:%s:status' % textset_id, 'searching')
+                # read textset
+                textset = get_textset(ts.textset_id)
+                set_key_store('textset:%s:status' % ts.textset_id, 'searching')
 
-            # import text
-            with open(textset.filename, 'r') as f:
-                text = f.readlines()
+                # import text
+                with open(textset.filename, 'r') as f:
+                    text = f.readlines()
 
-            # calculate models
-            for size in [100, 200]:
-                pickle.dump(__search_word2vec(text, size), open(get_data_folder() + '/texts/w2v_%d_%d.pkl' % (textset_id, size), 'wb'))
-                pickle.dump(__search_doc2vec(text, size),
-                            open(get_data_folder() + '/texts/d2v_%d_%d.pkl' % (textset_id, size), 'wb'))
+                # calculate models
+                for conf in space_textset_bow:
+                    pickle.dump(model_bow(text, conf), open(text_model_filename(ts.textset_id, 'bow', conf), 'wb'))
 
-            # update status to completed
-            set_key_store('textset:%s:status' % textset_id, 'completed')
+                for conf in space_textset_w2v:
+                    pickle.dump(model_word2vec(text, conf), open(text_model_filename(ts.textset_id, 'w2v', conf), 'wb'))
 
+                for conf in space_textset_d2v:
+                    pickle.dump(model_doc2vec(text, conf), open(text_model_filename(ts.textset_id, 'd2v', conf), 'wb'))
 
-def __search_word2vec(text, size):
-    """
-    calculate vectors with word2vec
+                # update status to completed
+                set_key_store('textset:%s:status' % ts.textset_id, 'completed')
 
-    :param text: list of strings
-    :param size: dimension of the vectors
-    :return: model
-    """
-    log.info('searching word2vec model with size %d' % size)
-    return model_word2vec(text, {'size': size, 'iter': 50, 'window': 11, 'min_count': 5, 'sg': 0, 'workers': 8})
-
-
-def __search_doc2vec(text, size):
-    """
-    calculate vectors with word2vec
-
-    :param text: list of strings
-    :param size: dimension of the vectors
-    :return: model
-    """
-    log.info('searching doc2vec model with size %d' % size)
-    return model_doc2vec(text, {'size': size, 'iter': 100, 'window': 11, 'min_count': 5, 'dm': 0, 'workers': 8})

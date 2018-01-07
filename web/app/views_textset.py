@@ -10,7 +10,8 @@ def text_list():
     # list of text sets
     textset_list = get_textset_list()
     del_form = DeleteTextsetForm()
-    return render_template('text_list.html', textset_list=textset_list, del_form=del_form,
+    reset_form = ResetTextsetForm()
+    return render_template('text_list.html', textset_list=textset_list, del_form=del_form, reset_form=reset_form,
                            refresher=int(time.time()), config=get_config())
 
 
@@ -72,6 +73,15 @@ def update_text(textset_id):
         form.source.data = textset.source
         form.url.data = textset.url
     return render_template('update_text.html', form=form, config=get_config())
+
+
+@app.route('/reset_text', methods=['POST'])
+def reset_text():
+    # reset a textset
+    form = ResetTextsetForm()
+    if form.validate():
+        reset_textset(form.reset_id.data)
+    return redirect('/textset_list')
 
 
 @app.route('/delete_text', methods=['POST'])

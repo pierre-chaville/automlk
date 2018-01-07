@@ -14,7 +14,10 @@ with open('../docs/solutions_pp.rst', 'w') as f:
         l = []
         for s in pp_solutions:
             if s.pp_type == pp_type:
-                output('**' + s.name + '**\n    *' + ", ".join([k for k in s.space_params.keys()])+'*')
+                if isinstance(s.space_params, dict):
+                    output('**' + s.name + '**\n    *' + ", ".join([k for k in s.space_params.keys()])+'*')
+                else:
+                    output('**' + s.name + '**\n')
                 output('')
 
     print_solutions('categorical', 'categorical encoding')
@@ -27,5 +30,4 @@ with open('../docs/solutions_pp.rst', 'w') as f:
     output('')
     print_solutions('feature', 'feature selection')
     output('')
-    print_solutions('sampling', 'sampling')
-    output('')
+

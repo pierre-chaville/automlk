@@ -78,7 +78,10 @@ def eval_space_key(sk):
 
 def get_random_params(space):
     # generate a parameter list with random from space definition
-    param = {}
-    for key in space.keys():
-        param[key] = eval_space_key(space[key])
-    return param
+    if isinstance(space, list):
+        return random.choice(space)
+    else:
+        param = {}
+        for key in space.keys():
+            param[key] = eval_space_key(space[key])
+        return param

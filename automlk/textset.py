@@ -16,16 +16,13 @@ def create_textset(name, description, source, url, filename):
     ts = TextSet(0, name, description, source, url, filename, creation_date)
 
     # save and create objects related to the textset
-
     ts.textset_id = str(incr_key_store('textset:counter'))
     set_key_store('textset:%s:status' % ts.textset_id, 'created')
     rpush_key_store('textset:list', ts.textset_id)
 
     ts.finalize_creation()
     ts.save()
-
-    # then launch the search
-    lpush_key_store('worker_text:search_queue', ts.textset_id)
+    return ts
 
 
 def get_textset(textset_id):
@@ -39,6 +36,15 @@ def get_textset(textset_id):
     ds.load(d['load_data'])
     ds.status = get_key_store('textset:%s:status' % textset_id)
     return ds
+
+
+def get_textset_status(textset_id):
+    """
+    retrieves the status of a textset from its id
+    :param textset_id: id
+    :return: status (string)
+    """
+    return get_key_store('textset:%s:status' % textset_id)
 
 
 def get_textset_list():
@@ -79,6 +85,17 @@ def update_textset(textset_id, name, description, source, url):
     ts.source = source
     ts.url = url
     ts.save()
+
+
+def reset_textset(textset_id):
+    """
+    reset the results
+
+    :param textset_id: id
+    :return:
+    """
+    # removes entries
+    set_key_store('textset:%s:status' % textset_id, 'created')
 
 
 def delete_textset(textset_id):

@@ -125,6 +125,24 @@ def set_config(data, theme, bootstrap, graph_theme, store, store_url):
         f.write(json.dumps(config) + '\n')
 
 
+def text_model_filename(textset_id, model_type, params):
+    """
+    name of the file with params
+
+    :param model_type: model type (bow, w2v, d2v)
+    :param params: params of the model
+    :return:
+    """
+    folder = get_data_folder() + '/texts/%s' % textset_id
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    params_name = "-".join([key + '_' + str(params[key]) for key in params.keys()])
+    for c in ['[', ']', ',', '(', ')', '{', '}']:
+        params_name = params_name.replace(c, '')
+    return folder + '/%s-' % model_type + params_name.replace(' ', '_')
+
+
 def get_data_folder():
     """
     retrieves root folder from 'automlk.json' configuration file

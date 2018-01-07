@@ -4,10 +4,10 @@ Models level 1
 regression:
 ___________
 **LightGBM**
-    *task, boosting, learning_rate, num_leaves, tree_learner, max_depth, min_data_in_leaf, min_sum_hessian_in_leaf, feature_fraction, bagging_fraction, bagging_freq, lambda_l1, lambda_l2, min_gain_to_split, drop_rate, skip_drop, max_drop, uniform_drop, xgboost_dart_mode, top_rate, other_rate, verbose, objective, metric*
+    *boosting_type, num_leaves, max_depth, learning_rate, n_estimators, min_split_gain, min_child_weight, min_child_samples, subsample, subsample_freq, colsample_bytree, reg_alpha, reg_lambda, verbose, objective, metric*
 
 **XgBoost**
-    *booster, eval_metric, eta, min_child_weight, max_depth, gamma, max_delta_step, sub_sample, colsample_bytree, colsample_byleval, lambda, alpha, tree_method, sketch_eps, scale_pos_weight, silent, objective*
+    *max_depth, learning_rate, n_estimators, booster, gamma, min_child_weight, max_delta_step, subsample, colsample_bytree, colsample_bylevel, reg_alpha, reg_lambda, scale_pos_weight, tree_method, sketch_eps, n_jobs, silent, objective, eval_metric*
 
 **CatBoost**
     *learning_rate, depth, verbose*
@@ -52,10 +52,10 @@ ___________
 classification:
 _______________
 **LightGBM**
-    *task, boosting, learning_rate, num_leaves, tree_learner, max_depth, min_data_in_leaf, min_sum_hessian_in_leaf, feature_fraction, bagging_fraction, bagging_freq, lambda_l1, lambda_l2, min_gain_to_split, drop_rate, skip_drop, max_drop, uniform_drop, xgboost_dart_mode, top_rate, other_rate, verbose, objective, metric*
+    *boosting_type, num_leaves, max_depth, learning_rate, n_estimators, min_split_gain, min_child_weight, min_child_samples, subsample, subsample_freq, colsample_bytree, reg_alpha, reg_lambda, verbose, objective, metric*
 
 **XgBoost**
-    *booster, eval_metric, eta, min_child_weight, max_depth, gamma, max_delta_step, sub_sample, colsample_bytree, colsample_byleval, lambda, alpha, tree_method, sketch_eps, scale_pos_weight, silent, objective*
+    *max_depth, learning_rate, n_estimators, booster, gamma, min_child_weight, max_delta_step, subsample, colsample_bytree, colsample_bylevel, reg_alpha, reg_lambda, scale_pos_weight, tree_method, sketch_eps, n_jobs, silent, objective, eval_metric*
 
 **CatBoost**
     *learning_rate, depth, verbose*
@@ -81,10 +81,10 @@ _______________
 **Logistic Regression**
     *penalty, dual, tol, C, fit_intercept, intercept_scaling, solver, max_iter, multi_class, n_jobs*
 
-**NB Gaussian**
+**Naive Bayes Gaussian**
     **
 
-**NB Bernoulli**
+**Naive Bayes  Bernoulli**
     *alpha, binarize, fit_prior*
 
 **Neural Networks**
@@ -100,7 +100,7 @@ ___________
     *task, boosting, learning_rate, num_leaves, tree_learner, max_depth, min_data_in_leaf, min_sum_hessian_in_leaf, feature_fraction, bagging_fraction, bagging_freq, lambda_l1, lambda_l2, min_gain_to_split, drop_rate, skip_drop, max_drop, uniform_drop, xgboost_dart_mode, top_rate, other_rate, verbose, objective, metric*
 
 **Stacking XgBoost**
-    *booster, eval_metric, eta, min_child_weight, max_depth, gamma, max_delta_step, sub_sample, colsample_bytree, colsample_byleval, lambda, alpha, tree_method, sketch_eps, scale_pos_weight, silent, objective*
+    *booster, eval_metric, eta, min_child_weight, max_depth, gamma, max_delta_step, sub_sample, colsample_bytree, colsample_bylevel, lambda, alpha, tree_method, sketch_eps, scale_pos_weight, silent, objective*
 
 **Stacking Extra Trees**
     *n_estimators, max_features, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, max_leaf_nodes, min_impurity_decrease, verbose, random_state, warm_start, criterion*
@@ -121,7 +121,7 @@ _______________
     *task, boosting, learning_rate, num_leaves, tree_learner, max_depth, min_data_in_leaf, min_sum_hessian_in_leaf, feature_fraction, bagging_fraction, bagging_freq, lambda_l1, lambda_l2, min_gain_to_split, drop_rate, skip_drop, max_drop, uniform_drop, xgboost_dart_mode, top_rate, other_rate, verbose, objective, metric*
 
 **Stacking XgBoost**
-    *booster, eval_metric, eta, min_child_weight, max_depth, gamma, max_delta_step, sub_sample, colsample_bytree, colsample_byleval, lambda, alpha, tree_method, sketch_eps, scale_pos_weight, silent, objective*
+    *booster, eval_metric, eta, min_child_weight, max_depth, gamma, max_delta_step, sub_sample, colsample_bytree, colsample_bylevel, lambda, alpha, tree_method, sketch_eps, scale_pos_weight, silent, objective*
 
 **Stacking Neural Networks**
     *units, batch_size, batch_normalization, activation, optimizer, learning_rate, number_layers, dropout*

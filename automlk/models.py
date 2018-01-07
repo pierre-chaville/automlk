@@ -74,12 +74,11 @@ class Model(object):
     # abstract class for model hyper optimization
 
     @abstractmethod
-    def __init__(self, dataset, context, params):
-        self.dataset = dataset
-        self.context = context
+    def __init__(self, **params):
         self.params = params
-        self.feature_names = context.feature_names
-
+        self.problem_type = params['problem_type']
+        self.y_n_classes = params['y_n_classes']
+        self.model_params = {key: params[key] for key in params.keys() if key not in ['problem_type', 'y_n_classes']}
 
     @abstractmethod
     def fit(self, X_train, y_train):
@@ -110,13 +109,13 @@ def binary_proba(y):
 class ModelLightGBM(Model):
     # class for model LightGBM
 
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
+    def __init__(self, **params):
+        super().__init__(**params)
 
     def fit(self, X_train, y_train):
         # train with num_rounds
         lgb_train = lgb.Dataset(X_train, y_train)
-        self.model = lgb.train(self.params,
+        self.model = lgb.train(self.model_params,
                                lgb_train,
                                num_boost_round=self.num_rounds)
         self.feature_importances_ = self.model.feature_importance()
@@ -125,7 +124,7 @@ class ModelLightGBM(Model):
         # specific early stopping for Light GBM
         lgb_train = lgb.Dataset(X_train, y_train)
         lgb_eval = lgb.Dataset(X_eval, y_eval, reference=lgb_train)
-        self.model = lgb.train(self.params,
+        self.model = lgb.train(self.model_params,
                                lgb_train,
                                num_boost_round=MAX_ROUNDS,
                                valid_sets=lgb_eval,
@@ -139,7 +138,7 @@ class ModelLightGBM(Model):
 
     def predict_proba(self, X):
         # prediction with specific case of binary
-        if self.dataset.y_n_classes == 2:
+        if self.y_n_classes == 2:
             return binary_proba(self.model.predict(X))
         else:
             return self.model.predict(X)
@@ -148,13 +147,13 @@ class ModelLightGBM(Model):
 class ModelXgBoost(Model):
     # class for model XGBOOST
 
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
+    def __init__(self, **params):
+        super().__init__(**params)
 
     def fit(self, X_train, y_train):
         # train with num_rounds
-        xgb_train = xgb.DMatrix(X_train, label=y_train, feature_names=self.feature_names)
-        self.model = xgb.train(self.params,
+        xgb_train = xgb.DMatrix(X_train, label=y_train)
+        self.model = xgb.train(self.model_params,
                                xgb_train,
                                num_boost_round=self.num_rounds)
 
@@ -162,13 +161,13 @@ class ModelXgBoost(Model):
 
     def fit_early_stopping(self, X_train, y_train, X_eval, y_eval):
         # specific early stopping for XxBoost
-        xgb_train = xgb.DMatrix(X_train, label=y_train, feature_names=self.feature_names)
-        xgb_eval = xgb.DMatrix(X_eval, label=y_eval, feature_names=self.feature_names)
-        self.model = xgb.train(self.params,
+        xgb_train = xgb.DMatrix(X_train, label=y_train)
+        xgb_eval = xgb.DMatrix(X_eval, label=y_eval)
+        self.model = xgb.train(self.model_params,
                                xgb_train,
                                MAX_ROUNDS,
                                evals=[(xgb_train, 'train'), (xgb_eval, 'eval')],
-                               early_stopping_rounds=PATIENCE, verbose_eval=False)
+                               early_stopping_rounds=PATIENCE, verbose_eval=-1)
 
         if self.model.best_iteration > 0:
             self.num_rounds = self.model.best_iteration
@@ -176,13 +175,13 @@ class ModelXgBoost(Model):
             self.num_rounds = PATIENCE
 
     def predict(self, X):
-        xgb_X = xgb.DMatrix(X, feature_names=self.feature_names)
+        xgb_X = xgb.DMatrix(X)
         return self.model.predict(xgb_X)
 
     def predict_proba(self, X):
         # prediction with specific case of binary
-        xgb_X = xgb.DMatrix(X, feature_names=self.feature_names)
-        if self.dataset.y_n_classes == 2:
+        xgb_X = xgb.DMatrix(X)
+        if self.y_n_classes == 2:
             return binary_proba(self.model.predict(xgb_X))
         else:
             return self.model.predict(xgb_X)
@@ -191,18 +190,18 @@ class ModelXgBoost(Model):
 class ModelCatboost(Model):
     # class for model Catboost
 
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
+    def __init__(self, **params):
+        super().__init__(**params)
         self.early_stopping = True
         self.feature_importance = []
         self.set_model()
 
     def set_model(self):
         # set loss function depending of binary / multi class problem
-        if self.dataset.problem_type == 'regression':
-            self.model = CatBoostRegressor(**self.params)
+        if self.problem_type == 'regression':
+            self.model = CatBoostRegressor(**self.model_params)
         else:
-            self.model = CatBoostClassifier(**self.params)
+            self.model = CatBoostClassifier(**self.model_params)
 
     def fit(self, X_train, y_train):
         # train with num_rounds
@@ -233,36 +232,36 @@ class ModelCatboost(Model):
 class ModelNN(Model):
     # class for model Neural Networks
 
-    def __init__(self, dataset, context, params):
-        super().__init__(dataset, context, params)
+    def __init__(self, **params):
+        super().__init__(**params)
         self.early_stopping = True
         self.model_created = False
 
-        # create the modem
-        self.params['input_dim'] = len(self.feature_names)
-        self.model = keras_create_model(self.params, self.dataset.problem_type)
-
     def fit(self, X_train, y_train):
         # train with num_rounds
-        keras_compile_model(self.model, self.params, self.dataset.problem_type)
-        self.model.fit(X_train, self.prepare_y(y_train), epochs=self.num_rounds, batch_size=self.params['batch_size'],
+        if not self.model_created:
+            self.__create_model(len(X_train.columns))
+        keras_compile_model(self.model, self.params, self.problem_type)
+        self.model.fit(X_train.as_matrix(), self.prepare_y(y_train), epochs=self.num_rounds, batch_size=self.params['batch_size'],
                        validation_split=0.,
                        verbose=0)
 
     def fit_early_stopping(self, X_train, y_train, X_eval, y_eval):
         # find best round
-        keras_compile_model(self.model, self.params, self.dataset.problem_type)
+        if not self.model_created:
+            self.__create_model(len(X_train.columns))
+        keras_compile_model(self.model, self.params, self.problem_type)
         best_score = METRIC_NULL
         i_best_score = 0
         self.num_rounds = 0
         for i in range(MAX_ROUNDS):
-            self.model.fit(X_train, self.prepare_y(y_train), epochs=1, batch_size=self.params['batch_size'],
+            self.model.fit(X_train.as_matrix(), self.prepare_y(y_train), epochs=1, batch_size=self.params['batch_size'],
                            validation_split=0.,
                            verbose=0)
-            if self.dataset.problem_type == 'regression':
-                y_pred = self.model.predict(X_eval)
+            if self.problem_type == 'regression':
+                y_pred = self.model.predict(X_eval.as_matrix())
             else:
-                y_pred = self.model.predict_proba(X_eval)
+                y_pred = self.model.predict_proba(X_eval.as_matrix())
             score = self.dataset.evaluate_metric(y_eval, y_pred)
             if score < best_score:
                 self.num_rounds = i
@@ -272,17 +271,22 @@ class ModelNN(Model):
                 log.info('early stopping at %d' % i_best_score)
                 break
 
+    def __create_model(self, dim):
+        # create the modem
+        self.params['input_dim'] = dim
+        self.model = keras_create_model(self.params, self.problem_type)
+
     def predict_proba(self, X):
         # prediction with specific case of binary and classification
-        if self.dataset.y_n_classes == 2:
-            return binary_proba(self.model.predict(X))
+        if self.y_n_classes == 2:
+            return binary_proba(self.model.predict(X.as_matrix()))
         else:
-            return self.model.predict_proba(X)
+            return self.model.predict_proba(X.as_matrix())
 
     def prepare_y(self, y):
         # generate y in one hot encoding if classification
-        if self.dataset.problem_type == 'classification':
-            return to_categorical(y, self.dataset.y_n_classes)
+        if self.problem_type == 'classification':
+            return to_categorical(y, self.y_n_classes)
         else:
             return y
 

@@ -68,6 +68,9 @@ def rule_linear_svr(dataset, default_mode, params):
     if params['loss'] == 'squared_epsilon_insensitive':
         params['dual'] = False
 
+    if params['loss'] == 'epsilon_insensitive':
+        params['dual'] = True
+
     return params
 
 
