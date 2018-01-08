@@ -134,7 +134,9 @@ def round(prm):
     form.set_choices(dataset.problem_type)
     if request.method == 'POST':
         # apply round parameters for searching in another dataset
-        lpush_key_store(DUPLICATE_QUEUE, {'round': round, 'dataset': form.dataset.data})
+        lpush_key_store(DUPLICATE_QUEUE, {'round': eval(form.round.data), 'dataset': form.dataset.data})
+    else:
+        form.round.data = str(round)
     return render_template('round.html', dataset=dataset, round=round, pipeline=pipeline, form=form,
                            features=features, params=params, cols=params.keys(), refresher=int(time.time()),
                            y_names=y_names, cnf_matrix=cnf_matrix, sums_matrix=sums_matrix, config=get_config())

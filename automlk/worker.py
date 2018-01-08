@@ -1,3 +1,4 @@
+import eli5
 from copy import deepcopy
 from .config import *
 from .context import HyperContext, XySet
@@ -111,6 +112,8 @@ def job_search(msg_search):
     pickle.dump(pipe_model, open(folder + '%s_pipe_model.pkl' % msg_search['round_id'], 'wb'))
     pickle.dump(pipe_transform, open(folder + '%s_pipe_transform.pkl' % msg_search['round_id'], 'wb'))
 
+    __explain_model(dataset, msg_search['round_id'], pipe_model, model, feature_names)
+
 
 def __transformer_pipeline(dataset, pipeline, model):
     """
@@ -170,13 +173,14 @@ def __search(dataset, feature_names, solution, model, msg_search, ds, pool, pipe
     t_start = time.time()
     round_id = msg_search['round_id']
     level = msg_search['level']
-    if level == 2:
+    if level == 1:
+        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cv(solution, model, dataset, ds, pipeline,
+                                                                     msg_search['threshold'])
+    else:
+        # level 2 = ensemble
         outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cv_pool(solution, model, dataset, pool, ds,
                                                                           msg_search['threshold'],
                                                                           msg_search['ensemble_depth'])
-    else:
-        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cv(solution, model, dataset, ds, pipeline,
-                                                                     msg_search['threshold'])
     if hasattr(model, 'num_rounds'):
         msg_search['num_rounds'] = model.num_rounds
     else:
@@ -368,7 +372,6 @@ def __fit_early_stopping(solution, model, dataset, pipeline, threshold, X1, y1, 
             params = model.get_params()
             params['n_estimators'] = num_rounds
             model.set_params(**params)
-            print(params)
             log.info('early stopping best iteration = %d' % num_rounds)
         elif solution.early_stopping == 'XGB':
             model.fit(X1, y1, eval_set=[(X2, y2)], early_stopping_rounds=PATIENCE, verbose=False)
@@ -376,7 +379,6 @@ def __fit_early_stopping(solution, model, dataset, pipeline, threshold, X1, y1, 
             params = model.get_params()
             params['n_estimators'] = num_rounds
             model.set_params(**params)
-            print(params)
             log.info('early stopping best iteration = %d' % num_rounds)
 
     if threshold != 0:
@@ -538,3 +540,22 @@ def __evaluate_other_metrics(dataset, m, y_act, y_pred):
     :return: metrics
     """
     return evaluate_metric(y_act, y_pred, m, dataset.y_n_classes)
+
+
+def __explain_model(dataset, round_id, pipe_model, model, feature_names):
+    """
+    explain the weights and the prediction of the model
+
+    :param dataset: dataset
+    :param round_id: round if
+    :param pipe_model: the pipeline including the model
+    :param model: the model only
+    :param feature_names: feature names
+    :return:
+    """
+    try:
+        exp = eli5.explain_weights(model, feature_names=list(feature_names))
+        with open(get_dataset_folder(dataset.dataset_id) + '/predict/eli5_model_%s.html' % round_id, 'w') as f:
+            f.write(eli5.format_as_html(exp))
+    except:
+        return

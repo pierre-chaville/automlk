@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+<script src="https://www.w3schools.com/lib/w3.js"></script>
 <h3><a href="/">Home</a> > <a href="/dataset/{{dataset.dataset_id}}#models">{{dataset.name}}</a> > <a
         href="/details/{{dataset.dataset_id}};{{round.model_name}}">{{ round.model_name }}</a> > <span
         style="font-size:20px">{{ round.round_id }}</span></h3>
@@ -15,6 +16,9 @@
     <li><a data-toggle="tab" href="#features">
         <span data-toggle="tooltip" data-placement="left" title="feature importance">
             <i class="fa fa-sort-amount-desc" aria-hidden="true"></i>&nbsp;Imp</span></a></li>
+    <li><a data-toggle="tab" href="#explain">
+        <span data-toggle="tooltip" data-placement="left" title="explain">
+           <i class="fa fa-search-plus" aria-hidden="true"></i></span></a></li>
     <li><a data-toggle="tab" href="#pred_graph">
         <span data-toggle="tooltip" data-placement="left" title="prediction versus actuals">
             <i class="fa fa-bar-chart" aria-hidden="true"></i>&nbsp;Pred</span></a></li>
@@ -22,9 +26,9 @@
         <span data-toggle="tooltip" data-placement="left" title="prediction histogram">
             <i class="fa fa-bar-chart" aria-hidden="true"></i>&nbsp;Hist</span></a></li>
     <li><a data-toggle="tab" href="#other"><i class="fa fa-files-o"></i></a></li>
-    {% if dataset.filename_submit != '' %}
-    <li><a data-toggle="tab" href="#submit">Submit</a></li>
-    {% endif %}
+    <li><a data-toggle="tab" href="#downloads">
+        <span data-toggle="tooltip" data-placement="left" title="download files">
+            <i class="fa fa-download" aria-hidden="true"></i></span></a></li>
 </ul>
 
 <div class="tab-content">
@@ -126,6 +130,11 @@
 
     </div>
 
+    <!-- explain like I'm five !-->
+    <div id="explain" class="tab-pane">
+        <h3>Explain</h3>
+        <div w3-include-html="/get_explain/{{dataset.dataset_id}}/{{round.round_id}}?{{refresher}}"></div>
+    </div>
     <!-- feature importance with progress bars !-->
     <div id="features" class="tab-pane">
         <h4>Feature importance</h4>
@@ -191,12 +200,14 @@
                 {% if cnf_matrix[x, y] != 0 %}
                 <tr>
                     <td width="20%"></td>
-                    <td width="40%"><h4 style="{% if x != y %}color:orange{% endif %}">{{y_names[y]}}</h4></td>>
+                    <td width="40%"><h4 style="{% if x != y %}color:orange{% endif %}">{{y_names[y]}}</h4></td>
+                    >
                     </td>
                     <td style="vertical-align:top; text-align:center">
                         <h5 style="{% if x != y %}color:orange{% endif %}">{{ cnf_matrix[x, y] }}</h5>
                     </td>
-                    <td style="vertical-align:top; text-align:center">{{ print_rounded(100 * cnf_matrix[x, y] / sums_matrix[x], 1) }} %
+                    <td style="vertical-align:top; text-align:center">{{ print_rounded(100 * cnf_matrix[x, y] /
+                        sums_matrix[x], 1) }} %
                     </td>
                 </tr>
                 {% endif %}
@@ -226,27 +237,45 @@
     <div id="other" class="tab-pane">
         <h4>Apply this round parameters for searching on another dataset</h4>
         <br>
-        <div class="col-sm-6">
-            <form action="" method="post" name="dupplicate"
-                  enctype="multipart/form-data">
-                {{ form.hidden_tag() }}
-                {{ form.csrf_token }}
-                <div class="form-group">
-                    <label>Target dataset</label>
-                    {{ form.dataset(class="form-control")}}
-                </div>
-                <div class="form-group">
-                    <button type="submit" class="btn btn-primary">Copy</button>
-                </div>
-            </form>
-        </div>
+        <form action="" method="post" name="dupplicate"
+              enctype="multipart/form-data">
+            {{ form.hidden_tag() }}
+            {{ form.csrf_token }}
+            <div class="form-group">
+                <label>Target dataset</label>
+                {{ form.dataset(class="form-control")}}
+            </div>
+            <div class="form-group">
+                <label>Search params</label>
+                {{ form.round(class="form-control", rows="10")}}
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Send</button>
+            </div>
+        </form>
     </div>
     <!-- submit file -->
-    <div id="submit" class="tab-pane">
-        <h4>Submit file</h4>
+    <div id="downloads" class="tab-pane">
+        <h3>Downloads</h3>
         <br>
-        <a href="/get_submit/{{dataset.dataset_id}}/{{round.round_id}}">Download submit file</a>
+        <h5>Full pipeline (pickle)</h5>
+        <a href="/get_pipeline/{{dataset.dataset_id}}/{{round.round_id}}">Download file</a>
+        <br>
+        <br>
+        <h5>Model only (pickle)</h5>
+        <a href="/get_model/{{dataset.dataset_id}}/{{round.round_id}}">Download file</a>
+        {% if dataset.mode == 'competition' %}
+        <br>
+        <br>
+        <h5>Submit file</h5>
+        <a href="/get_submit/{{dataset.dataset_id}}/{{round.round_id}}">Download file</a>
+        {% endif %}
     </div>
 </div>
+
+<script>
+w3.includeHTML();
+</script>
+
 {% endblock %}
 

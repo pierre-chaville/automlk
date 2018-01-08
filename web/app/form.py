@@ -192,6 +192,7 @@ class DeleteTextsetForm(FlaskForm):
 class DupplicateRound(FlaskForm):
     # for to dupplicate a dataset
     dataset = SelectField(choices=[])
+    round = TextAreaField('search')
 
     def set_choices(self, problem_type):
         self.dataset.choices = [(d.dataset_id, '#%s: %s' % (d.dataset_id, d.name)) for d in get_dataset_list() if d.problem_type == problem_type]

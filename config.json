@@ -1,1 +1,1 @@
-{"data": "../../data", "theme": "bootswatch/3.3.7/darkly", "bootstrap": "", "graph_theme": "dark", "store": "file", "store_url": "192.168.0.18"}
+{"data": "../../data", "theme": "bootstrap/3.3.7/css", "bootstrap": "", "graph_theme": "white", "store": "file", "store_url": "192.168.0.18"}

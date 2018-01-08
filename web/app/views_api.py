@@ -74,8 +74,28 @@ def get_predict(dataset_id, round_id):
                      as_attachment=True, attachment_filename='predict_%s_%s.xlsx' % (dataset_id, round_id))
 
 
+@app.route('/get_pipeline/<string:dataset_id>/<string:round_id>', methods=['GET'])
+def get_pipeline(dataset_id, round_id):
+    # download the pipeline file (pickle)
+    return send_file(__path_data(dataset_id) + '/models/%s_pipe_model.pkl' % round_id,
+                     as_attachment=True, attachment_filename='pipe_model_%s_%s.pkl' % (dataset_id, round_id))
+
+
+@app.route('/get_model/<string:dataset_id>/<string:round_id>', methods=['GET'])
+def get_model(dataset_id, round_id):
+    # download the model file (pickle)
+    return send_file(__path_data(dataset_id) + '/models/%s_model.pkl' % round_id,
+                     as_attachment=True, attachment_filename='model_%s_%s.pkl' % (dataset_id, round_id))
+
+
 @app.route('/get_submit/<string:dataset_id>/<string:round_id>', methods=['GET'])
 def get_submit(dataset_id, round_id):
     # download the submit file
     return send_file(__path_data(dataset_id) + '/submit/submit_%s.csv' % round_id,
                      as_attachment=True, attachment_filename='submit_%s_%s.csv' % (dataset_id, round_id))
+
+
+@app.route('/get_explain/<string:dataset_id>/<string:round_id>', methods=['GET'])
+def get_explain(dataset_id, round_id):
+    # download the explanation html
+    return send_file(__path_data(dataset_id) + '/predict/eli5_model_%s.html' % round_id, as_attachment=False)

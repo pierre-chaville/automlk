@@ -80,7 +80,7 @@ pp_solutions = [
 pp_solutions_map = {s.ref: s for s in pp_solutions}
 
 # default pre-processing lists
-pp_def_lgbm = ['CE-PASS', 'MS-FIXED', 'TX-W2V', 'SC-PASS', 'FR-PASS']
+pp_def_lgbm = ['CE-LAB', 'MS-FIXED', 'TX-W2V', 'SC-PASS', 'FR-PASS']
 pp_def_trees = ['CE-LAB', 'MS-FIXED', 'TX-W2V', 'SC-PASS', 'FR-PASS']
 pp_def_knn = ['CE-HOT', 'MS-FIXED', 'TX-W2V', 'SC-STD', 'FR-PASS']
 pp_def_linear = ['CE-HOT', 'MS-FIXED', 'TX-W2V', 'SC-ROBUST', 'FR-PASS']
