@@ -9,6 +9,7 @@ from .metrics import metric_map
 from .store import *
 from .textset import get_textset_list
 from .context import get_dataset_folder
+from .xyset import XySet
 
 
 log = logging.getLogger(__name__)

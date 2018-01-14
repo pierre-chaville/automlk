@@ -162,8 +162,6 @@
 
     <!-- prediction graph !-->
     <div id="pred_graph" class="tab-pane">
-        <h4>Predictions</h4>
-        <a href="/get_predict/{{dataset.dataset_id}}/{{round.round_id}}">Download predict file</a>
         <br>
         {% if dataset.problem_type == 'regression' %}
         <table>
@@ -257,6 +255,10 @@
     <!-- submit file -->
     <div id="downloads" class="tab-pane">
         <h3>Downloads</h3>
+        <br>
+        <h5>Predictions</h5>
+        <a href="/get_predict/{{dataset.dataset_id}}/{{round.round_id}}">Download file</a>
+        <br>
         <br>
         <h5>Full pipeline (pickle)</h5>
         <a href="/get_pipeline/{{dataset.dataset_id}}/{{round.round_id}}">Download file</a>

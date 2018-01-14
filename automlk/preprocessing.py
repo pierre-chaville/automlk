@@ -338,8 +338,11 @@ def get_text_encoder(features, col, model_type, params):
     for f in features:
         if f['name'] == col:
             ref = f['text_ref']
-            filename = text_model_filename(ref, model_type, params)
-            return pickle.load(open(filename, 'rb'))
+            if ref != '':
+                filename = text_model_filename(ref, model_type, params)
+                return pickle.load(open(filename, 'rb'))
+            else:
+                return None
     return None
 
 

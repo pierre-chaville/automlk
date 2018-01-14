@@ -11,22 +11,6 @@ log = logging.getLogger(__name__)
 
 
 try:
-    import lightgbm as lgb
-
-    import_lgbm = True
-except:
-    import_lgbm = False
-    log.info('could not import LightGBM. This model will not be used')
-
-try:
-    import xgboost as xgb
-
-    import_xgb = True
-except:
-    import_xgb = False
-    log.info('could not import Xgboost. This model will not be used')
-
-try:
     from catboost import Pool, CatBoostClassifier, CatBoostRegressor
 
     import_catboost = True
@@ -41,31 +25,6 @@ except:
 
 MAX_ROUNDS = 5000
 PATIENCE = 50
-
-
-def get_importance(dataset_id, round_id):
-    """
-    features importance of the model
-
-    :param dataset_id: id of the dataset
-    :param round_id: id of the round
-    :return: feature importance as a dataframe
-    """
-    try:
-        return pickle.load(open(get_dataset_folder(dataset_id) + '/features/%s.pkl' % round_id, 'rb'))
-    except:
-        return None
-
-
-def get_pred_eval_test(dataset_id, round_id):
-    """
-    prediction on eval set & test & submit set
-
-    :param dataset_id: id of the dataset
-    :param round_id: id of the round
-    :return: list of predictions for eval set, test and submit set
-    """
-    return pickle.load(open(get_dataset_folder(dataset_id) + '/predict/%s.pkl' % round_id, 'rb'))
 
 
 class Model(object):
@@ -103,88 +62,6 @@ class Model(object):
 def binary_proba(y):
     # convert a binary proba of 1 dimension (on true) to 2 dimensions (false, true)
     return np.stack([1 - y, y], axis=1)
-
-
-
-class ModelLightGBM(Model):
-    # class for model LightGBM
-
-    def __init__(self, **params):
-        super().__init__(**params)
-
-    def fit(self, X_train, y_train):
-        # train with num_rounds
-        lgb_train = lgb.Dataset(X_train, y_train)
-        self.model = lgb.train(self.model_params,
-                               lgb_train,
-                               num_boost_round=self.num_rounds)
-        self.feature_importances_ = self.model.feature_importance()
-
-    def fit_early_stopping(self, X_train, y_train, X_eval, y_eval):
-        # specific early stopping for Light GBM
-        lgb_train = lgb.Dataset(X_train, y_train)
-        lgb_eval = lgb.Dataset(X_eval, y_eval, reference=lgb_train)
-        self.model = lgb.train(self.model_params,
-                               lgb_train,
-                               num_boost_round=MAX_ROUNDS,
-                               valid_sets=lgb_eval,
-                               early_stopping_rounds=PATIENCE, verbose_eval=False)
-        # check early stopping
-        if self.model.best_iteration == 0:
-            self.num_rounds = MAX_ROUNDS
-        else:
-            self.num_rounds = self.model.best_iteration
-            log.info('best iteration at %d' % self.model.best_iteration)
-
-    def predict_proba(self, X):
-        # prediction with specific case of binary
-        if self.y_n_classes == 2:
-            return binary_proba(self.model.predict(X))
-        else:
-            return self.model.predict(X)
-
-
-class ModelXgBoost(Model):
-    # class for model XGBOOST
-
-    def __init__(self, **params):
-        super().__init__(**params)
-
-    def fit(self, X_train, y_train):
-        # train with num_rounds
-        xgb_train = xgb.DMatrix(X_train, label=y_train)
-        self.model = xgb.train(self.model_params,
-                               xgb_train,
-                               num_boost_round=self.num_rounds)
-
-        self.dict_importance_ = self.model.get_score()
-
-    def fit_early_stopping(self, X_train, y_train, X_eval, y_eval):
-        # specific early stopping for XxBoost
-        xgb_train = xgb.DMatrix(X_train, label=y_train)
-        xgb_eval = xgb.DMatrix(X_eval, label=y_eval)
-        self.model = xgb.train(self.model_params,
-                               xgb_train,
-                               MAX_ROUNDS,
-                               evals=[(xgb_train, 'train'), (xgb_eval, 'eval')],
-                               early_stopping_rounds=PATIENCE, verbose_eval=-1)
-
-        if self.model.best_iteration > 0:
-            self.num_rounds = self.model.best_iteration
-        else:
-            self.num_rounds = PATIENCE
-
-    def predict(self, X):
-        xgb_X = xgb.DMatrix(X)
-        return self.model.predict(xgb_X)
-
-    def predict_proba(self, X):
-        # prediction with specific case of binary
-        xgb_X = xgb.DMatrix(X)
-        if self.y_n_classes == 2:
-            return binary_proba(self.model.predict(xgb_X))
-        else:
-            return self.model.predict(xgb_X)
 
 
 class ModelCatboost(Model):

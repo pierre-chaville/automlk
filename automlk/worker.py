@@ -1,20 +1,32 @@
 import eli5
 from copy import deepcopy
 from .config import *
-from .context import HyperContext, XySet
 from .dataset import get_dataset
 from .graphs import graph_histogram_regression, graph_histogram_classification, graph_predict_regression, \
     graph_predict_classification
+from .prepare import get_eval_sets
 from .solutions import *
 from .monitor import *
 from .metrics import evaluate_metric
 from .specific import apply_specific_metrics, return_specific_metrics
 from .solutions_pp import pp_solutions_map
+from .results import get_pred_eval_test
+from .xyset import XySet
 from sklearn.pipeline import make_pipeline
-from .preprocessing import TransformerPassThrough
 
 
 log = logging.getLogger(__name__)
+
+
+def get_search_rounds(dataset_id):
+    """
+    get all the results of the search with preprocessing and models
+
+    :param dataset_id: id of the dataset
+    :return: results of the search as a dataframe
+    """
+    results = list_key_store('dataset:%s:rounds' % dataset_id)
+    return pd.DataFrame(results)
 
 
 def launch_worker():
@@ -71,24 +83,18 @@ def job_search(msg_search):
         apply_specific_metrics(dataset.dataset_id)
 
     # load train/eval/test data
-    ds_ini = pickle.load(open(get_dataset_folder(msg_search['dataset_id']) + '/data/eval_set.pkl', 'rb'))
-    # context = HyperContext(dataset.problem_type, dataset.x_cols, dataset.cat_cols, dataset.text_cols,
-    #                       dataset.missing_cols)
-    if msg_search['level'] == 1:
-        # pre-processing on level 1 only
-        t_start = time.time()
-        feature_names, ds, final_pipeline, pipe = __pre_processing(dataset, msg_search['pipeline'], deepcopy(ds_ini))
-        t_end = time.time()
-        msg_search['duration_process'] = int(t_end - t_start)
-        pool = None
-    else:
-        feature_names, ds, final_pipeline, pipe = __pre_processing(dataset, [['PASS', 'feature', 'No Feature selection', {}]], deepcopy(ds_ini))
-        msg_search['duration_process'] = 0
-        ds = ds_ini
-        final_pipeline = []
-        pool = __get_pool_models(dataset, msg_search['ensemble_depth'])
-        feature_names = __get_pool_features(dataset, pool)
+    ds_ini = get_eval_sets(msg_search['dataset_id'])
 
+    if msg_search['level'] == 2:
+        ds_ini = __create_stacking(dataset, __get_pool_models(dataset, msg_search['ensemble_depth']), ds_ini)
+
+    # pre-processing
+    t_start = time.time()
+    feature_names, ds, pipe = __pre_processing(dataset, msg_search['pipeline'], deepcopy(ds_ini))
+    t_end = time.time()
+    msg_search['duration_process'] = int(t_end - t_start)
+
+    # generate model from solution
     solution = model_solutions_map[msg_search['solution']]
     if solution.is_wrapper:
         model = solution.model(**{**{'problem_type': dataset.problem_type,
@@ -96,58 +102,20 @@ def job_search(msg_search):
                                   **msg_search['model_params']})
     else:
         model = solution.model(**msg_search['model_params'])
-
-    # create Pipeline objects (transformer and complete)
-    # pipe_transform, pipe_model = __transformer_pipeline(dataset, msg_search['pipeline'], model)
+    msg_search['model_class'] = model.__class__.__name__
+    pipe_transform, pipe_model = make_pipeline(*pipe), make_pipeline(*(pipe + [model]))
 
     # then proceed to the search
-    msg_search['model_class'] = model.__class__.__name__
-    __search(dataset, feature_names, solution, model, msg_search, ds, pool, final_pipeline)
-
-    # then save model, pipe
-    # TEMPORARY
-    pipe_transform, pipe_model = make_pipeline(*pipe), make_pipeline(*(pipe + [model]))
-    folder = get_dataset_folder(dataset.dataset_id) + '/models/'
-    pickle.dump(model, open(folder + '%s_model.pkl' % msg_search['round_id'], 'wb'))
-    pickle.dump(pipe_model, open(folder + '%s_pipe_model.pkl' % msg_search['round_id'], 'wb'))
-    pickle.dump(pipe_transform, open(folder + '%s_pipe_transform.pkl' % msg_search['round_id'], 'wb'))
-
-    __explain_model(dataset, msg_search['round_id'], pipe_model, model, feature_names)
-
-
-def __transformer_pipeline(dataset, pipeline, model):
-    """
-    creates a transformer and a complete Pipeline object (sklearn) wich aggregates transformers and last model
-
-    :param dataset: dataset object
-    :param pipeline: pipeline list (sequence of transformers and their parameters)
-    :param model: model
-    :return: pipe_transform, pipe_model
-    """
-    pipe = []
-
-    # performs the different pre-processing steps
-    p_context = {'missing_cols': dataset.missing_cols,
-                 'cat_cols': dataset.cat_cols,
-                 'text_cols': dataset.text_cols}
-
-    for ref, category, name, params in pipeline:
-        solution = pp_solutions_map[ref]
-        p_class = solution.process
-        process = p_class(**{**params, 'context': p_context})
-        pipe.append(process)
-
-    return make_pipeline(*pipe), make_pipeline(*(pipe + [model]))
+    __search(dataset, feature_names, solution, pipe_transform, pipe_model, model, msg_search, ds)
 
 
 def __pre_processing(dataset, pipeline, ds):
-    pipe = []
     # performs the different pre-processing steps
-    # context.pipeline = pipeline
+    pipe = []
+    feature_names = None
     p_context = [{'name': f.name, 'col_type': f.col_type, 'n_missing': int(f.n_missing),
                   'n_unique_values': int(f.n_unique_values), 'text_ref': f.text_ref}
                  for f in dataset.features if f.name in dataset.x_cols]
-
     for ref, category, name, params in pipeline:
         if category != 'sampling':
             solution = pp_solutions_map[ref]
@@ -162,25 +130,19 @@ def __pre_processing(dataset, pipeline, ds):
                 ds.X_submit = process.transform(ds.X_submit)
             log.info('-> %d features (%s)' % (len(process.get_feature_names()), type(ds.X_train)))
             feature_names = process.get_feature_names()
-    final_pipeline = [p for p in pipeline if p[1] == 'sampling']
-    log.info('final pipeline %s' % final_pipeline)
-    return feature_names, ds, final_pipeline, pipe
+    return feature_names, ds, pipe
 
 
-def __search(dataset, feature_names, solution, model, msg_search, ds, pool, pipeline):
+def __search(dataset, feature_names, solution, pipe_transform, pipe_model, model, msg_search, ds):
     log.info('optimizing with %s, params: %s' % (solution.name, msg_search['model_params']))
     # fit, test & score
     t_start = time.time()
     round_id = msg_search['round_id']
     level = msg_search['level']
-    if level == 1:
-        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cv(solution, model, dataset, ds, pipeline,
-                                                                     msg_search['threshold'])
-    else:
-        # level 2 = ensemble
-        outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cv_pool(solution, model, dataset, pool, ds,
-                                                                          msg_search['threshold'],
-                                                                          msg_search['ensemble_depth'])
+    threshold = msg_search['threshold']
+
+    outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cross_validation(solution, model, dataset, ds, threshold)
+
     if hasattr(model, 'num_rounds'):
         msg_search['num_rounds'] = model.num_rounds
     else:
@@ -191,32 +153,14 @@ def __search(dataset, feature_names, solution, model, msg_search, ds, pool, pipe
         log.info('outlier, skipping this round')
         return
 
-    # y_pred_eval as concat of folds
-    y_pred_eval = np.concatenate(y_pred_eval_list)
-
-    # reindex eval to be aligned with y
-    y_pred_eval[ds.i_eval] = y_pred_eval.copy()
-
-    # generate submit file
-    if dataset.filename_submit != '':
-        ls = len(ds.id_submit)
-        # if dataset.problem_type == 'regression':
-        if np.shape(y_pred_submit)[1] == 1:
-            submit = np.concatenate((np.reshape(ds.id_submit, (ls, 1)), np.reshape(y_pred_submit, (ls, 1))), axis=1)
-        else:
-            submit = np.concatenate((np.reshape(ds.id_submit, (ls, 1)), np.reshape(y_pred_submit[:, 1], (ls, 1))),
-                                    axis=1)
-        df_submit = pd.DataFrame(submit)
-        df_submit.columns = [dataset.col_submit, dataset.y_col]
-        # allocate id column to avoid type conversion (to float)
-        df_submit[dataset.col_submit] = np.reshape(ds.id_submit, (ls, 1))
-        df_submit.to_csv(get_dataset_folder(dataset.dataset_id) + '/submit/submit_%s.csv' % round_id, index=False)
-
     # save model importance
     if level == 2 and solution.is_wrapper:
         __save_importance(model.model, dataset, feature_names, round_id)
     else:
         __save_importance(model, dataset, feature_names, round_id)
+
+    # create eval and submit results
+    y_pred_eval = __create_eval_submit(dataset, ds, round_id, y_pred_eval_list, y_pred_submit)
 
     # save predictions (eval and test set)
     pickle.dump([y_pred_eval, y_pred_test, y_pred_submit],
@@ -227,24 +171,23 @@ def __search(dataset, feature_names, solution, model, msg_search, ds, pool, pipe
         get_dataset_folder(dataset.dataset_id) + '/models/' + '%s_feature_names.pkl' % msg_search['round_id'], 'wb'))
 
     # generate graphs
-    if dataset.problem_type == 'regression':
-        graph_predict_regression(dataset, msg_search['round_id'], ds.y_train, y_pred_eval, 'eval')
-        graph_predict_regression(dataset, msg_search['round_id'], ds.y_test, y_pred_test, 'test')
-        graph_histogram_regression(dataset, msg_search['round_id'], y_pred_eval, 'eval')
-        graph_histogram_regression(dataset, msg_search['round_id'], y_pred_test, 'test')
-    else:
-        graph_predict_classification(dataset, msg_search['round_id'], ds.y_train, y_pred_eval, 'eval')
-        graph_predict_classification(dataset, msg_search['round_id'], ds.y_test, y_pred_test, 'test')
-        graph_histogram_classification(dataset, msg_search['round_id'], y_pred_eval, 'eval')
-        graph_histogram_classification(dataset, msg_search['round_id'], y_pred_test, 'test')
+    __create_graphs(dataset, round_id, ds, y_pred_eval, y_pred_test)
 
     t_end = time.time()
     msg_search['duration_model'] = int(t_end - t_start)
+
+    # calculate metrics
     __evaluate_round(dataset, msg_search, ds.y_train, y_pred_eval, ds.y_test, y_pred_test, ds.y_eval_list,
                      y_pred_eval_list)
 
+    # then save model, pipe
+    __save_model(dataset, round_id, pipe_transform, pipe_model, model)
 
-def __cv(solution, model, dataset, ds, pipeline, threshold):
+    # explain model
+    __explain_model(dataset, msg_search['round_id'], pipe_model, model, feature_names)
+
+
+def __cross_validation(solution, model, dataset, ds, threshold):
     # performs a cross validation on cv_folds, and predict also on X_test
     y_pred_eval, y_pred_test, y_pred_submit = [], [], []
     for i, (train_index, eval_index) in enumerate(ds.cv_folds):
@@ -252,7 +195,7 @@ def __cv(solution, model, dataset, ds, pipeline, threshold):
         X2, y2 = ds.X_train.iloc[eval_index], ds.y_train[eval_index]
         if i == 0 and solution.use_early_stopping:
             log.info('early stopping round')
-            if __fit_early_stopping(solution, model, dataset, pipeline, threshold, X1, y1, X2, y2):
+            if __fit_early_stopping(solution, model, dataset, threshold, X1, y1, X2, y2):
                 return True, 0, 0, 0
 
         # then train on train set and predict on eval set
@@ -264,7 +207,6 @@ def __cv(solution, model, dataset, ds, pipeline, threshold):
             score = __evaluate_metric(dataset, y2, y_pred)
             if score > threshold:
                 log.info('%dth round found outlier: %.5f with threshold %.5f' % (i, score, threshold))
-                time.sleep(10)
                 return True, 0, 0, 0
 
         y_pred_eval.append(y_pred)
@@ -289,9 +231,7 @@ def __cv(solution, model, dataset, ds, pipeline, threshold):
     return False, y_pred_eval, y_pred_test, y_pred_submit
 
 
-def __cv_pool(solution, model, dataset, pool, ds, threshold, depth):
-    y_pred_eval, y_pred_test, y_pred_submit = [], [], []
-
+def __create_stacking(dataset, pool, ds):
     # create X by stacking predictions
     for j, (u, m, p_eval, p_test, p_submit) in enumerate(
             zip(pool.pool_model_round_ids, pool.pool_model_names, pool.pool_eval_preds,
@@ -304,82 +244,89 @@ def __cv_pool(solution, model, dataset, pool, ds, threshold, depth):
             if dataset.mode == 'competition':
                 p_submit = np.reshape(p_submit, (len(p_submit), 1))
         if j == 0:
-            X_train = p_eval
-            X_test = p_test
+            ds.X_train = p_eval
+            ds.X_test = p_test
             if dataset.mode == 'competition':
-                X_submit = p_submit
+                ds.X_submit = p_submit
         else:
             # stack vertically the predictions
-            X_train = np.concatenate((X_train, p_eval), axis=1)
-            X_test = np.concatenate((X_test, p_test), axis=1)
+            ds.X_train = np.concatenate((ds.X_train, p_eval), axis=1)
+            ds.X_test = np.concatenate((ds.X_test, p_test), axis=1)
             if dataset.mode == 'competition':
-                X_submit = np.concatenate((X_submit, p_submit), axis=1)
+                ds.X_submit = np.concatenate((ds.X_submit, p_submit), axis=1)
 
-    for i, (train_index, eval_index) in enumerate(ds.cv_folds):
-        log.info('fold %d' % i)
+    # then convert to dataframes
+    ds.X_train, ds.X_test, ds.X_submit = pd.DataFrame(ds.X_train), pd.DataFrame(ds.X_test), pd.DataFrame(ds.X_submit)
 
-        if i == 0 and solution.use_early_stopping:
-            # with early stopping, we perform an initial round to get number of rounds
-            log.info('fit early stopping')
-            model.fit_early_stopping(X_train[train_index], ds.y_train[train_index], X_train[eval_index],
-                                     ds.y_train[eval_index])
-            y_pred = __predict(solution, model, X_train[eval_index])
-            score = __evaluate_metric(dataset, ds.y_train[eval_index], y_pred)
-            if threshold != 0 and score > threshold:
-                log.info('early stopping found outlier: %.5f with threshold %.5f' % (score, threshold))
-                time.sleep(10)
-                return True, 0, 0, 0
+    # update feature names
+    feature_names = __get_pool_features(dataset, pool)
+    ds.X_train.columns = feature_names
+    if len(ds.X_test) > 0:
+        ds.X_test.columns = feature_names
+    if len(ds.X_submit) > 0:
+        ds.X_submit.columns = feature_names
 
-        # train on X_train
-        model.fit(X_train[train_index], ds.y_train[train_index])
-        y_pred = __predict(solution, model, X_train[eval_index])
-        y_pred_eval.append(y_pred)
-        y_pred_test.append(__predict(solution, model, X_test))
-        score = __evaluate_metric(dataset, ds.y_train[eval_index], y_pred)
-        if threshold != 0 and score > threshold:
-            log.info('found outlier: %.5f with threshold %.5f' % (score, threshold))
-            time.sleep(10)
-            return True, 0, 0, 0
+    return ds
 
-    if dataset.mode == 'standard':
-        # train on complete train set
-        model.fit(X_train, ds.y_train)
-        y_pred_test = __predict(solution, model, X_test)
-    else:
-        # train on complete X y set
-        X = np.concatenate((X_train, X_test), axis=0)
-        y = np.concatenate((ds.y_train, ds.y_test), axis=0)
-        model.fit(X, y)
-        if dataset.mode == 'competition':
-            y_pred_submit = __predict(solution, model, X_submit)
-            # test = mean of y_pred_test on multiple folds
-            y_pred_test = np.mean(y_pred_test, axis=0)
+
+def __create_eval_submit(dataset, ds, round_id, y_pred_eval_list, y_pred_submit):
+    # create eval and submit results from lists
+
+    # y_pred_eval as concat of folds
+    y_pred_eval = np.concatenate(y_pred_eval_list)
+
+    # reindex eval to be aligned with y
+    y_pred_eval[ds.i_eval] = y_pred_eval.copy()
+
+    # generate submit file
+    if dataset.filename_submit != '':
+        ls = len(ds.id_submit)
+        # if dataset.problem_type == 'regression':
+        if np.shape(y_pred_submit)[1] == 1:
+            submit = np.concatenate((np.reshape(ds.id_submit, (ls, 1)), np.reshape(y_pred_submit, (ls, 1))), axis=1)
         else:
-            y_pred_test = __predict(solution, model, X_test)
+            submit = np.concatenate((np.reshape(ds.id_submit, (ls, 1)), np.reshape(y_pred_submit[:, 1], (ls, 1))),
+                                    axis=1)
+        # create submission file
 
-    return False, y_pred_eval, y_pred_test, y_pred_submit
+        df_submit = pd.DataFrame(submit)
+        df_submit.columns = [dataset.col_submit, dataset.y_col]
+        # allocate id column to avoid type conversion (to float)
+        df_submit[dataset.col_submit] = np.reshape(ds.id_submit, (ls, 1))
+        df_submit.to_csv(get_dataset_folder(dataset.dataset_id) + '/submit/submit_%s.csv' % round_id, index=False)
+
+    return y_pred_eval
 
 
-def __fit_early_stopping(solution, model, dataset, pipeline, threshold, X1, y1, X2, y2):
+def __create_graphs(dataset, round_id, ds, y_pred_eval, y_pred_test):
+    # generate graphs
+    if dataset.problem_type == 'regression':
+        graph_predict_regression(dataset, round_id, ds.y_train, y_pred_eval, 'eval')
+        graph_predict_regression(dataset, round_id, ds.y_test, y_pred_test, 'test')
+        graph_histogram_regression(dataset, round_id, y_pred_eval, 'eval')
+        graph_histogram_regression(dataset, round_id, y_pred_test, 'test')
+    else:
+        graph_predict_classification(dataset, round_id, ds.y_train, y_pred_eval, 'eval')
+        graph_predict_classification(dataset, round_id, ds.y_test, y_pred_test, 'test')
+        graph_histogram_classification(dataset, round_id, y_pred_eval, 'eval')
+        graph_histogram_classification(dataset, round_id, y_pred_test, 'test')
+
+
+def __fit_early_stopping(solution, model, dataset, threshold, X1, y1, X2, y2):
     # fit with early stopping the model
     if solution.is_wrapper:
         # with early stopping, we perform an initial round to get number of rounds
         model.fit_early_stopping(X1, y1, X2, y2)
     else:
+        model.fit(X1, y1, eval_set=[(X2, y2)], early_stopping_rounds=PATIENCE, verbose=False)
         if solution.early_stopping == 'LGBM':
-            model.fit(X1, y1, eval_set=[(X2, y2)], early_stopping_rounds=PATIENCE, verbose=False)
             num_rounds = model.best_iteration_ if model.best_iteration_ != 0 else MAX_ROUNDS
-            params = model.get_params()
-            params['n_estimators'] = num_rounds
-            model.set_params(**params)
-            log.info('early stopping best iteration = %d' % num_rounds)
         elif solution.early_stopping == 'XGB':
-            model.fit(X1, y1, eval_set=[(X2, y2)], early_stopping_rounds=PATIENCE, verbose=False)
             num_rounds = model.best_iteration if model.best_iteration != 0 else MAX_ROUNDS
-            params = model.get_params()
-            params['n_estimators'] = num_rounds
-            model.set_params(**params)
-            log.info('early stopping best iteration = %d' % num_rounds)
+        params = model.get_params()
+        params['n_estimators'] = num_rounds
+        model.set_params(**params)
+        log.info('early stopping best iteration = %d' % num_rounds)
 
     if threshold != 0:
         # test outlier (i.e. exceeds threshold)
@@ -500,17 +447,6 @@ def __store_search_error(dataset, t, e, model):
     # track error
 
 
-def get_search_rounds(dataset_id):
-    """
-    get all the results of the search with preprocessing and models
-
-    :param dataset_id: id of the dataset
-    :return: results of the search as a dataframe
-    """
-    results = list_key_store('dataset:%s:rounds' % dataset_id)
-    return pd.DataFrame(results)
-
-
 def __evaluate_metric(dataset, y_act, y_pred):
     """
     evaluates primary metrics for the dataset
@@ -540,6 +476,23 @@ def __evaluate_other_metrics(dataset, m, y_act, y_pred):
     :return: metrics
     """
     return evaluate_metric(y_act, y_pred, m, dataset.y_n_classes)
+
+
+def __save_model(dataset, round_id, pipe_transform, pipe_model, model):
+    """
+    save model, pipe
+
+    :param dataset: dataset object
+    :param round_id: round id
+    :param pipe_transform: sklearn pipeline of pre-processing steps only
+    :param pipe_model: sklearn pipeline of pre-processing steps + model
+    :param model: estimator model
+    :return:
+    """
+    folder = get_dataset_folder(dataset.dataset_id) + '/models/'
+    pickle.dump(model, open(folder + '%s_model.pkl' % round_id, 'wb'))
+    pickle.dump(pipe_model, open(folder + '%s_pipe_model.pkl' % round_id, 'wb'))
+    pickle.dump(pipe_transform, open(folder + '%s_pipe_transform.pkl' % round_id, 'wb'))
 
 
 def __explain_model(dataset, round_id, pipe_model, model, feature_names):

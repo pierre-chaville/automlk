@@ -200,101 +200,60 @@ space_knn = {'n_neighbors': HyperWeights({5: 1, HyperRangeInt(2, 50): 1}),
              'n_jobs': -1,
              }
 
-# generic space for LightGBM
-space_lightgbm = {'task': 'train',
-                  'boosting': HyperWeights({'gbdt': 1, 'dart': 1, 'goss': 1}),
-                  'learning_rate': HyperWeights({0.1: 1, HyperRangeFloat(0.001, 0.5): 1}),
+# generic space for LightGBM (Sklearn API)
+space_lightgbm = {'boosting_type': HyperWeights({'gbdt': 2, 'dart': 1}),
                   'num_leaves': HyperWeights({31: 1, HyperRangeInt(5, 200): 1}),
-                  'tree_learner': HyperWeights({'serial': 5, 'feature': 1, 'data': 1}),
                   'max_depth': HyperWeights({-1: 1, HyperRangeInt(5, 100): 1}),
-                  'min_data_in_leaf': HyperWeights({20: 1, HyperRangeInt(5, 100): 1}),
-                  'min_sum_hessian_in_leaf': HyperWeights({1e-3: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                  'feature_fraction': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
-                  'bagging_fraction': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
-                  'bagging_freq': HyperWeights({0: 1, HyperRangeInt(1, 20): 1}),
-                  'lambda_l1': HyperWeights({0: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                  'lambda_l2': HyperWeights({0: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                  'min_gain_to_split': HyperWeights({0: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                  'drop_rate': HyperWeights({0.1: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                  'skip_drop': HyperWeights({0.5: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                  'max_drop': HyperWeights({50: 1, HyperRangeInt(10, 200): 1}),
-                  'uniform_drop': HyperWeights({False: 1, True: 1}),
-                  'xgboost_dart_mode': HyperWeights({False: 1, True: 1}),
-                  'top_rate': HyperWeights({0.2: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                  'other_rate': HyperWeights({0.1: 1, HyperRangeFloat(0.001, 0.5): 1}),
+                  'learning_rate': HyperWeights({0.1: 1, HyperRangeFloat(0.001, 0.5): 1}),
+                  'n_estimators': 5000,
+                  'min_split_gain': HyperWeights({0: 1, HyperRangeFloat(0.0001, 0.01): 1}),
+                  'min_child_weight': HyperWeights({1e-3: 1, HyperRangeFloat(0.001, 0.5): 1}),
+                  'min_child_samples': HyperWeights({20: 1, HyperRangeInt(5, 100): 1}),
+                  'subsample': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
+                  'subsample_freq': HyperWeights({0: 1, HyperRangeInt(1, 20): 1}),
+                  'colsample_bytree': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
+                  'reg_alpha': HyperWeights({0: 1, HyperRangeFloat(0.001, 0.5): 1}),
+                  'reg_lambda': HyperWeights({0: 1, HyperRangeFloat(0.001, 0.5): 1}),
                   'verbose': -1
                   }
 
-# space for regression with LightGBM
-
 default_lightgbm_regressor = {'objective': 'regression', 'metric': 'mse', 'verbose': 0}
 space_lightgbm_regressor = {**space_lightgbm,
-                            **{'boosting': HyperWeights({'gbdt': 2, 'dart': 1}),
-                               'objective': HyperWeights(
-                                   {'regression': 1, 'regression_l1': 1, 'huber': 1, 'fair': 1, 'poisson': 1}),
-                               'metric': 'mse'
-                               }
+                            **{'objective': HyperWeights(
+                                {'regression': 1, 'regression_l1': 1, 'huber': 1, 'fair': 1, 'poisson': 1}),
+                                'metric': 'mse'
+                            }
                             }
 
-# space for multi-classification with LightGBM
 default_lightgbm_classifier = {'objective': 'binary', 'metric': 'binary_logloss', 'verbose': 0}
 space_lightgbm_classifier = {**space_lightgbm,
-                             **{'boosting': HyperWeights({'gbdt': 2, 'dart': 1}),
-                                'objective': 'binary',
+                             **{'objective': 'binary',
                                 'metric': 'binary_logloss',
                                 }}
 
-# generic space for LightGBM (Sklearn API)
-space_sk_lightgbm = {'boosting_type': HyperWeights({'gbdt': 2, 'dart': 1}),
-                     'num_leaves': HyperWeights({31: 1, HyperRangeInt(5, 200): 1}),
-                     'max_depth': HyperWeights({-1: 1, HyperRangeInt(5, 100): 1}),
-                     'learning_rate': HyperWeights({0.1: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                     'n_estimators': 5000,
-                     'min_split_gain': HyperWeights({0: 1, HyperRangeFloat(0.0001, 0.01): 1}),
-                     'min_child_weight': HyperWeights({1e-3: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                     'min_child_samples': HyperWeights({20: 1, HyperRangeInt(5, 100): 1}),
-                     'subsample': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
-                     'subsample_freq': HyperWeights({0: 1, HyperRangeInt(1, 20): 1}),
-                     'colsample_bytree': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
-                     'reg_alpha': HyperWeights({0: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                     'reg_lambda': HyperWeights({0: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                     'verbose': -1
-                     }
+# parameters for Xgboost (sklearn API)
+space_xgboost = {'max_depth': HyperRangeInt(2, 100),
+                 'learning_rate': HyperWeights({0.3: 1, HyperRangeFloat(0.001, 0.5): 1}),
+                 'n_estimators': 5000,
+                 'booster': HyperWeights({'gbtree': 2, 'gblinear': 1, 'dart': 100}),
 
-default_sk_lightgbm_regressor = {'objective': 'regression', 'metric': 'mse', 'verbose': 0}
-space_sk_lightgbm_regressor = {**space_sk_lightgbm,
-                               **{'objective': HyperWeights(
-                                   {'regression': 1, 'regression_l1': 1, 'huber': 1, 'fair': 1, 'poisson': 1}),
-                                   'metric': 'mse'
-                               }
-                               }
-
-default_sk_lightgbm_classifier = {'objective': 'binary', 'metric': 'binary_logloss', 'verbose': 0}
-space_sk_lightgbm_classifier = {**space_sk_lightgbm,
-                                **{'objective': 'binary',
-                                   'metric': 'binary_logloss',
-                                   }}
-
-# parameters for Xgboost
-space_xgboost = {'booster': HyperWeights({'gbtree': 2, 'gblinear': 1, 'dart': 100}),
-                 'eval_metric': 'rmse',
-                 'eta': HyperWeights({0.3: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                 'min_child_weight': HyperWeights({1: 1, HyperRangeFloat(0.01, 1000.): 1}),
-                 'max_depth': HyperRangeInt(2, 100),
                  'gamma': HyperWeights({0: 1, HyperRangeFloat(0.01, 100.): 1}),
+                 'min_child_weight': HyperWeights({1: 1, HyperRangeFloat(0.01, 1000.): 1}),
                  'max_delta_step': HyperWeights({0: 1, HyperRangeInt(1, 10): 1}),
-                 'sub_sample': HyperWeights({1.: 1, HyperRangeFloat(0.01, 0.99): 1}),
+                 'subsample': HyperWeights({1.: 1, HyperRangeFloat(0.01, 0.99): 1}),
                  'colsample_bytree': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
                  'colsample_bylevel': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
-                 'lambda': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
-                 'alpha': HyperWeights({0: 1, HyperRangeFloat(0.01, 0.99): 1}),
+
+                 'reg_alpha': HyperWeights({0: 1, HyperRangeFloat(0.01, 0.99): 1}),
+                 'reg_lambda': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
+                 'scale_pos_weight': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
+
                  'tree_method': HyperWeights({'auto': 1, 'exact': 1, 'approx': 1}),
                  'sketch_eps': HyperWeights({0.03: 1, HyperRangeFloat(0.01, 0.99): 1}),
-                 'scale_pos_weight': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
+                 'n_jobs': -1,
                  'silent': 1
                  }
 
-# space for classification with Xgboost
 default_xgboost_classifier = {'objective': 'binary:logistic', 'eval_metric': 'logloss', 'silent': 1}
 space_xgboost_classifier = {**space_xgboost,
                             **{  # 'booster': HyperWeights({'gbtree': 2}),
@@ -302,50 +261,12 @@ space_xgboost_classifier = {**space_xgboost,
                                 'eval_metric': 'logloss',
                             }}
 
-# space for regression with Xgboost
 default_xgboost_regressor = {'objective': 'reg:linear', 'eval_metric': 'rmse', 'silent': 1}
 space_xgboost_regressor = {**space_xgboost,
                            **{  # 'booster': HyperWeights({'gbtree': 2}),
                                'objective': 'reg:linear',
                                'eval_metric': 'rmse',
                            }}
-
-# parameters for Xgboost (sklearn API)
-space_sk_xgboost = {'max_depth': HyperRangeInt(2, 100),
-                    'learning_rate': HyperWeights({0.3: 1, HyperRangeFloat(0.001, 0.5): 1}),
-                    'n_estimators': 5000,
-                    'booster': HyperWeights({'gbtree': 2, 'gblinear': 1, 'dart': 100}),
-
-                    'gamma': HyperWeights({0: 1, HyperRangeFloat(0.01, 100.): 1}),
-                    'min_child_weight': HyperWeights({1: 1, HyperRangeFloat(0.01, 1000.): 1}),
-                    'max_delta_step': HyperWeights({0: 1, HyperRangeInt(1, 10): 1}),
-                    'subsample': HyperWeights({1.: 1, HyperRangeFloat(0.01, 0.99): 1}),
-                    'colsample_bytree': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
-                    'colsample_bylevel': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
-
-                    'reg_alpha': HyperWeights({0: 1, HyperRangeFloat(0.01, 0.99): 1}),
-                    'reg_lambda': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
-                    'scale_pos_weight': HyperWeights({1: 1, HyperRangeFloat(0.01, 0.99): 1}),
-
-                    'tree_method': HyperWeights({'auto': 1, 'exact': 1, 'approx': 1}),
-                    'sketch_eps': HyperWeights({0.03: 1, HyperRangeFloat(0.01, 0.99): 1}),
-                    'n_jobs' : -1,
-                    'silent': 1
-                    }
-
-default_sk_xgboost_classifier = {'objective': 'binary:logistic', 'eval_metric': 'logloss', 'silent': 1}
-space_sk_xgboost_classifier = {**space_sk_xgboost,
-                               **{  # 'booster': HyperWeights({'gbtree': 2}),
-                                   'objective': 'binary:logistic',
-                                   'eval_metric': 'logloss',
-                               }}
-
-default_sk_xgboost_regressor = {'objective': 'reg:linear', 'eval_metric': 'rmse', 'silent': 1}
-space_sk_xgboost_regressor = {**space_sk_xgboost,
-                              **{  # 'booster': HyperWeights({'gbtree': 2}),
-                                  'objective': 'reg:linear',
-                                  'eval_metric': 'rmse',
-                              }}
 
 # parameters for  Catboost
 # TODO: extend parameters

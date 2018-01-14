@@ -95,10 +95,6 @@ def __create_search_round(dataset_id):
         # first launch: create train & eval & test set
         prepare_dataset_sets(dataset)
 
-        # check if requires generation of unsupervised features
-        if len(dataset.text_cols) > 0:
-            __prepare_text_sets(dataset)
-
     # check if text set is completed
     if len(dataset.text_cols) > 0:
         if not __check_text_sets(dataset):
@@ -156,7 +152,7 @@ def __create_search_round(dataset_id):
     if level == 1:
         pipeline = __get_pipeline(dataset, solution, default_mode, round_id_l1, df, threshold)
     else:
-        pipeline = []
+        pipeline = [('FR-PASS', 'feature', 'No Feature selection', {})]
 
     # generate search message
     return {'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': solution.ref, 'level': level,
@@ -215,13 +211,13 @@ def __prepare_text_sets(dataset):
 
 def __check_text_sets(dataset):
     """
-    check if all text sets searches are completed
+    check if all text sets (references only) models are completed
 
     :param dataset: dataset object
     :return:
     """
     for f in dataset.features:
-        if f.name in dataset.text_cols:
+        if f.name in dataset.text_cols and f.text_ref != '':
             if get_textset_status(f.text_ref) != 'completed':
                 return False
     return True

@@ -1,10 +1,34 @@
 import pickle
 import pandas as pd
 import numpy as np
-from .worker import get_importance
 from .store import exists_key_store, get_key_store
 from .dataset import get_dataset_list, get_dataset_folder, get_dataset
-from .models import get_pred_eval_test
+from .prepare import get_idx_train_test, get_eval_sets
+
+
+def get_importance(dataset_id, round_id):
+    """
+    features importance of the model
+
+    :param dataset_id: id of the dataset
+    :param round_id: id of the round
+    :return: feature importance as a dataframe
+    """
+    try:
+        return pickle.load(open(get_dataset_folder(dataset_id) + '/features/%s.pkl' % round_id, 'rb'))
+    except:
+        return None
+
+
+def get_pred_eval_test(dataset_id, round_id):
+    """
+    prediction on eval set & test & submit set
+
+    :param dataset_id: id of the dataset
+    :param round_id: id of the round
+    :return: list of predictions for eval set, test and submit set
+    """
+    return pickle.load(open(get_dataset_folder(dataset_id) + '/predict/%s.pkl' % round_id, 'rb'))
 
 
 def print_value(x):
@@ -196,13 +220,16 @@ def create_predict_file(dataset_id, round_id):
     """
     dataset = get_dataset(dataset_id)
 
-    # load train/eval/test data
-    ds = pickle.load(open(get_dataset_folder(dataset_id) + '/data/eval_set.pkl', 'rb'))
+    # load original train data and indexes
+    df = dataset.get_data()
+    i_train, i_test = get_idx_train_test(dataset_id)
+    df = df.iloc[i_train]
+
+    ds = get_eval_sets(dataset_id)
 
     # load prediction results
     y_pred_eval, y_pred_test, y_pred_submit = get_pred_eval_test(dataset_id, round_id)
 
-    df = pd.DataFrame(ds.X_train)
     cols = dataset.x_cols
     if dataset.problem_type == 'regression':
         df['_predict'] = y_pred_eval

@@ -7,21 +7,28 @@ import sklearn.neighbors as knn
 import sklearn.naive_bayes as nb
 from .solutions_pp import *
 
-
 try:
     import lightgbm as lgb
 
     import_lgbm = True
+    lgb_LGBMClassifier = lgb.LGBMClassifier
+    lgb_LGBMRegressor = lgb.LGBMRegressor
 except:
     import_lgbm = False
+    lgb_LGBMClassifier = None
+    lgb_LGBMRegressor = None
     log.info('could not import LightGBM. This model will not be used')
 
 try:
     import xgboost as xgb
 
     import_xgb = True
+    xgb_XGBClassifier = xgb.XGBClassifier
+    xgb_XGBRegressor = xgb.XGBRegressor
 except:
     import_xgb = False
+    xgb_XGBClassifier = None
+    xgb_XGBRegressor = None
     log.info('could not import Xgboost. This model will not be used')
 
 
@@ -49,46 +56,39 @@ class ModelSolution(object):
         self.pp_default = pp_default
         self.pp_list = pp_list
 
-"""
-    ModelSolution('LGBM-C', 'LightGBM', ModelLightGBM, default_lightgbm_classifier,
-                  space_lightgbm_classifier, 'classification', is_wrapper=True, use_early_stopping=True,
-                  rule_params=rule_lightgbm, selectable=import_lgbm, pp_default=pp_def_trees, pp_list=pp_list_trees),
-    ModelSolution('XGB-C', 'XgBoost', ModelXgBoost, default_xgboost_classifier,
-                  space_xgboost_classifier, 'classification', is_wrapper=True, use_early_stopping=True,
-                  rule_params=rule_xgboost, selectable=import_xgb, pp_default=pp_def_trees, pp_list=pp_list_trees),
-    ModelSolution('LGBM-R', 'LightGBM', ModelLightGBM, default_lightgbm_regressor,
-                  space_lightgbm_regressor, 'regression', is_wrapper=True, use_early_stopping=True,
-                  rule_params=rule_lightgbm, selectable=import_lgbm, pp_default=pp_def_trees, pp_list=pp_list_trees),
-    ModelSolution('XGB-R', 'XgBoost', ModelXgBoost, default_xgboost_regressor,
-                  space_xgboost_regressor, 'regression', is_wrapper=True, use_early_stopping=True,
-                  rule_params=rule_xgboost, selectable=import_xgb, pp_default=pp_def_trees, pp_list=pp_list_trees),
-"""
 
 # list of solutions
 model_solutions = [
     # classifiers
-    ModelSolution('LGBM-C', 'LightGBM', lgb.LGBMClassifier, default_sk_lightgbm_classifier,
-                  space_sk_lightgbm_classifier, 'classification', is_wrapper=False, use_early_stopping=True,
-                  early_stopping='LGBM', rule_params=rule_lightgbm, selectable=import_lgbm, pp_default=pp_def_lgbm, pp_list=pp_list_lgbm),
-    ModelSolution('XGB-C', 'XgBoost', xgb.XGBClassifier, default_sk_xgboost_classifier,
-                  space_sk_xgboost_classifier, 'classification', is_wrapper=False, use_early_stopping=True,
-                  early_stopping='XGB', rule_params=rule_xgboost, selectable=import_xgb, pp_default=pp_def_trees, pp_list=pp_list_trees),
+    ModelSolution('LGBM-C', 'LightGBM', lgb_LGBMClassifier, default_lightgbm_classifier,
+                  space_lightgbm_classifier, 'classification', is_wrapper=False, use_early_stopping=True,
+                  early_stopping='LGBM', rule_params=rule_lightgbm, selectable=import_lgbm, pp_default=pp_def_lgbm,
+                  pp_list=pp_list_lgbm),
+    ModelSolution('XGB-C', 'XgBoost', xgb_XGBClassifier, default_xgboost_classifier,
+                  space_xgboost_classifier, 'classification', is_wrapper=False, use_early_stopping=True,
+                  early_stopping='XGB', rule_params=rule_xgboost, selectable=import_xgb, pp_default=pp_def_trees,
+                  pp_list=pp_list_trees),
     ModelSolution('CAT-C', 'CatBoost', ModelCatboost, default_catboost_classifier,
-                  space_catboost_classifier, 'classification', is_wrapper=True, use_early_stopping=True, rule_params=rule_catboost,
+                  space_catboost_classifier, 'classification', is_wrapper=True, use_early_stopping=True,
+                  rule_params=rule_catboost,
                   selectable=import_catboost, pp_default=pp_def_trees, pp_list=pp_list_trees),
     ModelSolution('XTRA-C', 'Extra Trees', ske.ExtraTreesClassifier, default_extra_trees, space_extra_trees_classifier,
                   'classification', use_predict_proba=True, pp_default=pp_def_trees, pp_list=pp_list_trees),
     ModelSolution('RF-C', 'Random Forest', ske.RandomForestClassifier, default_random_forest,
-                  space_random_forest_classifier, 'classification', use_predict_proba=True, pp_default=pp_def_trees, pp_list=pp_list_trees),
+                  space_random_forest_classifier, 'classification', use_predict_proba=True, pp_default=pp_def_trees,
+                  pp_list=pp_list_trees),
     ModelSolution('GBM-C', 'Gradient Boosting', ske.GradientBoostingClassifier, default_gradient_boosting,
                   space_gradient_boosting_classifier, 'classification', rule_params=rule_gbm,
                   use_predict_proba=True, pp_default=pp_def_trees, pp_list=pp_list_trees),
     ModelSolution('ADA-C', 'AdaBoost', ske.AdaBoostClassifier, default_adaboost,
-                  space_adaboost_classifier, 'classification', use_predict_proba=True, pp_default=pp_def_trees, pp_list=pp_list_trees),
+                  space_adaboost_classifier, 'classification', use_predict_proba=True, pp_default=pp_def_trees,
+                  pp_list=pp_list_trees),
     ModelSolution('KNN-C', 'Knn', knn.KNeighborsClassifier, default_knn,
-                  space_knn, 'classification', use_predict_proba=True, limit_size=10, pp_default=pp_def_knn, pp_list=pp_list_knn),
+                  space_knn, 'classification', use_predict_proba=True, limit_size=10, pp_default=pp_def_knn,
+                  pp_list=pp_list_knn),
     ModelSolution('SVC', 'SVM', svm.SVC, default_svc,
-                  space_svc, 'classification', use_predict_proba=True, limit_size=2, pp_default=pp_def_linear, pp_list=pp_list_linear),
+                  space_svc, 'classification', use_predict_proba=True, limit_size=2, pp_default=pp_def_linear,
+                  pp_list=pp_list_linear),
     ModelSolution('LOGIT', 'Logistic Regression', linear.LogisticRegression, default_logistic_regression,
                   space_logistic_regression, 'classification', use_predict_proba=True,
                   rule_params=rule_logistic, pp_default=pp_def_linear, pp_list=pp_list_linear),
@@ -97,19 +97,22 @@ model_solutions = [
     ModelSolution('NB-BERN', 'Naive Bayes  Bernoulli', nb.BernoulliNB, default_nb_bernoulli, space_nb_bernoulli,
                   'classification', use_predict_proba=True, pp_default=pp_def_linear, pp_list=pp_list_linear),
     ModelSolution('NN-C', 'Neural Networks', ModelNN, default_keras,
-                  space_keras, 'classification', is_wrapper=True, use_early_stopping=True,  rule_params=rule_nn,
+                  space_keras, 'classification', is_wrapper=True, use_early_stopping=True, rule_params=rule_nn,
                   selectable=import_keras, limit_size=100, pp_default=pp_def_NN, pp_list=pp_list_NN),
 
     # regressors
-    ModelSolution('LGBM-R', 'LightGBM', lgb.LGBMRegressor, default_sk_lightgbm_regressor,
-                  space_sk_lightgbm_regressor, 'regression', is_wrapper=False, use_early_stopping=True,
-                  early_stopping='LGBM', rule_params=rule_lightgbm, selectable=import_lgbm, pp_default=pp_def_lgbm, pp_list=pp_list_lgbm),
-    ModelSolution('XGB-R', 'XgBoost', xgb.XGBRegressor, default_sk_xgboost_regressor,
-                  space_sk_xgboost_regressor, 'regression', is_wrapper=False, use_early_stopping=True,
-                  early_stopping='XGB', rule_params=rule_xgboost, selectable=import_xgb, pp_default=pp_def_trees, pp_list=pp_list_trees),
+    ModelSolution('LGBM-R', 'LightGBM', lgb_LGBMRegressor, default_lightgbm_regressor,
+                  space_lightgbm_regressor, 'regression', is_wrapper=False, use_early_stopping=True,
+                  early_stopping='LGBM', rule_params=rule_lightgbm, selectable=import_lgbm, pp_default=pp_def_lgbm,
+                  pp_list=pp_list_lgbm),
+    ModelSolution('XGB-R', 'XgBoost', xgb_XGBRegressor, default_xgboost_regressor,
+                  space_xgboost_regressor, 'regression', is_wrapper=False, use_early_stopping=True,
+                  early_stopping='XGB', rule_params=rule_xgboost, selectable=import_xgb, pp_default=pp_def_trees,
+                  pp_list=pp_list_trees),
     ModelSolution('CAT-R', 'CatBoost', ModelCatboost, default_catboost_regressor,
                   space_catboost_regressor, 'regression', is_wrapper=True, use_early_stopping=True,
-                  rule_params=rule_catboost, selectable=import_catboost, pp_default=pp_def_trees, pp_list=pp_list_trees),
+                  rule_params=rule_catboost, selectable=import_catboost, pp_default=pp_def_trees,
+                  pp_list=pp_list_trees),
     ModelSolution('NN-R', 'Neural Networks', ModelNN, default_keras,
                   space_keras, 'regression', is_wrapper=True, use_early_stopping=True, rule_params=rule_nn,
                   selectable=import_keras, limit_size=100, pp_default=pp_def_NN, pp_list=pp_list_NN),
@@ -118,7 +121,8 @@ model_solutions = [
     ModelSolution('RF-R', 'Random Forest', ske.RandomForestRegressor, default_random_forest,
                   space_random_forest_regressor, 'regression', pp_default=pp_def_trees, pp_list=pp_list_trees),
     ModelSolution('GBM-R', 'Gradient Boosting', ske.GradientBoostingRegressor, default_gradient_boosting,
-                  space_gradient_boosting_regressor, 'regression', rule_params=rule_gbm, pp_default=pp_def_trees, pp_list=pp_list_trees),
+                  space_gradient_boosting_regressor, 'regression', rule_params=rule_gbm, pp_default=pp_def_trees,
+                  pp_list=pp_list_trees),
     ModelSolution('ADA-R', 'AdaBoost', ske.AdaBoostRegressor, default_adaboost,
                   space_adaboost_regressor, 'regression', pp_default=pp_def_trees, pp_list=pp_list_trees),
     ModelSolution('KNN-R', 'Knn', knn.KNeighborsRegressor, default_knn,
@@ -126,7 +130,8 @@ model_solutions = [
     ModelSolution('SVR', 'SVM', svm.SVR, default_svr,
                   space_svr, 'regression', limit_size=2, pp_default=pp_def_linear, pp_list=pp_list_linear),
     ModelSolution('LSVR', 'Linear SVR', svm.LinearSVR, default_linear_svr,
-                  space_linear_svr, 'regression', rule_params=rule_linear_svr, limit_size=10, pp_default=pp_def_linear, pp_list=pp_list_linear),
+                  space_linear_svr, 'regression', rule_params=rule_linear_svr, limit_size=10, pp_default=pp_def_linear,
+                  pp_list=pp_list_linear),
     ModelSolution('LR', 'Linear Regression', linear.LinearRegression, default_linear_regression,
                   space_linear_regression, 'regression', pp_default=pp_def_linear, pp_list=pp_list_linear),
     ModelSolution('RIDGE', 'Ridge Regression', linear.Ridge, default_ridge_regression,
@@ -141,12 +146,12 @@ model_solutions = [
     # ModelSolution('ENS', 'Ensemble Selection', ModelEnsembleSelection, default_ensemble, space_ensemble, '*', level=2),
 
     # ensemble classifiers
-    ModelSolution('STK-LGBM-C', 'Stacking LightGBM', ModelLightGBM, default_lightgbm_classifier,
-                  space_lightgbm_classifier, 'classification', is_wrapper=True, use_early_stopping=True, level=2,
-                  rule_params=rule_lightgbm, selectable=import_lgbm),
-    ModelSolution('STK-XGB-C', 'Stacking XgBoost', ModelXgBoost, default_xgboost_classifier,
-                  space_xgboost_classifier, 'classification', is_wrapper=True, use_early_stopping=True, level=2,
-                  rule_params=rule_xgboost, selectable=import_xgb),
+    ModelSolution('STK-LGBM-C', 'Stacking LightGBM', lgb_LGBMClassifier, default_lightgbm_classifier,
+                  space_lightgbm_classifier, 'classification', use_early_stopping=True, level=2,
+                  early_stopping='LGBM', rule_params=rule_lightgbm, selectable=import_lgbm),
+    ModelSolution('STK-XGB-C', 'Stacking XgBoost', xgb_XGBClassifier, default_xgboost_classifier,
+                  space_xgboost_classifier, 'classification', use_early_stopping=True, level=2,
+                  early_stopping='XGB', rule_params=rule_xgboost, selectable=import_xgb),
     ModelSolution('STK-NN-C', 'Stacking Neural Networks', ModelNN, default_keras,
                   space_keras, 'classification', is_wrapper=True, use_early_stopping=True, level=2,
                   rule_params=rule_nn, selectable=import_keras, limit_size=100),
@@ -162,12 +167,12 @@ model_solutions = [
                   level=2, rule_params=rule_logistic),
 
     # ensemble regressors
-    ModelSolution('STK-LGBM-R', 'Stacking LightGBM', ModelLightGBM, default_lightgbm_regressor,
-                  space_lightgbm_regressor, 'regression', is_wrapper=True, use_early_stopping=True, level=2,
-                  rule_params=rule_lightgbm, selectable=import_lgbm),
-    ModelSolution('STK-XGB-R', 'Stacking XgBoost', ModelXgBoost, default_xgboost_regressor,
-                  space_xgboost_regressor, 'regression', is_wrapper=True, use_early_stopping=True, level=2,
-                  rule_params=rule_xgboost, selectable=import_xgb),
+    ModelSolution('STK-LGBM-R', 'Stacking LightGBM', lgb_LGBMRegressor, default_lightgbm_regressor,
+                  space_lightgbm_regressor, 'regression', use_early_stopping=True, level=2,
+                  early_stopping='LGBM', rule_params=rule_lightgbm, selectable=import_lgbm),
+    ModelSolution('STK-XGB-R', 'Stacking XgBoost', xgb_XGBRegressor, default_xgboost_regressor,
+                  space_xgboost_regressor, 'regression', use_early_stopping=True, level=2,
+                  early_stopping='XGB', rule_params=rule_xgboost, selectable=import_xgb),
     ModelSolution('STK-NN-R', 'Stacking Neural Networks', ModelNN, default_keras,
                   space_keras, 'classification', is_wrapper=True, use_early_stopping=True, level=2,
                   rule_params=rule_nn, selectable=import_keras, limit_size=100),
