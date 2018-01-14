@@ -702,14 +702,16 @@ class Feature(object):
 
         # initialize type
         if col_type != '':
-            if col_type not in ['numerical', 'categorical', 'text']:
-                raise ValueError('feature %s col type: %s should be numerical, categorical or text' % (name, col_type))
+            if col_type not in ['numerical', 'categorical', 'text', 'date']:
+                raise ValueError('feature %s col type: %s should be numerical, date, categorical or text' % (name, col_type))
             self.col_type = col_type
         else:
             if raw_type.startswith('float'):
                 self.col_type = 'numerical'
             elif raw_type.startswith('int'):
                 self.col_type = 'numerical'
+            elif raw_type.startswith('datetime'):
+                self.col_type = 'date'
             else:
                 # raw_type in ['str', 'object']:
                 self.col_type = 'categorical'

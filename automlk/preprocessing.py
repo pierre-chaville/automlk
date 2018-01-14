@@ -94,6 +94,98 @@ class TransformerMissingFixed(Transformer):
         return X.fillna(0)
 
 
+class TransformerNumericLog(Transformer):
+    # class for transformation of numeric values (as float)
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        self.numeric_cols = [f['name'] for f in self.context if f['raw_type'] == 'float']
+
+    def transform(self, X):
+        for col in self.numeric_cols:
+            X[col + '__log'] = X[col].map(lambda x: np.log1p(x) if x > 0 else -1)
+        return X
+
+
+class TransformerNumericSqrt(Transformer):
+    # class for transformation of numeric values (as float)
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        self.numeric_cols = [f['name'] for f in self.context if f['raw_type'] == 'float']
+
+    def transform(self, X):
+        for col in self.numeric_cols:
+            X[col + '__sqrt'] = X[col].map(lambda x: np.sqrt(x) if x > 0 else -1)
+        return X
+
+
+class TransformerDatetime(Transformer):
+    # class for transformation of Datetime with year ... seconds
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        self.date_cols = [f['name'] for f in self.context if f['col_type'] == 'date']
+
+    def transform(self, X):
+        for col in self.date_cols:
+            # if raw type is not a date
+            if str(X[col].dtype) == 'object':
+                X[col] = pd.DatetimeIndex(X[col])
+            # add date features
+            X[col + '__year'] = X[col].map(lambda x: x.year)
+            X[col + '__month'] = X[col].map(lambda x: x.month)
+            X[col + '__day'] = X[col].map(lambda x: x.day)
+            X[col + '__dayofweek'] = X[col].map(lambda x: x.dayofweek)
+            X[col + '__hour'] = X[col].map(lambda x: x.hour)
+            X[col + '__second'] = X[col].map(lambda x: x.second)
+            # remove initial column
+            X.drop(col, axis=1, inplace=True)
+        return X
+
+
+class TransformerDate(Transformer):
+    # class for transformation of Datetime with year .. day
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        self.date_cols = [f['name'] for f in self.context if f['col_type'] == 'date']
+
+    def transform(self, X):
+        for col in self.date_cols:
+            # if raw type is not a date
+            if str(X[col].dtype) == 'object':
+                X[col] = pd.DatetimeIndex(X[col])
+            # add date features
+            X[col + '__year'] = X[col].map(lambda x: x.year)
+            X[col + '__month'] = X[col].map(lambda x: x.month)
+            X[col + '__day'] = X[col].map(lambda x: x.day)
+            X[col + '__dayofweek'] = X[col].map(lambda x: x.dayofweek)
+            # remove initial column
+            X.drop(col, axis=1, inplace=True)
+        return X
+
+
+class TransformerDateWoYear(Transformer):
+    # class for transformation of Datetime with month .. day
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        self.date_cols = [f['name'] for f in self.context if f['col_type'] == 'date']
+
+    def transform(self, X):
+        for col in self.date_cols:
+            # if raw type is not a date
+            if str(X[col].dtype) == 'object':
+                X[col] = pd.DatetimeIndex(X[col])
+            # add date features
+            X[col + '__month'] = X[col].map(lambda x: x.month)
+            X[col + '__day'] = X[col].map(lambda x: x.day)
+            X[col + '__dayofweek'] = X[col].map(lambda x: x.dayofweek)
+            # remove initial column
+            X.drop(col, axis=1, inplace=True)
+        return X
+
 class TransformerMissingFrequency(Transformer):
     # class for transformation of missing values depending on the missing frequency ratio
 

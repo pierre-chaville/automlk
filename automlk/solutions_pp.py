@@ -2,7 +2,7 @@ from .preprocessing import *
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 
-PP_CATEGORIES = ['categorical', 'missing', 'text', 'scaling', 'feature', 'sampling']
+PP_CATEGORIES = ['missing', 'categorical', 'float', 'date', 'text', 'scaling', 'feature']
 
 
 class PpSolution(object):
@@ -23,6 +23,23 @@ class PpSolution(object):
 
 # list of solutions
 pp_solutions = [
+    # solutions for missing values
+    PpSolution('MS-PASS', 'No missing', TransformerPassThrough, {}, {}, 'missing'),
+    PpSolution('MS-FIXED', 'Missing values fixed', TransformerMissingFixed, default_missing_fixed,
+               space_missing_fixed, 'missing'),
+    PpSolution('MS-FREQ', 'Missing values frequencies', TransformerMissingFrequency, default_missing_frequency,
+               space_missing_frequency, 'missing'),
+
+    # solutions for numerical values
+    PpSolution('FL-PASS', 'Float pass-through', TransformerPassThrough, {}, {}, 'float'),
+    PpSolution('FL-LOG', 'Float log1p', TransformerNumericLog, {}, {}, 'float'),
+    PpSolution('FL-SQRT', 'Float sqrt', TransformerNumericSqrt, {}, {}, 'float'),
+
+    # solutions for date values
+    PpSolution('DT-DT', 'Date YMD HS', TransformerDatetime, {}, {}, 'date'),
+    PpSolution('DT-YMD', 'Date YMD', TransformerDate, {}, {}, 'date'),
+    PpSolution('DT-MD', 'Date MD', TransformerDateWoYear, {}, {}, 'date'),
+
     # solutions for categorical encoding
     PpSolution('CE-PASS', 'No encoding', TransformerPassThrough, {}, {}, 'categorical'),
     PpSolution('CE-LAB', 'Label Encoder', TransformerLabel, {}, {}, 'categorical'),
@@ -32,12 +49,6 @@ pp_solutions = [
     PpSolution('CE-HASH', 'Hashing categorical', TransformerHashing, default_categorical, space_categorical,
                'categorical'),
 
-    # solutions for missing values
-    PpSolution('MS-PASS', 'No missing', TransformerPassThrough, {}, {}, 'missing'),
-    PpSolution('MS-FIXED', 'Missing values fixed', TransformerMissingFixed, default_missing_fixed,
-               space_missing_fixed, 'missing'),
-    PpSolution('MS-FREQ', 'Missing values frequencies', TransformerMissingFrequency, default_missing_frequency,
-               space_missing_frequency, 'missing'),
 
     # solutions for text processing
     PpSolution('TX-BOW', 'Bag of words', TransformerBOW, default_textset_bow, space_textset_bow, 'text'),
@@ -73,44 +84,53 @@ pp_solutions = [
     PpSolution('SP-PASS', 'No re-sampling', NoSampling, {}, {}, 'sampling'),
     PpSolution('SP-ROS', 'Random Over', RandomOverSampler, {}, {}, 'sampling'),
     PpSolution('SP-SMOTE', 'SMOTE', SMOTE, {}, {}, 'sampling'),
-
 ]
 
 # mapping table
 pp_solutions_map = {s.ref: s for s in pp_solutions}
 
 # default pre-processing lists
-pp_def_lgbm = ['CE-LAB', 'MS-FIXED', 'TX-W2V', 'SC-PASS', 'FR-PASS']
-pp_def_trees = ['CE-LAB', 'MS-FIXED', 'TX-W2V', 'SC-PASS', 'FR-PASS']
-pp_def_knn = ['CE-HOT', 'MS-FIXED', 'TX-W2V', 'SC-STD', 'FR-PASS']
-pp_def_linear = ['CE-HOT', 'MS-FIXED', 'TX-W2V', 'SC-ROBUST', 'FR-PASS']
-pp_def_NN = ['CE-HOT', 'MS-FIXED', 'TX-W2V', 'SC-MINMAX', 'FR-PASS']
+pp_def_lgbm = ['MS-FIXED', 'FL-PASS', 'DT-DT', 'CE-LAB', 'TX-W2V', 'SC-PASS', 'FR-PASS']
+pp_def_trees = ['MS-FIXED', 'FL-PASS', 'DT-DT', 'CE-LAB', 'TX-W2V', 'SC-PASS', 'FR-PASS']
+pp_def_knn = ['MS-FIXED', 'FL-PASS', 'DT-DT', 'CE-HOT', 'TX-W2V', 'SC-STD', 'FR-PASS']
+pp_def_linear = ['MS-FIXED', 'FL-LOG', 'DT-DT', 'CE-HOT', 'TX-W2V', 'SC-ROBUST', 'FR-PASS']
+pp_def_NN = ['MS-FIXED', 'FL-LOG', 'DT-DT', 'CE-HOT', 'TX-W2V', 'SC-MINMAX', 'FR-PASS']
 
 pp_list_lgbm = ['CE-LAB', 'CE-HOT', 'CE-BASE', 'CE-HASH',
+                'FL-PASS', 'FL-LOG', 'FL-SQRT',
+                'DT-DT', 'DT-YMD', 'DT-MD',
                 'MS-FIXED', 'MS-FREQ',
                 'TX-BOW', 'TX-W2V', 'TX-D2V',
                 'SC-PASS', 'SC-STD', 'SC-MINMAX', 'SC-MAXABS', 'SC-ROBUST',
                 'FR-PASS', 'FR-SVD', 'FR-ICA', 'FR-PCA', 'FR-RFR', 'FR-RFC', 'FR-LR']
 
 pp_list_trees = ['CE-LAB', 'CE-HOT', 'CE-BASE', 'CE-HASH',
+                 'FL-PASS', 'FL-LOG', 'FL-SQRT',
+                 'DT-DT', 'DT-YMD', 'DT-MD',
                  'MS-FIXED', 'MS-FREQ',
                  'TX-BOW', 'TX-W2V', 'TX-D2V',
                  'SC-PASS', 'SC-STD', 'SC-MINMAX', 'SC-MAXABS', 'SC-ROBUST',
                  'FR-PASS', 'FR-SVD', 'FR-ICA', 'FR-PCA', 'FR-RFR', 'FR-RFC', 'FR-LR']
 
 pp_list_knn = ['CE-HOT', 'CE-BASE', 'CE-HASH',
+               'FL-PASS', 'FL-LOG', 'FL-SQRT',
+               'DT-DT', 'DT-YMD', 'DT-MD',
                'MS-FIXED', 'MS-FREQ',
                'TX-BOW', 'TX-W2V', 'TX-D2V',
                'SC-STD', 'SC-MINMAX', 'SC-MAXABS', 'SC-ROBUST',
                'FR-PASS', 'FR-SVD', 'FR-ICA', 'FR-PCA', 'FR-RFR', 'FR-RFC', 'FR-LR']
 
 pp_list_linear = ['CE-HOT', 'CE-BASE', 'CE-HASH',
+                  'FL-PASS', 'FL-LOG', 'FL-SQRT',
+                  'DT-DT', 'DT-YMD', 'DT-MD',
                   'MS-FIXED', 'MS-FREQ',
                   'TX-BOW', 'TX-W2V', 'TX-D2V',
                   'SC-STD', 'SC-MINMAX', 'SC-MAXABS', 'SC-ROBUST',
                   'FR-PASS', 'FR-SVD', 'FR-ICA', 'FR-PCA', 'FR-RFR', 'FR-RFC', 'FR-LR']
 
 pp_list_NN = ['CE-HOT', 'CE-BASE', 'CE-HASH',
+              'FL-PASS', 'FL-LOG', 'FL-SQRT',
+              'DT-DT', 'DT-YMD', 'DT-MD',
               'MS-FIXED', 'MS-FREQ',
               'TX-BOW', 'TX-W2V', 'TX-D2V',
               'SC-STD', 'SC-MINMAX', 'SC-MAXABS', 'SC-ROBUST',

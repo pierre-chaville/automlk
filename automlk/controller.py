@@ -313,6 +313,16 @@ def __get_pipeline(dataset, solution, default_mode, i_round, df, threshold):
     if len(dataset.missing_cols) > 0:
         pipeline.append(__get_pp_choice(dataset, 'missing', solution, default_mode, i_round, best_pp, threshold))
 
+    # numerical values
+    numeric_cols = [f.name for f in dataset.features if f.raw_type.startswith('float')]
+    if len(numeric_cols) > 0:
+        pipeline.append(__get_pp_choice(dataset, 'float', solution, default_mode, i_round, best_pp, threshold))
+
+    # date values
+    date_cols = [f.name for f in dataset.features if f.col_type == 'date']
+    if len(date_cols) > 0:
+        pipeline.append(__get_pp_choice(dataset, 'date', solution, default_mode, i_round, best_pp, threshold))
+
     # X pre-processing: text
     if len(dataset.text_cols) > 0:
         pipeline.append(__get_pp_choice(dataset, 'text', solution, default_mode, i_round, best_pp, threshold))
@@ -347,13 +357,26 @@ def __get_pp_choice(dataset, category, solution, default_mode, i_round, best_pp,
         return '', category, '', {}
 
     i_pp = i_round % len(choices)
-    ref = choices[i_pp]
+    ref = __check_ref(choices[i_pp], category)
     s = pp_solutions_map[ref]
     if default_mode:
         params = s.default_params
     else:
         params = get_random_params(s.space_params)
     return ref, category, s.name, params
+
+
+def __check_ref(ref, category):
+    """
+    upward compatibilty of references
+
+    :param ref: input ref
+    :param category: category of processing
+    :return: updated ref
+    """
+    if ref == '' and category == 'float':
+        return 'FL-PASS'
+    return ref
 
 
 def __get_pp_list(dataset, category, solution, default_mode):

@@ -113,7 +113,7 @@ def __pre_processing(dataset, pipeline, ds):
     # performs the different pre-processing steps
     pipe = []
     feature_names = None
-    p_context = [{'name': f.name, 'col_type': f.col_type, 'n_missing': int(f.n_missing),
+    p_context = [{'name': f.name, 'col_type': f.col_type, 'raw_type': f.raw_type, 'n_missing': int(f.n_missing),
                   'n_unique_values': int(f.n_unique_values), 'text_ref': f.text_ref}
                  for f in dataset.features if f.name in dataset.x_cols]
     for ref, category, name, params in pipeline:
