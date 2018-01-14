@@ -266,6 +266,10 @@ def __create_stacking(dataset, pool, ds):
     if len(ds.X_submit) > 0:
         ds.X_submit.columns = feature_names
 
+    # X and y for fit
+    ds.X = pd.concat([ds.X_train, ds.X_test])
+    ds.y = np.concatenate((ds.y_train, ds.y_test))
+
     return ds
 
 
