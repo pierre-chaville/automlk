@@ -2,30 +2,43 @@
 {% block content %}
 
 <h3>Monitor activity</h3>
-<table class="table table-bordered table-hover">
-    <thead>
-    <th>server</th>
-    <th>version</th>
-    <th>cpu</th>
-    <th>memory</th>
-    <th>job</th>
-    <th>time</th>
-    </thead>
-<tr><td colspan="5"><h4>Controller</h4></td></tr>
+<h4>Controller</h4>
+    {% if controller|count > 0 %}
     {% for p in controller %}
     {% include "processes.html" %}
     {% endfor %}
-<tr><td colspan="5"><h4>{{ workers|count }} Workers</h4></td></tr>
+    {% else %}
+    <p><i>&nbsp;&nbsp;&nbsp;&nbsp;No controller found</i></p><br>
+    {% endif %}
+<h4>Worker graphs</h4>
+    {% if grapher|count > 0 %}
+    {% for p in grapher %}
+    {% include "processes.html" %}
+    {% endfor %}
+    {% else %}
+    <p><i>&nbsp;&nbsp;&nbsp;&nbsp;No grapher found</i></p><br>
+    {% endif %}
+<h4>Worker text sets</h4>
+    {% if worker_text|count > 0 %}
+    {% for p in worker_text %}
+    {% include "processes.html" %}
+    {% endfor %}
+    {% else %}
+    <p><i>&nbsp;&nbsp;&nbsp;&nbsp;No worker_text found</i></p><br>
+    {% endif %}
+<h4>{{ workers|count }} Workers</h4>
+    {% if workers|count > 0 %}
     {% for p in workers %}
     {% include "processes.html" %}
     {% endfor %}
-
-</table>
+    {% else %}
+    <p><i>&nbsp;&nbsp;&nbsp;&nbsp;No worker found</i></p>
+    {% endif %}
 
 <script>
     setInterval(function() {
       window.location.reload();
-    }, 30000);
+    }, 10000);
 
 </script>
 

@@ -42,13 +42,15 @@
                     <table class="table table-bordered table-striped table-hover">
                         <tr>
                             <td>cv</td>
-                            <td>{{ print_score(round.cv_mean) }} +/- {{ print_score(round.cv_std) }}, {{
-                                print_score(round.cv_max) }}
+                            <td>{{print_score(round.cv_mean) }}&nbsp;{% if round.cv %}+/-{{ print_score_std(round.cv_std) }}&nbsp;
+                                {{print_score(round.cv_max) }}{% else %}&nbsp;(1 fold)</span>
+                                {% endif %}
                             </td>
                         </tr>
                         <tr>
                             <td>score eval</td>
-                            <td>{{ print_score(round.score_eval) }}</td>
+                            <td>{{print_score(round.score_eval) }}{% if round.pct < 1 %}&nbsp;
+                                ({{(round.pct*100)|int}} %){% endif %}</td>
                         </tr>
                         <tr>
                             <td>score test</td>
@@ -277,6 +279,7 @@
 
 <script>
 w3.includeHTML();
+
 </script>
 
 {% endblock %}

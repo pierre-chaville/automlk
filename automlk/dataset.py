@@ -37,6 +37,13 @@ def get_dataset_list(include_results=False):
     #    return []
 
 
+def get_dataset_status(dataset_id):
+    """
+    get the status of a dataset
+    """
+    return get_key_store('dataset:%s:status' % dataset_id)
+
+
 def get_dataset(dataset_id, include_results=False):
     """
     get the descriptive data of a dataset
@@ -67,12 +74,16 @@ def get_dataset(dataset_id, include_results=False):
     # upward compatibility for prob_data
     if 'prob_data' not in d.keys():
         prob_keys = ['problem_type', 'y_col', 'metric', 'other_metrics', 'val_col', 'cv_folds', 'val_col_shuffle',
-                     'sampling', 'holdout_ratio', 'col_submit']
+                     'scan', 'holdout_ratio', 'col_submit']
         d['prob_data'] = {}
         for key in prob_keys:
             if key in d['init_data'].keys():
                 d['prob_data'][key] = d['init_data'][key]
                 d['init_data'].pop(key)
+    if 'sampling' in d['prob_data'].keys():
+        d['prob_data'].pop('sampling')
+    if 'scan' not in d['prob_data'].keys():
+        d['prob_data']['scan'] = False
 
     # upward compatibility for calc_data
     if 'calc_data' not in d.keys():
@@ -91,8 +102,6 @@ def get_dataset(dataset_id, include_results=False):
         d['calc_data']['text_cols'] = []
     if 'textref_cols' not in d['calc_data'].keys():
         d['calc_data']['textref_cols'] = []
-    if 'sampling' not in d['prob_data'].keys():
-        d['prob_data']['sampling'] = False
 
     # then load dataset object
     dt = DataSet(**d['init_data'])
@@ -218,7 +227,7 @@ def update_feature_dataset(dataset_id, name, description, to_keep, col_type, tex
 
 
 def update_problem_dataset(dataset_id, problem_type, y_col, metric, other_metrics, val_col, cv_folds, val_col_shuffle,
-                           sampling, holdout_ratio, col_submit):
+                           scan, holdout_ratio, col_submit):
     """
     updates the problem type of a dataset
 
@@ -230,13 +239,13 @@ def update_problem_dataset(dataset_id, problem_type, y_col, metric, other_metric
     :param val_col: column name to perform the cross validation (default = 'index')
     :param cv_folds: number of cross validation folds (default = 5)
     :param val_col_shuffle: need to shuffle in cross validation (default = false)
-    :param sampling: use re-sampling pre-processing (default = false)
+    :param scan: scan performance on partial data (20%, 40%, .., 100%)
     :param holdout_ratio: holdout ration to split train / eval set
     :param col_submit: column to use in the submit file
     """
     dt = get_dataset(dataset_id)
     dt.update_problem(problem_type, y_col, metric, other_metrics, val_col, cv_folds, val_col_shuffle,
-                      sampling, holdout_ratio, col_submit)
+                      scan, holdout_ratio, col_submit)
     dt.update_y_data()
     dt.update_calc()
     dt.save(dataset_id)
@@ -374,7 +383,7 @@ class DataSet(object):
         self.val_col = ''
         self.cv_folds = 5
         self.val_col_shuffle = True
-        self.sampling = False
+        self.scan = False
         self.holdout_ratio = 0.2
         self.col_submit = ''
         self.n_cat_cols = 0
@@ -431,7 +440,7 @@ class DataSet(object):
     def update_calc(self):
         # update calculated indicators on columns
         self.x_cols = [col.name for col in self.features if
-                       col.to_keep and (col.name not in [self.y_col, self.val_col])]
+                       col.to_keep and (col.name not in [self.y_col])]
         self.cat_cols = [col.name for col in self.features if
                          (col.name in self.x_cols) and (col.col_type == 'categorical')]
         self.text_cols = [col.name for col in self.features if (col.name in self.x_cols) and (col.col_type == 'text')]
@@ -440,7 +449,7 @@ class DataSet(object):
         self.n_missing = len(self.missing_cols)
         self.n_cat_cols = len(self.cat_cols)
 
-    def update_problem(self, problem_type, y_col, metric, other_metrics, val_col, cv_folds, val_col_shuffle, sampling,
+    def update_problem(self, problem_type, y_col, metric, other_metrics, val_col, cv_folds, val_col_shuffle, scan,
                        holdout_ratio, col_submit, best_is_min=True):
         # update problem data
         """
@@ -453,7 +462,7 @@ class DataSet(object):
         :param val_col: column name to perform the cross validation (default = 'index')
         :param cv_folds: number of cross validation folds (default = 5)
         :param val_col_shuffle: need to shuffle in cross validation (default = false)
-        :param sampling: use re-sampling pre-processing (default = false)
+        :param scan: scan performance on partial data (20%, 40%, .., 100%)
         :param holdout_ratio: holdout ration to split train / eval set
         :param col_submit: column to use in the submit file
         :param best_is_min: best is min flag required is metric == 'specific' (else we use from metric definition)
@@ -489,7 +498,7 @@ class DataSet(object):
         # validation & cross validation
         self.val_col = val_col
         self.val_col_shuffle = val_col_shuffle
-        self.sampling = sampling
+        self.scan = scan
         if (cv_folds < 1) or (cv_folds > 20):
             raise ValueError('cv folds must be in range 1 to 20')
         self.cv_folds = cv_folds
@@ -530,7 +539,7 @@ class DataSet(object):
                  'prob_data': {'problem_type': self.problem_type, 'y_col': self.y_col,
                                'metric': self.metric, 'other_metrics': self.other_metrics,
                                'val_col': self.val_col, 'cv_folds': self.cv_folds,
-                               'val_col_shuffle': self.val_col_shuffle, 'sampling': self.sampling,
+                               'val_col_shuffle': self.val_col_shuffle, 'scan': self.scan,
                                'holdout_ratio': self.holdout_ratio, 'col_submit': self.col_submit},
                  'calc_data': {'n_cat_cols': self.n_cat_cols, 'n_missing': self.n_missing,
                                'x_cols': self.x_cols, 'text_cols': self.text_cols,

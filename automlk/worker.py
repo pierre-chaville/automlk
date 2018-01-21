@@ -1,7 +1,11 @@
 import eli5
+import threading
+import _thread
+import sys
+import os
 from copy import deepcopy
 from .config import *
-from .dataset import get_dataset
+from .dataset import get_dataset, get_dataset_status
 from .graphs import graph_histogram_regression, graph_histogram_classification, graph_predict_regression, \
     graph_predict_classification
 from .prepare import get_eval_sets
@@ -29,43 +33,74 @@ def get_search_rounds(dataset_id):
     return pd.DataFrame(results)
 
 
-def launch_worker():
+def __timer_control(f_stop):
+    global __worker_timer_start
+    global __worker_timer_limit
+    global __worker_dataset
+
+    t = time.time()
+    # check if duration > max
+    if (__worker_timer_limit > 0) and (t - __worker_timer_start > __worker_timer_limit):
+        f_stop.set()
+        log.info('max delay %d seconds reached...' % __worker_timer_limit)
+        _thread.interrupt_main()
+
+    # check dataset is in searching model
+    if __worker_dataset != '':
+        if get_dataset_status(__worker_dataset) != 'searching':
+            f_stop.set()
+            log.info('dataset %s is no more in searching mode, aborting...' % __worker_dataset)
+            _thread.interrupt_main()
+
+    if not f_stop.is_set():
+        # call again in 10 seconds
+        threading.Timer(10, __timer_control, [f_stop]).start()
+
+
+def worker_loop(worker_id, gpu=False):
     """
     periodically pool the receiver queue for a search job
-
+    :param worker_id: index of the worker on this machine
+    :param gpu: can use gpu on this machine
     :return:
     """
-    # check version
-    if not check_installed_version():
-        update_version()
-        exit()
-
-    init_timer_worker()
-    msg_search = ''
+    global __worker_timer_start
+    global __worker_timer_limit
+    global __worker_dataset
+    __worker_dataset = ''
+    __worker_timer_start = 0
+    __worker_timer_limit = 0
+    f_stop = threading.Event()
+    # start calling f now and every 60 sec thereafter
+    __timer_control(f_stop)
     while True:
-        # try:
-        # poll queue
-        msg_search = brpop_key_store('controller:search_queue')
-        heart_beep('worker', msg_search)
-        if msg_search != None:
-            log.info('received %s' % msg_search)
-            msg_search = {**msg_search, **{'start_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                           'host_name': socket.gethostname()}}
-            start_timer_worker(msg_search['time_limit'])
-            job_search(msg_search)
-            stop_timer_worker()
-        """
+        try:
+            # poll queue
+            msg_search = brpop_key_store('controller:search_queue')
+            heart_beep('worker', msg_search, worker_id, gpu)
+            __worker_timer_start = time.time()
+            __worker_timer_limit = 0
+            __worker_dataset = ''
+            if msg_search is not None:
+                __worker_dataset = msg_search['dataset_id']
+                __worker_timer_limit = msg_search['time_limit']
+                log.info('received %s' % msg_search)
+                msg_search = {**msg_search, **{'start_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                               'host_name': socket.gethostname()}}
+                job_search(msg_search)
         except KeyboardInterrupt:
             log.info('Keyboard interrupt: exiting')
-            abort_timer_worker()
+            # stop the timer thread
+            f_stop.set()
             exit()
         except Exception as e:
-            log.error(e)
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            log.error('%s in %s line:%s error: %s' % (exc_type.__name__, fname, str(exc_tb.tb_lineno), str(e)))
             with open(get_data_folder() + '/errors.txt', 'a') as f:
                 f.write(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + str(msg_search) + '\n')
-                f.write(str(e) + '\n')
+                f.write('%s in %s line:%s error: %s' % (exc_type.__name__, fname, str(exc_tb.tb_lineno), str(e)) + '\n')
                 f.write('-'*80 + '\n')
-        """
 
 
 def job_search(msg_search):
@@ -140,8 +175,10 @@ def __search(dataset, feature_names, solution, pipe_transform, pipe_model, model
     round_id = msg_search['round_id']
     level = msg_search['level']
     threshold = msg_search['threshold']
+    pct = msg_search['pct']
+    cv = msg_search['cv']
 
-    outlier, y_pred_eval_list, y_pred_test, y_pred_submit = __cross_validation(solution, model, dataset, ds, threshold)
+    outlier, y_pred_eval_list, y_pred_test, y_pred_submit, ds = __cross_validation(solution, model, dataset, ds, threshold, pct, cv)
 
     if hasattr(model, 'num_rounds'):
         msg_search['num_rounds'] = model.num_rounds
@@ -160,7 +197,7 @@ def __search(dataset, feature_names, solution, pipe_transform, pipe_model, model
         __save_importance(model, dataset, feature_names, round_id)
 
     # create eval and submit results
-    y_pred_eval = __create_eval_submit(dataset, ds, round_id, y_pred_eval_list, y_pred_submit)
+    y_pred_eval = __create_eval_submit(dataset, ds, round_id, y_pred_eval_list, y_pred_submit, cv)
 
     # save predictions (eval and test set)
     pickle.dump([y_pred_eval, y_pred_test, y_pred_submit],
@@ -187,16 +224,18 @@ def __search(dataset, feature_names, solution, pipe_transform, pipe_model, model
     __explain_model(dataset, msg_search['round_id'], pipe_model, model, feature_names)
 
 
-def __cross_validation(solution, model, dataset, ds, threshold):
+def __cross_validation(solution, model, dataset, ds, threshold, pct, cv):
     # performs a cross validation on cv_folds, and predict also on X_test
     y_pred_eval, y_pred_test, y_pred_submit = [], [], []
     for i, (train_index, eval_index) in enumerate(ds.cv_folds):
-        X1, y1 = ds.X_train.iloc[train_index], ds.y_train[train_index]
+        # use only a percentage of data (default is 100% )
+        train_index1 = train_index[:int(len(train_index)*pct)]
+        X1, y1 = ds.X_train.iloc[train_index1], ds.y_train[train_index1]
         X2, y2 = ds.X_train.iloc[eval_index], ds.y_train[eval_index]
         if i == 0 and solution.use_early_stopping:
             log.info('early stopping round')
             if __fit_early_stopping(solution, model, dataset, threshold, X1, y1, X2, y2):
-                return True, 0, 0, 0
+                return True, 0, 0, 0, ds
 
         # then train on train set and predict on eval set
         model.fit(X1, y1)
@@ -207,12 +246,21 @@ def __cross_validation(solution, model, dataset, ds, threshold):
             score = __evaluate_metric(dataset, y2, y_pred)
             if score > threshold:
                 log.info('%dth round found outlier: %.5f with threshold %.5f' % (i, score, threshold))
-                return True, 0, 0, 0
+                return True, 0, 0, 0, ds
 
         y_pred_eval.append(y_pred)
 
         # we also predict on test & submit set (to be averaged later)
         y_pred_test.append(__predict(solution, model, ds.X_test))
+
+        if not cv:
+            # we stop at the first fold
+            y_pred_test = y_pred_test[0]
+            if dataset.mode == 'competition':
+                y_pred_submit = __predict(solution, model, ds.X_submit)
+            # update y_train on fold, in order to compute metrics and graphs
+            ds.y_train = y2
+            return False, y_pred_eval, y_pred_test, y_pred_submit, ds
 
     if dataset.mode == 'standard':
         # train on complete train set
@@ -228,7 +276,7 @@ def __cross_validation(solution, model, dataset, ds, threshold):
         else:
             y_pred_test = __predict(solution, model, ds.X_test)
 
-    return False, y_pred_eval, y_pred_test, y_pred_submit
+    return False, y_pred_eval, y_pred_test, y_pred_submit, ds
 
 
 def __create_stacking(dataset, pool, ds):
@@ -273,14 +321,16 @@ def __create_stacking(dataset, pool, ds):
     return ds
 
 
-def __create_eval_submit(dataset, ds, round_id, y_pred_eval_list, y_pred_submit):
+def __create_eval_submit(dataset, ds, round_id, y_pred_eval_list, y_pred_submit, cv):
     # create eval and submit results from lists
 
-    # y_pred_eval as concat of folds
-    y_pred_eval = np.concatenate(y_pred_eval_list)
-
-    # reindex eval to be aligned with y
-    y_pred_eval[ds.i_eval] = y_pred_eval.copy()
+    if cv:
+        # y_pred_eval as concat of folds
+        y_pred_eval = np.concatenate(y_pred_eval_list)
+        # reindex eval to be aligned with y
+        y_pred_eval[ds.i_eval] = y_pred_eval.copy()
+    else:
+        y_pred_eval = y_pred_eval_list[0]
 
     # generate submit file
     if dataset.filename_submit != '':
@@ -413,7 +463,7 @@ def __get_pool_models(dataset, depth):
     df = get_search_rounds(dataset.dataset_id)
 
     # keep only the first (depth) models of level 0
-    df = df[(df.level == 1) & (df.score_eval != METRIC_NULL)].sort_values(by=['model_name', 'score_eval'])
+    df = df[((df.level == 1) & (df.score_eval != METRIC_NULL)) & df.cv].sort_values(by=['model_name', 'score_eval'])
     round_ids = []
     model_names = []
     k_model = ''

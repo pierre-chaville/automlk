@@ -172,6 +172,48 @@ def graph_history_search(dataset, df_search, best_models, level):
         log.error('error in graph_history_search with dataset_id %s' % dataset.dataset_id)
 
 
+def graph_history_scan(dataset, df_search, best_models):
+    """
+    creates a graph of scores with various percentages of data (20%, 40%, .., 100%) for the 5 best models
+
+    :param dataset: dataset object
+    :param df_search: dataframe of the search history
+    :param best_models: selection within df_search with best models
+    :return: None
+    """
+    try:
+        df = df_search[df_search.model_name.isin(best_models)]
+        if len(df) < 1:
+            return
+
+        if dataset.best_is_min:
+            # positive scores (e.g loss or error: min is best)
+            y_lim1, y_lim2 = __standard_range(df.cv_mean.abs(), 0, 100)
+            y_lim1 -= (y_lim2 - y_lim1) * 0.1
+        else:
+            # negative scores (e.g. auc: max is best)
+            y_lim1, y_lim2 = __standard_range(df.cv_mean.abs(), 0, 100)
+            y_lim2 += (y_lim2 - y_lim1) * 0.1
+
+        for dark, theme in [(True, 'dark_background'), (False, 'seaborn-whitegrid')]:
+            with plt.style.context(theme, after_reset=True):
+                plt.figure(figsize=(6, 6))
+                for model_name in best_models[::-1]:
+                    scan_scores = df[df.model_name == model_name].sort_values(by='pct')
+                    plt.plot(scan_scores.pct.values, np.abs(scan_scores.cv_mean.values), label=model_name)
+                plt.title('performance on data')
+                plt.xlabel('% data')
+                plt.ylabel('score')
+                plt.ylim(y_lim1, y_lim2)
+                if dataset.best_is_min:
+                    plt.legend(loc=1)
+                else:
+                    plt.legend(loc=4)
+                __save_fig(dataset.dataset_id, '_scan', dark)
+    except:
+        log.error('error in graph_history_scan with dataset_id %s' % dataset.dataset_id)
+
+
 def graph_predict_regression(dataset, round_id, y, y_pred, part='eval'):
     """
     generate a graph prediction versus actuals

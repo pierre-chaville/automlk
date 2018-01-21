@@ -57,7 +57,7 @@ class StartDatasetForm(FlaskForm):
     val_col = SelectField(choices=[])
     val_col_shuffle = BooleanField(default=True)
 
-    sampling = BooleanField(default=False)
+    scan = BooleanField(default=False)
 
     def set_metrics_choices(self, specific_name, specific_content):
         if specific_content != '':

@@ -51,7 +51,6 @@ def get_home_best():
                 dt.best_cv_mean = best['cv_mean']
                 dt.best_cv_std = best['cv_std']
                 dt.best_cv_max = best['cv_max']
-
     return datasets
 
 
@@ -75,7 +74,10 @@ def get_best_pp(dataset_id):
 
 def get_best_details(df, model_name):
     # get the best results for a model
-    best = df[df.model_name == model_name].sort_values(by='cv_max')
+    if len(df[(df.model_name == model_name) & df.cv]) > 0:
+        best = df[(df.model_name == model_name) & df.cv].sort_values(by='cv_mean')
+    else:
+        best = df[df.model_name == model_name].sort_values(by='cv_mean')
 
     # create params detailed dataframe
     params = []
@@ -123,8 +125,14 @@ def __select_process(process, pipeline):
     return '', '', '', ''
 
 
-def get_best_details_pp(df, process_name):
+def get_best_details_pp(df0, process_name):
     # get the best results for a model
+
+    if len(df0[df0.cv]) > 0:
+        df = df0[df0.cv]
+    else:
+        df = df0
+
     df['is_selected'] = df.pipeline.map(lambda x: __select_process(process_name, x)[2] != '')
     df = df[df.is_selected]
 
@@ -230,7 +238,7 @@ def create_predict_file(dataset_id, round_id):
     # load prediction results
     y_pred_eval, y_pred_test, y_pred_submit = get_pred_eval_test(dataset_id, round_id)
 
-    cols = dataset.x_cols
+    cols = list(df.columns)
     if dataset.problem_type == 'regression':
         df['_predict'] = y_pred_eval
         df['_actual'] = ds.y_train

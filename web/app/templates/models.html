@@ -1,4 +1,4 @@
-<h5>found in {{best|count}} models and {{n_searches}} configurations</h5>
+<h5>found in {{best|count}} models and {{n_searches}} configurations in {{ dataset.round_counter}} searches</h5>
 <table class="table table-bordered">
     <thead>
     <th>model</th>
@@ -22,14 +22,14 @@
         </td>
         <td style="text-align:center">
             <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">
-                {{print_score(r.cv_mean) }}<br>+/-{{ print_score_std(r.cv_std) }}<br>
-                {{print_score(r.cv_max) }}</a>
+                {{print_score(r.cv_mean) }}<br>{% if r.cv %}+/-{{ print_score_std(r.cv_std) }}<br>
+                {{print_score(r.cv_max) }}</a>{% else %}<span class="label label-default">1 fold</span>{% endif %}
             <a href="/details/{{dataset.dataset_id}};{{r.model_name}}"
                style="font-size:18px; color:inherit; text-decoration: none;"></a>
         </td>
         <td style="text-align:center">
             <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">{{
-                print_score(r.score_eval) }}</a>
+                print_score(r.score_eval) }}{% if r.pct < 1 %}<br><span class="label label-default">{{(r.pct*100)|int}} %</span>{% endif %}</a>
         </td>
         <td style="text-align:center">
             <a href="/details/{{dataset.dataset_id}};{{r.model_name}}" style="color:inherit; text-decoration: none;">{{

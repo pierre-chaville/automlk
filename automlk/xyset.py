@@ -2,7 +2,7 @@
 
 class XySet(object):
     def __init__(self, X, y, X_train, y_train, X_test, y_test, X_submit,
-                 id_submit, cv_folds, y_eval_list, y_eval, i_eval):
+                 id_submit, cv_folds, y_eval_list, y_eval, i_eval, i_eval0):
         """
         this class stores the various data required for analysis and hyepr-optimisation
 
@@ -18,6 +18,7 @@ class XySet(object):
         :param y_eval_list: list of folds, with indexes for each fold
         :param y_eval: y for the eval set
         :param i_eval: indexes for the eval set
+        :param i_eval: indexes for the 1st round of the eval set
         """
         self.X = X
         self.y = y
@@ -31,3 +32,4 @@ class XySet(object):
         self.y_eval_list = y_eval_list
         self.y_eval = y_eval
         self.i_eval = i_eval
+        self.i_eval0 = i_eval0

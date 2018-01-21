@@ -4,18 +4,14 @@ rules to check a set of parameters
 """
 
 
-def rule_logistic(dataset, default_mode, params):
+def rule_logistic(dataset, params):
     """
     check params for logistic regression specifically
 
     :param dataset:
     :param params: params
-    :param default_mode: if default mode
     :return: updated params
     """
-    if default_mode:
-        return params
-
     # For multiclass problems, only ‘newton-cg’, ‘sag’, ‘saga’ and ‘lbfgs’ handle multinomial loss
     # ‘liblinear’ is limited to one-versus-rest schemes
     if params['solver'] == 'liblinear':
@@ -36,35 +32,27 @@ def rule_logistic(dataset, default_mode, params):
     return params
 
 
-def rule_gbm(dataset, default_mode, params):
+def rule_gbm(dataset, params):
     """
     check params for gradient boosting specifically
 
     :param dataset:
     :param params: params
-    :param default_mode: if default mode
     :return: updated params
     """
-    if default_mode:
-        return params
-
     if dataset.problem_type == 'classification' and dataset.y_n_classes > 2:
         params['loss'] = 'deviance'
     return params
 
 
-def rule_linear_svr(dataset, default_mode, params):
+def rule_linear_svr(dataset, params):
     """
     check params for logistic regression specifically
 
     :param dataset:
     :param params: params
-    :param default_mode: if default mode
     :return: updated params
     """
-    if default_mode:
-        return params
-
     if params['loss'] == 'squared_epsilon_insensitive':
         params['dual'] = False
 
@@ -74,13 +62,12 @@ def rule_linear_svr(dataset, default_mode, params):
     return params
 
 
-def rule_catboost(dataset, default_mode, params):
+def rule_catboost(dataset, params):
     """
     check params for logistic regression specifically
 
     :param dataset:
     :param params: params
-    :param default_mode: if default mode
     :return: updated params
     """
     if dataset.problem_type == 'classification':
@@ -92,13 +79,12 @@ def rule_catboost(dataset, default_mode, params):
     return params
 
 
-def rule_lightgbm(dataset, default_mode, params):
+def rule_lightgbm(dataset, params):
     """
     check params for lightgbm specifically
 
     :param dataset:
     :param params: params
-    :param default_mode: if default mode
     :return: updated params
     """
     if dataset.problem_type == 'classification' and dataset.y_n_classes > 2:
@@ -116,13 +102,12 @@ def rule_lightgbm(dataset, default_mode, params):
     return params
 
 
-def rule_xgboost(dataset, default_mode, params):
+def rule_xgboost(dataset, params):
     """
     check params for xgboost specifically
 
     :param dataset:
     :param params: params
-    :param default_mode: if default mode
     :return: updated params
     """
     if dataset.problem_type == 'classification' and dataset.y_n_classes > 2:
@@ -133,13 +118,12 @@ def rule_xgboost(dataset, default_mode, params):
     return params
 
 
-def rule_nn(dataset, default_mode, params):
+def rule_nn(dataset, params):
     """
     check params for neural networks specifically
 
     :param dataset:
     :param params: params
-    :param default_mode: if default mode
     :return: updated params
     """
     if dataset.problem_type == 'regression':

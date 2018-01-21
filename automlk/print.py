@@ -72,7 +72,7 @@ def print_params(p):
     if isinstance(p, dict):
         return ", ".join([key.replace('_', ' ') + ': ' + print_value(p[key]) for key in p.keys() if key not in excluded])
     else:
-        return None
+        return ''
 
 
 def print_indent(t, indent=4):

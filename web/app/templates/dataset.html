@@ -73,6 +73,13 @@
                     <img src="/get_img_dataset/{{dataset.dataset_id}}/models_1?{{refresher}}"></img>
                 </td>
             </tr>
+            {% if dataset.scan %}
+            <tr>
+                <td>
+                    <img src="/get_img_dataset/{{dataset.dataset_id}}/scan?{{refresher}}"></img>
+                </td>
+            </tr>
+            {% endif %}
             {% if best2|count > 0 %}
             <tr>
                 <td>
@@ -254,16 +261,6 @@ $(".modal-body #description").val($(this).data('description'));
 
 </script>
 {% endif %}
-
-<script>
-    $(document).ready(function(){
-    if(window.location.hash != "") {
-        $('a[href="' + window.location.hash + '"]').click()
-    }
-
-});
-
-</script>
 
 {% endblock %}
 

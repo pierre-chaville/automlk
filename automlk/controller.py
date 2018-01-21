@@ -8,34 +8,30 @@ from .textset import create_textset, get_textset_status
 from .solutions import *
 from .solutions_pp import *
 from .worker import get_search_rounds
-from .monitor import heart_beep, set_installed_version
-from .graphs import graph_history_search
+from .monitor import heart_beep
+from .graphs import graph_history_search, graph_history_scan
 from .specific import *
 from .prepare import prepare_dataset_sets
 
-PATIENCE = 500  # number of equivalent results to wait before stop
-ROUNDS_MAX = 5000  # number max of rounds before stop
+PATIENCE = 500               # number of equivalent results to wait before stop
+ROUNDS_MAX = 5000            # number max of rounds before stop
+RATIO_START_THRESHOLD = 10   # number of results to start applying a threshold
+ROUND_START_ENSEMBLE = 100   # number of results to start ensembles
+RATIO_L1_L2 = 2              # number of L1 rounds compared to L2 rounds
 
-ROUND_START_ENSEMBLE = 200  # number of rounds to start ensembles
-RATIO_L1_L2 = 2  # number of L1 rounds compared to L2 rounds
-
-RATIO_ROUNDS = 10  # number rounds -> equivalent in number of results (only a fraction can pass threshold)
-RATIO_START_THRESHOLD = 100  # number of rounds to start applying a threshold
-RATIO_MIN = 2  # minimum models to include in threshold (should be > 1)
-RATIO_THRESHOLD_MAX = 50  # maximum % of models to include in threshold (should be > 1)
-RATIO_THRESHOLD_SLOPE = 10  # % of models decrease per 50 results to include in threshold (should be > 1)
+RATIO_ROUNDS = 10            # number rounds -> equivalent in number of results (only a fraction can pass threshold)
+RATIO_MIN = 2                # minimum models to include in threshold (should be > 1)
+RATIO_THRESHOLD_MAX = 50     # maximum % of models to include in threshold (should be > 1)
+RATIO_THRESHOLD_SLOPE = 10   # % of models decrease per 50 results to include in threshold (should be > 1)
 
 log = logging.getLogger(__name__)
 
 
-def launch_controller():
+def controller_loop():
     """
     controller process: manages the search strategy and send instruction to workers
     :return:
     """
-    # update installed version on disk to synchronize automatically the version of the controllers
-    set_installed_version()
-
     i_dataset = -1
     # controls the optimization rounds and sends instructions to the workers
     while True:
@@ -78,7 +74,8 @@ def launch_controller():
         # then read the results queue
         while llen_key_store(RESULTS_QUEUE) > 0:
             msg_result = brpop_key_store(RESULTS_QUEUE)
-            __process_result(msg_result)
+            if msg_result is not None:
+                __process_result(msg_result)
 
         # then wait 1 second
         time.sleep(1)
@@ -102,27 +99,46 @@ def __create_search_round(dataset_id):
 
     # initialize search parameters
     level = 1
-    default_mode = False
+    mode = 'scan'
+    pct = 1.
+    cv = True
     ensemble_depth = 0
-    threshold = 0
+    threshold_sel, threshold_cv = 0, 0
     df = pd.DataFrame()
 
     # generate model and model params
     l1_choices = __get_model_class_list(dataset, 1)
 
-    if round_id < len(l1_choices):
-        # default mode, level 1
-        default_mode = True
+    if dataset.scan:
+        # pct in 20 %, 40 %, 60 %, 80 % and 100 %, ie 5 times
+        rounds_scan = len(l1_choices) * 5
+        rounds_default = len(l1_choices)*6
+    else:
+        rounds_scan = 0
+        rounds_default = len(l1_choices)
+
+    # default choices
+    if round_id < rounds_default:
         round_id_l1 = round_id
         i_choice = round_id_l1 % len(l1_choices)
         ref = l1_choices[i_choice]
         solution = model_solutions_map[ref]
         params = solution.default_params
+        if round_id < rounds_scan:
+            # scan mode, level 1
+            mode = 'scan'
+            i_pct = round_id_l1 // len(l1_choices)
+            pct = [.2, .4, .6, .8, 1.][i_pct]
+            cv = False
+        else:
+            # default mode, level 1
+            mode = 'default'
     else:
+        mode = 'search'
         # get search history
         df = get_search_rounds(dataset_id)
         # find threshold
-        threshold = __focus_threshold(df, round_id)
+        threshold_sel, threshold_cv = __focus_threshold(df, round_id)
         level, round_id_l1, round_id_l2 = __get_round_ids(round_id)
         log.info('get_ids: round_id:%d, level=%d, l1=%d, l2=%d' % (round_id, level, round_id_l1, round_id_l2))
 
@@ -133,10 +149,9 @@ def __create_search_round(dataset_id):
             ensemble_depth = random.randint(1, 3)
         else:
             # focus on models > threshold
-            if threshold != 0:
-                l1_choices = [x[0] for x in __get_list_best_models(df) if x[1] <= threshold]
+            if threshold_sel != 0:
+                l1_choices = [x[0] for x in __get_list_best_models(df) if x[1] <= threshold_sel]
                 log.info('focusing on %s' % l1_choices)
-
             i_choice = round_id_l1 % len(l1_choices)
             ref = l1_choices[i_choice]
 
@@ -145,19 +160,19 @@ def __create_search_round(dataset_id):
 
     # check params
     rule = solution.rule_params
-    if rule:
-        params = rule(dataset, default_mode, params)
+    if rule is not None:
+        params = rule(dataset, params)
 
     # generate pre-processing pipeline and pre-processing params
     if level == 1:
-        pipeline = __get_pipeline(dataset, solution, default_mode, round_id_l1, df, threshold)
+        pipeline = __get_pipeline(dataset, solution, mode, round_id_l1, df, threshold_sel)
     else:
         pipeline = [('FR-PASS', 'feature', 'No Feature selection', {})]
 
     # generate search message
     return {'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': solution.ref, 'level': level,
             'ensemble_depth': ensemble_depth, 'model_name': solution.name, 'model_params': params, 'pipeline': pipeline,
-            'threshold': threshold, 'time_limit': __time_limit(dataset)}  # 'percent_data': 100, 'cv': True}
+            'threshold': threshold_cv, 'pct': pct, 'cv': cv, 'mode': mode, 'time_limit': __time_limit(dataset)}
 
 
 def __prepare_text_sets(dataset):
@@ -243,7 +258,7 @@ def __duplicate_search_round(round, dataset_id):
     return {'dataset_id': dataset.dataset_id, 'round_id': round_id, 'solution': round["solution"],
             'level': round["level"], 'ensemble_depth': round["ensemble_depth"], 'model_name': round["model_name"],
             'model_params': round["model_params"], 'pipeline': round["pipeline"],
-            'threshold': 0, 'time_limit': __time_limit(dataset)}
+            'threshold': 0, 'time_limit': __time_limit(dataset), 'pct': 1., 'cv': True, 'mode': 'search'}
 
 
 def __get_round_ids(round_id):
@@ -270,15 +285,15 @@ def __focus_threshold(df, round_id):
 
     :param df:
     :param round_id:
-    :return:
+    :return: threshold for selection and for cv
     """
     if len(df) < RATIO_START_THRESHOLD:
-        return 0
+        return 0, 0
 
-    df0 = df[(df.cv_max != METRIC_NULL) & (df.level == 1)].groupby('model_name', as_index=False).min()
+    df0 = df[(df.cv_max != METRIC_NULL) & ((df.level == 1) & df.cv)].groupby('model_name', as_index=False).min()
     scores = np.sort(df0.cv_max.values)
     if len(scores) < 5:
-        return 0
+        return 0, 0
 
     # we take into account the length of results, but also we cap the round_id (1/10):
     base = max(len(df), round_id / RATIO_ROUNDS) - RATIO_START_THRESHOLD
@@ -286,9 +301,11 @@ def __focus_threshold(df, round_id):
     # we will decrease the threshold from max % of the best scores to min%
     ratio = RATIO_THRESHOLD_MAX - base * RATIO_THRESHOLD_SLOPE / 50
     n = max(RATIO_MIN, round(len(scores) * ratio / 100))
-    threshold = scores[n - 1]
-    log.info('outlier threshold set at: %.5f (ratio=%.2f%%, n=%d, %d scores)' % (threshold, ratio, n, len(scores)))
-    return threshold
+    threshold_sel = scores[n - 1]
+
+    # threshold on cv is set to the 2 best models
+    threshold_cv = scores[1]
+    return threshold_sel, threshold_cv
 
 
 def __time_limit(dataset):
@@ -301,7 +318,7 @@ def __time_limit(dataset):
         return 6 * 3600
 
 
-def __get_pipeline(dataset, solution, default_mode, i_round, df, threshold):
+def __get_pipeline(dataset, solution, mode, i_round, df, threshold):
     # generates the list of potential data pre-processing depending on the problem type
     pipeline = []
     if threshold == 0:
@@ -311,44 +328,40 @@ def __get_pipeline(dataset, solution, default_mode, i_round, df, threshold):
 
     # missing values
     if len(dataset.missing_cols) > 0:
-        pipeline.append(__get_pp_choice(dataset, 'missing', solution, default_mode, i_round, best_pp, threshold))
+        pipeline.append(__get_pp_choice(dataset, 'missing', solution, mode, i_round, best_pp, threshold))
 
     # numerical values
     numeric_cols = [f.name for f in dataset.features if f.raw_type.startswith('float')]
     if len(numeric_cols) > 0:
-        pipeline.append(__get_pp_choice(dataset, 'float', solution, default_mode, i_round, best_pp, threshold))
+        pipeline.append(__get_pp_choice(dataset, 'float', solution, mode, i_round, best_pp, threshold))
 
     # date values
     date_cols = [f.name for f in dataset.features if f.col_type == 'date']
     if len(date_cols) > 0:
-        pipeline.append(__get_pp_choice(dataset, 'date', solution, default_mode, i_round, best_pp, threshold))
+        pipeline.append(__get_pp_choice(dataset, 'date', solution, mode, i_round, best_pp, threshold))
 
     # X pre-processing: text
     if len(dataset.text_cols) > 0:
-        pipeline.append(__get_pp_choice(dataset, 'text', solution, default_mode, i_round, best_pp, threshold))
+        pipeline.append(__get_pp_choice(dataset, 'text', solution, mode, i_round, best_pp, threshold))
 
     # X pre-processing: categorical
     if len(dataset.cat_cols) > 0:
-        pipeline.append(__get_pp_choice(dataset, 'categorical', solution, default_mode, i_round, best_pp, threshold))
+        pipeline.append(__get_pp_choice(dataset, 'categorical', solution, mode, i_round, best_pp, threshold))
 
     # scaling
-    pipeline.append(__get_pp_choice(dataset, 'scaling', solution, default_mode, i_round, best_pp, threshold))
+    pipeline.append(__get_pp_choice(dataset, 'scaling', solution, mode, i_round, best_pp, threshold))
 
     # feature selection
-    pipeline.append(__get_pp_choice(dataset, 'feature', solution, default_mode, i_round, best_pp, threshold))
-
-    # re-sampling
-    if dataset.problem_type == 'classification' and dataset.sampling:
-        pipeline.append(__get_pp_choice(dataset, 'sampling', solution, default_mode, i_round, best_pp, threshold))
+    pipeline.append(__get_pp_choice(dataset, 'feature', solution, mode, i_round, best_pp, threshold))
 
     # clean and return the pipeline from null steps
     return [p for p in pipeline if p[0] != '']
 
 
-def __get_pp_choice(dataset, category, solution, default_mode, i_round, best_pp, threshold):
+def __get_pp_choice(dataset, category, solution, mode, i_round, best_pp, threshold):
     # select a solution bewteen the list of potential solutions from the category
     if threshold == 0:
-        choices = __get_pp_list(dataset, category, solution, default_mode)
+        choices = __get_pp_list(dataset, category, solution, mode)
     else:
         choices = [x[0] for x in best_pp if (x[1] == category) and (x[2] <= threshold)]
         log.info('focusing on pre-processing for %s / %s' % (category, choices))
@@ -359,7 +372,7 @@ def __get_pp_choice(dataset, category, solution, default_mode, i_round, best_pp,
     i_pp = i_round % len(choices)
     ref = __check_ref(choices[i_pp], category)
     s = pp_solutions_map[ref]
-    if default_mode:
+    if mode in ['scan', "default"]:
         params = s.default_params
     else:
         params = get_random_params(s.space_params)
@@ -379,10 +392,10 @@ def __check_ref(ref, category):
     return ref
 
 
-def __get_pp_list(dataset, category, solution, default_mode):
+def __get_pp_list(dataset, category, solution, mode):
     # generates the list of potential pre-processing choices in a specific category, depending on the problem type
     choices = []
-    if default_mode:
+    if mode in ['scan', 'default']:
         l_solutions = [pp_solutions_map[p] for p in solution.pp_default]
     else:
         l_solutions = [pp_solutions_map[p] for p in solution.pp_list]
@@ -426,20 +439,30 @@ def __process_result(msg_result):
 
     dataset = get_dataset(dataset_id)
 
+    # check number of results with cv:
+    n_cv = len(df[df.cv == 1])
+    select_cv = [True] if (n_cv > 5) else [True, False]
+
     # generate graphs
-    best = __get_best_models(df)
-    best1 = best[best.level == 1]
-    best2 = best[best.level == 2]
-    graph_history_search(dataset, df, best1, 1)
-    graph_history_search(dataset, df, best2, 2)
+
+    # scan graph
+    if msg_result['mode'] == 'scan':
+        best_scan = df[df['mode'] == 'scan'].sort_values(by=['solution', 'cv_mean']). \
+                        groupby('solution', as_index=False).first().sort_values(by='cv_mean').model_name.values[:5]
+        graph_history_scan(dataset, df, best_scan)
+
+    # history graphs
+    best = __get_best_models(df, select_cv)
+    graph_history_search(dataset, df[df.cv.isin(select_cv)], best[best.level == 1], 1)
+    graph_history_search(dataset, df[df.cv.isin(select_cv)], best[best.level == 2], 2)
 
     # then update search
     set_key_store('dataset:%s:results' % dataset_id, len(df))
     set_key_store('dataset:%s:best' % dataset_id, best.to_dict(orient='records'))
-    set_key_store('dataset:%s:best_pp' % dataset_id, __get_best_pp(df))
+    set_key_store('dataset:%s:best_pp' % dataset_id, __get_best_pp(df, select_cv))
 
     # then check patience
-    if len(best2 > 0):
+    if len(best[best.level == 2] > 0):
         last_best, last_best_id = __get_last_best(df)
         if msg_result['round_id'] - last_best_id > PATIENCE:
             log.info('patience reached for dataset %s at round %d (last best: %d): search completed' % (
@@ -460,15 +483,16 @@ def __get_last_best(df):
 
 def __get_list_best_models(df, level=1):
     # returns best models
-    if len(df[df.level == level]) < 1:
+    if len(df[(df.level == level) & df.cv]) < 1:
         return []
-    best = df[df.level == level].sort_values(by=['solution', 'cv_max']). \
+    best = df[(df.level == level) & df.cv].sort_values(by=['solution', 'cv_max']). \
         groupby('solution', as_index=False).first().sort_values(by='cv_max')
     return [(x, y) for x, y in zip(best.solution.values, best.cv_max.values)]
 
 
-def __get_best_models(df):
+def __get_best_models(df0, select_cv):
     # get the best results per model
+    df = df0[df0.cv.isin(select_cv)]
     if len(df) < 1:
         return pd.DataFrame()
     best = df.sort_values(by=['model_name', 'cv_mean']).groupby('model_name', as_index=False).first().sort_values(
@@ -483,16 +507,16 @@ def __get_best_models(df):
 def __get_list_best_pp(df, cv_max=False):
     # get the best results per pre-processing
     l = []
-    for cat, l_cat in __get_best_pp(df, cv_max):
+    for cat, l_cat in __get_best_pp(df, [True], cv_max):
         for p in l_cat:
             l.append((p['cat_ref'], cat, p['cv_max']))
     return l
 
 
-def __get_best_pp(df, cv_max=False):
+def __get_best_pp(df, select_cv, cv_max=False):
     # get the best results per pre-processing
 
-    df = df[df.level == 1].copy()
+    df = df[df.cv.isin(select_cv)][(df.level == 1) & (df.mode != 'scan')].copy()
     if len(df) < 1:
         return []
 

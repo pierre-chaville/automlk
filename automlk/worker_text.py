@@ -30,16 +30,18 @@ def get_textset_w2v(textset_id, model, size):
     return pickle.load(open(get_data_folder() + '/texts/w2v_%d_%d.pkl' % (textset_id, size), 'rb'))
 
 
-def launch_worker_text():
+def worker_text_loop():
     """
     periodically pool the receiver queue for a search job
 
     :return:
     """
     while True:
+        heart_beep('worker_text', '')
         # check the list of datasets
         for ts in get_textset_list():
             if ts.status != 'completed':
+                heart_beep('worker_text', {'textset_id': ts.textset_id, 'textset_name': ts.name})
                 log.info('searching textset %s' % ts.textset_id)
 
                 # read textset

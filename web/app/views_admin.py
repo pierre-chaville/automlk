@@ -9,6 +9,7 @@ from automlk.context import get_config, set_config
 def monitor():
     # monitor workers
     return render_template('monitor.html', controller=get_heart_beeps('controller'),
+                           grapher=get_heart_beeps('grapher'), worker_text=get_heart_beeps('worker_text'),
                            workers=get_heart_beeps('worker'), config=get_config())
 
 

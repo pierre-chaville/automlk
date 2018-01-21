@@ -16,17 +16,18 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s [%(mod
 logging.info('starting grapher')
 
 
-def launch_grapher():
+def grapher_loop():
     """
     periodically pool the grapher queue for a job
 
     :return: 
     """
     while True:
+        heart_beep('grapher', '')
         # check the list of datasets
         for dt in get_dataset_list():
             if dt.status != 'created' and not dt.grapher:
-                heart_beep('grapher', dt.dataset_id)
+                heart_beep('grapher', {'dataset_id': dt.dataset_id, 'dataset_name': dt.name})
                 logging.info('grapher on dataset: %s' % dt.dataset_id)
                 create_graph_data(dt.dataset_id)
         time.sleep(60)

@@ -262,7 +262,7 @@ def start_search(dataset_id):
                                    y_col=form.y_col.data,
                                    val_col=form.val_col.data,
                                    val_col_shuffle=form.val_col_shuffle.data,
-                                   sampling=form.sampling.data)
+                                   scan=form.scan.data)
             set_key_store('dataset:%s:status' % dataset_id, 'searching')
             return redirect('index')
         else:
@@ -283,7 +283,7 @@ def start_search(dataset_id):
         form.y_col.data = dataset.y_col
         form.val_col.data = dataset.val_col
         form.val_col_shuffle.data = dataset.val_col_shuffle
-        form.sampling.data = dataset.sampling
+        form.scan.data = dataset.scan
 
     return render_template('start.html', dataset=dataset, form=form, config=get_config())
 
