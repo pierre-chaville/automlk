@@ -20,6 +20,7 @@
 {% endif %}
     <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="../static/css/nav.css">
+    <link rel="stylesheet" href="../static/css/clt.css">
 
 
 </head>
@@ -37,58 +38,7 @@
 <div class="navbar navbar-default navbar-fixed-top">
     <div class="container">
         <div class="navbar-collapse collapse" id="navbar-main">
-            <ul class="nav navbar-nav">
-                <li class="dropdown">
-                    <a href="/index">Home</a>
-                </li>
-                <li class="dropdown">
-                    <a href="#" data-toggle="dropdown" class="dropdown-toggle">View <b class="caret"></b></a>
-                    <ul class="dropdown-menu">
-                        <li class="dropdown">
-                            <a href="/index"><span data-toggle="tooltip" data-placement="left"
-                                                    title="list of datasets">Datasets</span></a>
-                        </li>
-                        <li class="dropdown">
-                            <a href="/textset_list"><span data-toggle="tooltip" data-placement="left"
-                                                    title="list of text sets">Text sets</span></a>
-                        </li>
-                    </ul>
-                </li>
-                <li class="dropdown">
-                    <a href="#" data-toggle="dropdown" class="dropdown-toggle">New <b class="caret"></b></a>
-                    <ul class="dropdown-menu">
-                        <li class="dropdown">
-                            <a href="/create"><span data-toggle="tooltip" data-placement="left"
-                                                    title="create new dataset">Dataset</span></a>
-                        </li>
-                        <li class="dropdown">
-                            <a href="/create_text"><span data-toggle="tooltip" data-placement="left"
-                                                    title="create new text set">Text set</span></a>
-                        </li>
-                        <li class="dropdown">
-                            <a href="/import"><span data-toggle="tooltip" data-placement="left"
-                                                    title="import datasets from a file description">Import</span></a>
-                        </li>
-                    </ul>
-                </li>
-                <li class="dropdown">
-                    <a href="#" data-toggle="dropdown" class="dropdown-toggle">Admin <b class="caret"></b></a>
-                    <ul class="dropdown-menu">
-
-                        <li class="dropdown">
-                            <a href="/monitor"><span data-toggle="tooltip" data-placement="left"
-                                                     title="monitor controller and workers">Monitor</span></a>
-                        </li>
-                        <li class="dropdown">
-                            <a href="/config"><span data-toggle="tooltip" data-placement="left"
-                                                    title="configuration set-up">Config</span></a>
-                        </li>
-                    </ul>
-                </li>
-                <li class="dropdown">
-                    <a target="_blank" href="http://automlk.readthedocs.io/en/latest/app.html">Help</a>
-                </li>
-            </ul>
+            {% include "menu.html" %}
             <ul class="nav navbar-nav navbar-right">
                 <li><a><span style="font-size:24px">AutoML<i>k</i></span></a></li>
             </ul>

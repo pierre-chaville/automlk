@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Folders</h3>
+
+<div class="clt" style="width=500px">
+{% set parent_folder = 0 %}
+    <h4><i class="fa fa-folder-open" aria-hidden="true"></i>&nbsp;<span class="label label-primary">&nbsp;Root&nbsp;</span>
+        &nbsp;&nbsp;
+    <span data-toggle="tooltip" data-placement="left" title="add sub-folder">
+                <a href="#AddModal"
+                   class="open_AddModal"
+                   style="color:inherit; text-decoration: none;"
+                   data-toggle="modal"
+                   data-target="#AddModal"
+                   data-id="0"
+                   data-name="Root"><i class="fa fa-plus"></i></a></span>
+    </h4>
+{% include 'sub_folder.html' %}
+</div>
+
+{% for f in folders %}
+<div>
+</div>
+{% endfor %}
+
+<script type="text/javascript">
+$(document).on("click", ".open_DeleteModal", function() {
+$(".modal-body #id_delete").val($(this).data('id'));
+$(".modal-body #name_delete").val($(this).data('name'));
+});
+
+$(document).on("click", ".open_UpdateModal", function() {
+$(".modal-body #id_update").val($(this).data('id'));
+$(".modal-body #id_parent_update").val($(this).data('parent'));
+$(".modal-body #name_update").val($(this).data('name'));
+});
+
+$(document).on("click", ".open_AddModal", function() {
+$(".modal-body #id_parent_add").val($(this).data('id'));
+$(".modal-body #name_parent_add").val($(this).data('name'));
+});
+
+</script>
+
+<div class="modal fade" id="UpdateModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Rename folder</h4>
+            </div>
+            <form role="form" action="/update_folder" method="POST" name="request" enctype="multipart/form-data">
+                {{ update_form.hidden_tag() }}
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Id</label>
+                        <input class="form-control" type="text" name="id_update" id="id_update" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Parent folder</label>
+                        {{ update_form.id_parent_update(class="form-control") }}
+                    </div>
+                    <div class="form-group">
+                        <label>Name</label>
+                        {{ update_form.name_update(class="form-control") }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn_default" data-dismiss="modal">Cancel</button>
+                    {{ update_form.submit }}
+                    <input type="submit" class="btn btn_primary" value="Submit">
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="AddModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">New folder</h4>
+            </div>
+            <form role="form" action="/create_folder" method="POST" name="request" enctype="multipart/form-data">
+                {{ add_form.hidden_tag() }}
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Id parent folder</label>
+                        <input class="form-control" type="text" name="id_parent_add" id="id_parent_add" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Name parent folder</label>
+                        <input class="form-control" type="text" name="name_parent_add" id="name_parent_add" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Name new folder</label>
+                        <input class="form-control" type="text" name="name_add" id="name_add">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn_default" data-dismiss="modal">Cancel</button>
+                    {{ add_form.submit }}
+                    <input type="submit" class="btn btn_primary" value="Submit">
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="DeleteModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="myModalLabel">Are you sure you want to delete this folder ?</h4>
+            </div>
+            <form role="form" action="/delete_folder" method="POST" name="request" enctype="multipart/form-data">
+                {{ del_form.hidden_tag() }}
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Id</label>
+                        <input class="form-control" type="text" name="id_delete" id="id_delete" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input class="form-control" type="text" name="name_delete" id="name_delete" readonly>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn_default" data-dismiss="modal">Cancel</button>
+                    {{ del_form.submit }}
+                    <input type="submit" class="btn btn_primary" value="Submit">
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

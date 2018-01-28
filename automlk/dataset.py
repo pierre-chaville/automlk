@@ -9,6 +9,7 @@ from .metrics import metric_map
 from .store import *
 from .textset import get_textset_list
 from .context import get_dataset_folder
+from .folders import get_folder_list
 from .xyset import XySet
 
 
@@ -63,13 +64,15 @@ def get_dataset(dataset_id, include_results=False):
             d['init_data']['mode'] = 'competition'
         else:
             d['init_data']['mode'] = 'standard'
-    if 'domain' not in d['init_data'].keys():
-        d['init_data']['domain'] = ''
+    if 'folder_id' not in d['init_data'].keys():
+        d['init_data']['folder_id'] = 0
     # deleted fields
     if 'is_public' in d['init_data'].keys():
         d['init_data'].pop('is_public')
     if 'is_uploaded' in d['init_data'].keys():
         d['init_data'].pop('is_uploaded')
+    if 'domain' in d['init_data'].keys():
+        d['init_data'].pop('domain')
 
     # upward compatibility for prob_data
     if 'prob_data' not in d.keys():
@@ -121,13 +124,13 @@ def get_dataset(dataset_id, include_results=False):
     return dt
 
 
-def create_dataset(name, domain, description, source, mode, filename_train, filename_test='', filename_cols='',
+def create_dataset(name, folder_id, description, source, mode, filename_train, filename_test='', filename_cols='',
                    filename_submit='', url=''):
     """
     creates a dataset
 
     :param name: name of the dataset
-    :param domain: domain classification of the dataset (string separated by /)
+    :param folder_id: folder for classification
     :param description: description of the dataset
     :param source: source of the dataset
     :param mode: standard (train set), benchmark (train + test set), competition (train + submit set)
@@ -143,7 +146,7 @@ def create_dataset(name, domain, description, source, mode, filename_train, file
     creation_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # others = [m for m in other_metrics.replace(' ', '').split(',') if m != '']
-    dt = DataSet(0, name, domain, description, source, mode, filename_train,
+    dt = DataSet(0, name, folder_id, description, source, mode, filename_train,
                  filename_test=filename_test, filename_cols=filename_cols,
                  filename_submit=filename_submit,
                  url=url, creation_date=creation_date)
@@ -169,23 +172,24 @@ def create_dataset(name, domain, description, source, mode, filename_train, file
     return dt
 
 
-def update_dataset(dataset_id, name, domain, description, is_uploaded, source, url):
+def update_dataset(dataset_id, name, folder_id, description, source, url):
     """
     update specific fields of the dataset
 
     :param dataset_id: id of the dataset
     :param name: new name of the dataset
+    :param folder_id: folder
     :param description: new description of the dataset
-    :param is_uploaded: info on uploaded
     :param source: source of the dataset
     :param url: url of the dataset
     :return:
     """
     dt = get_dataset(dataset_id)
     dt.name = name
-    dt.domain = domain
+    if folder_id not in [f['id'] for f in get_folder_list()]:
+        raise ValueError('folder id %s is not a folder' % str(folder_id))
+    dt.folder_id = folder_id
     dt.description = description
-    dt.is_uploaded = is_uploaded
     dt.source = source
     dt.url = url
     dt.save(dataset_id)
@@ -322,13 +326,13 @@ class DataSet(object):
     a dataset is an object managing all the features and data of an experiment
     """
 
-    def __init__(self, dataset_id, name, domain, description, source, mode, filename_train,
+    def __init__(self, dataset_id, name, folder_id, description, source, mode, filename_train,
                  filename_test, filename_cols, filename_submit, url, creation_date):
         """
         creates a new dataset: it will be automatically stored
 
         :param name: name of the dataset
-        :param domain: domain classification of the dataset (string separated by /)
+        :param folder_id: id of the folder (for classification)
         :param description: description of the dataset
         :param source: source of the dataset
         :param mode: standard (train set), benchmark (train + test set), competition (train + submit set)
@@ -340,7 +344,10 @@ class DataSet(object):
         # descriptive data:
         self.dataset_id = dataset_id
         self.name = name
-        self.domain = domain
+        if folder_id not in [f['id'] for f in get_folder_list()]:
+            raise ValueError('folder id %s is not a folder' % str(folder_id))
+        self.folder_id = folder_id
+
         self.description = description
 
         self.with_test_set = False
@@ -528,7 +535,7 @@ class DataSet(object):
         self.dataset_id = dataset_id
 
         # save as json
-        store = {'init_data': {'dataset_id': self.dataset_id, 'name': self.name, 'domain': self.domain,
+        store = {'init_data': {'dataset_id': self.dataset_id, 'name': self.name, 'folder_id': self.folder_id,
                                'description': self.description,
                                'source': self.source, 'mode': self.mode,
                                'filename_train': self.filename_train, 'filename_test': self.filename_test,

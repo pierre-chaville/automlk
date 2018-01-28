@@ -13,6 +13,7 @@ from automlk.specific import *
 from automlk.worker import get_search_rounds
 from automlk.graphs import get_cnf_matrix
 from automlk.store import set_key_store
+from automlk.folders import *
 
 # include additional views
 from .views_api import *
@@ -25,24 +26,21 @@ from .views_admin import *
 @app.route('/index', methods=['GET', 'POST'])
 def index():
     # home page: list of models
-    # datasets = get_dataset_list(include_results=True)[::-1]
     datasets = get_home_best()
-    sel_form = DomainForm()
-    domains = set([d.domain for d in datasets])
-    sel_form.set_choices(domains)
+    sel_form = FolderForm()
+    sel_form.set_choices(get_folder_list())
     del_form = DeleteDatasetForm()
     reset_form = ResetDatasetForm()
     if request.method == 'POST':
         redirect_to_index = redirect('/index')
         response = app.make_response(redirect_to_index)
-        response.set_cookie('automlk_folder', value=sel_form.domain.data)
+        response.set_cookie('automlk_folder', value=str(sel_form.folder.data))
         return response
     if 'automlk_folder' in request.cookies:
-        folder = request.cookies.get('automlk_folder')
-        domains = [d for d in domains if d.startswith(folder)]
-        datasets = [d for d in datasets if d.domain in domains]
-        sel_form.domain.data = folder
-    return render_template('index.html', datasets=datasets, domains=domains, refresher=int(time.time()),
+        folder = int(request.cookies.get('automlk_folder'))
+        sel_form.folder.data = folder
+    folders = [f for f in get_folder_list() if sel_form.folder.data == 0 or f['id'] == sel_form.folder.data]
+    return render_template('index.html', datasets=datasets, folders=folders, refresher=int(time.time()),
                            sel_form=sel_form, reset_form=reset_form, del_form=del_form, config=get_config())
 
 
@@ -146,6 +144,7 @@ def round(prm):
 def create():
     # form to create a new dataset
     form = CreateDatasetForm()
+    form.set_choices(get_folder_list())
     if request.method == 'POST':
         r = create_dataset_form(form)
         if r:
@@ -187,7 +186,7 @@ def create_dataset_form(form):
                     form.filename_submit.data = ''
 
             create_dataset(name=form.name.data,
-                           domain=form.domain.data,
+                           folder_id=form.folder.data,
                            description=form.description.data,
                            source=form.source.data,
                            url=form.url.data,
@@ -208,6 +207,7 @@ def create_dataset_form(form):
 def duplicate(dataset_id):
     # form to duplicate a dataset
     form = CreateDatasetForm()
+    form.set_choices(get_folder_list())
 
     if request.method == 'POST':
         r = create_dataset_form(form)
@@ -218,7 +218,7 @@ def duplicate(dataset_id):
 
         # copy data to form
         form.name.data = dataset.name + ' (copy)'
-        form.domain.data = dataset.domain
+        form.folder.data = dataset.folder_id
         form.description.data = dataset.description
         form.source.data = dataset.source
         form.url.data = dataset.url
@@ -304,22 +304,24 @@ def pause(dataset_id):
 def update(dataset_id):
     # form to update a dataset
     form = UpdateDatasetForm()
+    form.set_choices(get_folder_list())
     if request.method == 'POST':
-        if form.validate():
+        if form.validate_on_submit():
             update_dataset(dataset_id,
                            name=form.name.data,
-                           domain=form.domain.data,
+                           folder_id=form.folder.data,
                            description=form.description.data,
-                           is_uploaded=form.is_uploaded.data,
                            source=form.source.data,
                            url=form.url.data)
             return redirect('/index')
+        else:
+            flash('not validated')
     else:
         dataset = get_dataset(dataset_id)
 
         # copy data to form
         form.name.data = dataset.name
-        form.domain.data = dataset.domain
+        form.folder.data = dataset.folder_id
         form.description.data = dataset.description
         form.source.data = dataset.source
         form.url.data = dataset.url
@@ -377,3 +379,34 @@ def import_file():
 
     return render_template('import.html', form=form, config=get_config())
 
+
+@app.route('/folders', methods=['GET'])
+def view_folders():
+    # list of folders
+    del_form = DeleteFolderForm()
+    add_form = AddFolderForm()
+    update_form = UpdateFolderForm()
+    update_form.set_choices(get_folder_list())
+    return render_template('folders.html', folders=get_folder_list(), update_form=update_form, add_form=add_form,
+                           del_form=del_form, refresher=int(time.time()), config=get_config())
+
+
+@app.route('/create_folder', methods=['POST'])
+def __add_folder():
+    form = AddFolderForm()
+    create_folder(form.id_parent_add.data, form.name_add.data)
+    return redirect('/folders')
+
+
+@app.route('/update_folder', methods=['POST'])
+def __update_folder():
+    form = UpdateFolderForm()
+    update_folder(form.id_update.data, form.id_parent_update.data, form.name_update.data)
+    return redirect('/folders')
+
+
+@app.route('/delete_folder', methods=['POST'])
+def __delete_folder():
+    form = DeleteFolderForm()
+    delete_folder(form.id_delete.data)
+    return redirect('/folders')

@@ -1,0 +1,46 @@
+{% if has_subfolders(parent_folder) %}
+<ul>{% for f in folders %}{% if f.parent == parent_folder %}
+    <li>
+        <table class="table-hover">
+            <tr>
+                <td style="padding:4px">
+                    <font size="4"><i class="fa fa-folder-open" aria-hidden="true"></i>&nbsp;<span class="label label-default">&nbsp;{{f.name}}&nbsp;</span></font>
+                </td>
+                <td style="padding:4px">
+                    <span data-toggle="tooltip" data-placement="left" title="edit folder">
+                <a href="#UpdateModal"
+                   class="open_UpdateModal"
+                   style="color:inherit; text-decoration: none;"
+                   data-toggle="modal"
+                   data-target="#UpdateModal"
+                   data-id="{{f.id}}"
+                   data-parent="{{f.parent}}"
+                   data-name="{{f.name}}"><i class="fa fa-pencil-square-o"></i></a></span>
+                    &nbsp;&nbsp;
+                    <span data-toggle="tooltip" data-placement="left" title="add sub-folder">
+                <a href="#AddModal"
+                   class="open_AddModal"
+                   style="color:inherit; text-decoration: none;"
+                   data-toggle="modal"
+                   data-target="#AddModal"
+                   data-id="{{f.id}}"
+                   data-name="{{f.name}}"><i class="fa fa-plus"></i></a></span>
+                    {% if not has_subfolders(f.id) %}
+                    &nbsp;&nbsp;
+                    <span data-toggle="tooltip" data-placement="left" title="delete folder"><a href="#DeleteModal"
+                                                                                                class="open_DeleteModal"
+                                                                                                style="color:inherit; text-decoration: none;"
+                                                                                                data-toggle="modal"
+                                                                                                data-target="#DeleteModal"
+                                                                                                data-id="{{f.id}}"
+                                                                                                data-name="{{f.name}}">
+                <i class="fa fa-trash-o" aria-hidden="true"></i></a></span>
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+        {% set parent_folder = f.id %}{% include 'sub_folder.html' %}
+    </li>
+    {% endif %}{% endfor %}
+</ul>
+{% endif %}

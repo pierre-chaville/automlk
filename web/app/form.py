@@ -8,7 +8,7 @@ from automlk.dataset import get_dataset_list
 class CreateDatasetForm(FlaskForm):
     # this is the form to create a dataset
     name = StringField(validators=[DataRequired()])
-    domain = StringField(validators=[DataRequired()])
+    folder = SelectField('folder', coerce=int)
     description = TextAreaField()
     source = StringField()
     url = StringField()
@@ -29,15 +29,20 @@ class CreateDatasetForm(FlaskForm):
     filename_submit = StringField()
     file_submit = FileField()
 
+    def set_choices(self, choices):
+        self.folder.choices = [(f['id'], f['name']) for f in choices]
+
 
 class UpdateDatasetForm(FlaskForm):
     # this is the form to update specific fields of a dataset
     name = StringField(validators=[DataRequired()])
-    domain = StringField(validators=[DataRequired()])
+    folder = SelectField('folder', coerce=int)
     description = TextAreaField()
-    is_uploaded = BooleanField()
     source = StringField()
     url = StringField()
+
+    def set_choices(self, choices):
+        self.folder.choices = [(f['id'], f['name']) for f in choices]
 
 
 class StartDatasetForm(FlaskForm):
@@ -140,12 +145,12 @@ class ImportForm(FlaskForm):
     file_import = FileField()
 
 
-class DomainForm(FlaskForm):
-    # form to select domain
-    domain = SelectField(choices=[])
+class FolderForm(FlaskForm):
+    # form to select folders
+    folder = SelectField(choices=[], coerce=int)
 
     def set_choices(self, choices):
-        self.domain.choices = [(x, x) for x in [''] + list(choices)]
+        self.folder.choices = [(f['id'], f['name']) for f in choices]
 
 
 class DataForm(FlaskForm):
@@ -196,3 +201,26 @@ class DupplicateRound(FlaskForm):
 
     def set_choices(self, problem_type):
         self.dataset.choices = [(d.dataset_id, '#%s: %s' % (d.dataset_id, d.name)) for d in get_dataset_list() if d.problem_type == problem_type]
+
+
+class AddFolderForm(FlaskForm):
+    # form to create a folder
+    id_parent_add = IntegerField('id')
+    name_parent_add = StringField('name')
+    name_add = StringField('name')
+
+
+class UpdateFolderForm(FlaskForm):
+    # form to edit a folder
+    id_update = IntegerField('id')
+    id_parent_update = SelectField('parent', coerce=int)
+    name_update = StringField('name')
+
+    def set_choices(self, folders):
+        self.id_parent_update.choices = [(f['id'], f['name']) for f in folders]
+
+
+class DeleteFolderForm(FlaskForm):
+    # form to confirm delete of a folder
+    id_delete = IntegerField('id')
+    name_delete = StringField('name')

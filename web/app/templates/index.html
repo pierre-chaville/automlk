@@ -10,7 +10,7 @@
             <form role="form" action="" method="POST" name="domain" enctype="multipart/form-data">
                 {{ sel_form.hidden_tag() }}
                 <div class="form-group" style="height:70%;">
-                    {{ sel_form.domain(class="form-control", **{"onchange":"submit(this)"}) }}
+                    {{ sel_form.folder(class="form-control", **{"onchange":"submit(this)"}) }}
                 </div>
             </form>
         </td>
@@ -28,12 +28,12 @@
     <th>description</th>
     <th colspan="4">actions</th>
     </thead>
-    {% for domain in domains %}
+    {% for folder in folders %}
     <tr>
-        <td colspan="12"><h4><i class="fa fa-folder-open-o" aria-hidden="true"></i>&nbsp;&nbsp;{{domain}}</h4></td>
+        <td colspan="12"><h4><i class="fa fa-folder-open-o" aria-hidden="true"></i>&nbsp;&nbsp;{{folder.name}}</h4></td>
     </tr>
     {% for dataset in datasets %}
-    {% if dataset.domain == domain %}
+    {% if dataset.folder_id == folder.id %}
     <tr>
         <td>
             <a href="/dataset/{{dataset.dataset_id}}" style="color:inherit; text-decoration: none;">{{dataset.name}}</a><br>
