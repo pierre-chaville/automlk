@@ -33,6 +33,34 @@ def get_search_rounds(dataset_id):
     return pd.DataFrame(results)
 
 
+def create_model_json(dataset_id, round_id):
+    """
+    creates a json file to be downloaded
+
+    :param dataset_id: id of the dataset
+    :param round_id: id of the round
+    :return: file name
+    """
+    search = get_search_rounds(dataset_id)
+    round = search[search.round_id == int(round_id)].to_dict(orient='records')[0]
+
+    d = {}
+    for key in ['solution', 'pipeline', 'model_params', 'mode', 'model_class', 'level']:
+        d[key] = round[key]
+
+    # update n_estimators when early stopping
+    solution = model_solutions_map[round['solution']]
+    if solution.early_stopping != '':
+        model = pickle.load(open(get_dataset_folder(dataset_id) + '/models/%s_model.pkl' % round_id, 'rb'))
+        if hasattr(model, 'n_estimators'):
+            d['model_params']['n_estimators'] = model.n_estimators
+
+    filename = get_dataset_folder(dataset_id) + '/models/model_%s.json' % round_id
+    with open(filename, 'w') as f:
+        f.write(json.dumps(d))
+    return filename
+
+
 def __timer_control(f_stop):
     global __worker_timer_start
     global __worker_timer_limit
@@ -144,6 +172,25 @@ def job_search(msg_search):
     __search(dataset, feature_names, solution, pipe_transform, pipe_model, model, msg_search, ds)
 
 
+def make_model(dataset, msg_search, ds_ini):
+
+    # pre-processing
+    feature_names, ds, pipe = __pre_processing(dataset, msg_search['pipeline'], deepcopy(ds_ini))
+
+    # generate model from solution
+    solution = model_solutions_map[msg_search['solution']]
+    if solution.is_wrapper:
+        model = solution.model(**{**{'problem_type': dataset.problem_type,
+                                     'y_n_classes': dataset.y_n_classes},
+                                  **msg_search['model_params']})
+    else:
+        model = solution.model(**msg_search['model_params'])
+    msg_search['model_class'] = model.__class__.__name__
+    pipe_transform, pipe_model = make_pipeline(*pipe), make_pipeline(*(pipe + [model]))
+
+    return pipe_model
+
+
 def __pre_processing(dataset, pipeline, ds):
     # performs the different pre-processing steps
     pipe = []
@@ -159,8 +206,9 @@ def __pre_processing(dataset, pipeline, ds):
             log.info('executing process %s %s %s' % (category, name, process.transformer_params))
             ds.X_train = process.fit_transform(ds.X_train, ds.y_train)
             pipe.append(process)
-            ds.X_test = process.transform(ds.X_test)
-            ds.X = process.transform(ds.X)
+            if len(ds.X_test) > 0:
+                ds.X_test = process.transform(ds.X_test)
+                ds.X = process.transform(ds.X)
             if len(ds.X_submit) > 0:
                 ds.X_submit = process.transform(ds.X_submit)
             log.info('-> %d features (%s)' % (len(process.get_feature_names()), type(ds.X_train)))
@@ -182,6 +230,8 @@ def __search(dataset, feature_names, solution, pipe_transform, pipe_model, model
 
     if hasattr(model, 'num_rounds'):
         msg_search['num_rounds'] = model.num_rounds
+    elif hasattr(model, 'n_estimators'):
+            msg_search['num_rounds'] = model.n_estimators
     else:
         msg_search['num_rounds'] = None
 

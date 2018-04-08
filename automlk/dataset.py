@@ -53,8 +53,27 @@ def get_dataset(dataset_id, include_results=False):
     :param include_results: if need to extract results also
     :return: dataset object
     """
-    d = get_key_store('dataset:%s' % dataset_id)
+    dt = make_dataset(get_key_store('dataset:%s' % dataset_id))
+    dt.status = get_key_store('dataset:%s:status' % dataset_id)
 
+    # add counters and results
+    dt.grapher = get_key_store('dataset:%s:grapher' % dataset_id)
+    dt.round_counter = get_counter_store('dataset:%s:round_counter' % dataset_id)
+
+    if include_results:
+        dt.results = get_key_store('dataset:%s:results' % dataset_id)
+
+    return dt
+
+
+def make_dataset(d):
+    """
+    get the descriptive data of a dataset
+
+    :param dataset_id: id of the dataset
+    :param include_results: if need to extract results also
+    :return: dataset object
+    """
     # upward compatibility
     # new fields
     if 'mode' not in d['init_data'].keys():
@@ -109,19 +128,24 @@ def get_dataset(dataset_id, include_results=False):
     # then load dataset object
     dt = DataSet(**d['init_data'])
     dt.load(d['load_data'], d['features'])
-    dt.status = get_key_store('dataset:%s:status' % dataset_id)
     # if dt.status != 'created':
     dt.update_problem(**d['prob_data'])
     dt.load_calc(d['calc_data'])
-
-    # add counters and results
-    dt.grapher = get_key_store('dataset:%s:grapher' % dataset_id)
-    dt.round_counter = get_counter_store('dataset:%s:round_counter' % dataset_id)
-
-    if include_results:
-        dt.results = get_key_store('dataset:%s:results' % dataset_id)
-
     return dt
+
+
+def create_dataset_json(dataset_id):
+    """
+    creates a json file to be downloaded
+
+    :param dataset_id: id
+    :return: file name
+    """
+    d = get_key_store('dataset:%s' % dataset_id)
+    filename = get_dataset_folder(dataset_id) + '/data/dataset.json'
+    with open(filename, 'w') as f:
+        f.write(json.dumps(d))
+    return filename
 
 
 def create_dataset(name, folder_id, description, source, mode, filename_train, filename_test='', filename_cols='',

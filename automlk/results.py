@@ -1,4 +1,5 @@
 import pickle
+import json
 import pandas as pd
 import numpy as np
 from .store import exists_key_store, get_key_store
@@ -253,5 +254,9 @@ def create_predict_file(dataset_id, round_id):
         df = df[['_predict', '_actual', '_delta', '_p_class', '_a_class'] + cols]
 
     # save as excel file
-    df.to_excel(get_dataset_folder(dataset_id) + '/submit/predict_%s.xlsx' % round_id, index=False)
+    filename = get_dataset_folder(dataset_id) + '/submit/predict_%s.xlsx' % round_id
+    df.to_excel(filename, index=False)
+
+    return filename
+
 

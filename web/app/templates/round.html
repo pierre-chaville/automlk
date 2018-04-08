@@ -271,6 +271,18 @@
         {% if dataset.mode == 'competition' %}
         <br>
         <br>
+        <h5>Train set</h5>
+        <a href="/get_train_set/{{dataset.dataset_id}}">Download file</a>
+        <br>
+        <br>
+        <h5>Dataset (json)</h5>
+        <a href="/get_dataset_json/{{dataset.dataset_id}}">Download file</a>
+        <br>
+        <br>
+        <h5>Model (json)</h5>
+        <a href="/get_model_json/{{dataset.dataset_id}}/{{round.round_id}}">Download file</a>
+        <br>
+        <br>
         <h5>Submit file</h5>
         <a href="/get_submit/{{dataset.dataset_id}}/{{round.round_id}}">Download file</a>
         {% endif %}

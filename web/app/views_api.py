@@ -1,8 +1,9 @@
 from app import app
 import os
 from flask import send_file, jsonify
-from automlk.dataset import get_dataset, get_dataset_folder
+from automlk.dataset import get_dataset, get_dataset_folder, create_dataset_json
 from automlk.results import create_predict_file
+from automlk.worker import create_model_json
 from automlk.context import get_config
 
 
@@ -13,6 +14,12 @@ def __path_data(dataset_id):
     else:
         return folder
 
+
+def __path_filename(filename):
+    if filename.startswith('..'):
+        return os.path.abspath(filename)
+    else:
+        return filename
 
 @app.route('/column/<string:dataset_id>/<string:col>', methods=['GET'])
 def column(dataset_id, col):
@@ -69,9 +76,31 @@ def get_doc_pdf(dataset_id):
 @app.route('/get_predict/<string:dataset_id>/<string:round_id>', methods=['GET'])
 def get_predict(dataset_id, round_id):
     # download the prediction file
-    create_predict_file(dataset_id, round_id)
-    return send_file(__path_data(dataset_id) + '/submit/predict_%s.xlsx' % round_id,
-                     as_attachment=True, attachment_filename='predict_%s_%s.xlsx' % (dataset_id, round_id))
+    filename = __path_filename(create_predict_file(dataset_id, round_id))
+    return send_file(filename, as_attachment=True, attachment_filename='predict_%s_%s.xlsx' % (dataset_id, round_id))
+
+
+@app.route('/get_train_set/<string:dataset_id>', methods=['GET'])
+def get_train_set(dataset_id):
+    # download the train set used in training
+    dt = get_dataset(dataset_id)
+    filename = __path_filename(dt.filename_train)
+    ext = filename.split('.')[-1]
+    return send_file(filename, as_attachment=True, attachment_filename='train_%s.%s' % (dataset_id, ext))
+
+
+@app.route('/get_dataset_json/<string:dataset_id>', methods=['GET'])
+def get_dataset_json(dataset_id):
+    # download the dataset description as a json file
+    filename = __path_filename(create_dataset_json(dataset_id))
+    return send_file(filename, as_attachment=True, attachment_filename='dataset_%s.json' % dataset_id)
+
+
+@app.route('/get_model_json/<string:dataset_id>/<string:round_id>', methods=['GET'])
+def get_model_json(dataset_id, round_id):
+    # download the pipeline description as a json file
+    filename = __path_filename(create_model_json(dataset_id, round_id))
+    return send_file(filename, as_attachment=True, attachment_filename='model_%s_%s.json' % (dataset_id, round_id))
 
 
 @app.route('/get_pipeline/<string:dataset_id>/<string:round_id>', methods=['GET'])
